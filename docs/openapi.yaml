@@ -1,0 +1,83 @@
+openapi: 3.0.3
+info:
+  title: ConecTenis API
+  version: 0.1.0
+  description: |
+    Laravel API at ~/projects/conec/conectenis (Sail).
+    Implemented today: sanctum token + GET user.
+    Planned endpoints below — Flutter uses mock layer until available.
+servers:
+  - url: http://localhost:8000/api
+paths:
+  /sanctum/token:
+    post:
+      summary: Login (implemented)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, device_name]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                device_name: { type: string }
+      responses:
+        '200':
+          description: Bearer token
+  /user:
+    get:
+      summary: Current user (implemented)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: User resource
+  /register:
+    post:
+      summary: Register (planned)
+  /user/profile:
+    put:
+      summary: Update profile (planned)
+  /user/avatar:
+    post:
+      summary: Upload avatar (planned)
+  /user/location:
+    put:
+      summary: Update location (planned)
+  /players/nearby:
+    get:
+      summary: Nearby players (planned)
+  /courts:
+    get:
+      summary: List courts (planned)
+  /courts/nearby:
+    get:
+      summary: Nearby courts (planned)
+  /courts/{id}:
+    get:
+      summary: Court detail (planned)
+  /conversations:
+    get:
+      summary: List conversations (planned)
+    post:
+      summary: Start conversation (planned)
+  /conversations/{id}/messages:
+    get:
+      summary: Messages (planned)
+  /messages:
+    post:
+      summary: Send message (planned)
+  /matches:
+    get:
+      summary: Match history (planned)
+    post:
+      summary: Log match (planned)
+  /matches/rivals:
+    get:
+      summary: Rival stats (planned)
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
