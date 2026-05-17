@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
 import 'package:conectenis_app/shared/models/court.dart';
@@ -178,3 +179,5 @@ class MockApiService {
     );
   }
 }
+
+final mockApiServiceProvider = Provider<MockApiService>((ref) => MockApiService());

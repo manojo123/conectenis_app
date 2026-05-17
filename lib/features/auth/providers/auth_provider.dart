@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:conectenis_app/core/network/session_provider.dart';
 import 'package:conectenis_app/features/auth/data/auth_repository.dart';
 import 'package:conectenis_app/shared/models/user_profile.dart';
 
@@ -8,6 +9,14 @@ final authStateProvider =
 class AuthNotifier extends AsyncNotifier<UserProfile?> {
   @override
   Future<UserProfile?> build() async {
+    ref.onDispose(() {
+      ref.read(onUnauthorizedProvider.notifier).state = null;
+    });
+
+    ref.read(onUnauthorizedProvider.notifier).state = () {
+      state = const AsyncData(null);
+    };
+
     final token = await ref.read(authRepositoryProvider).getToken();
     if (token == null) return null;
     try {
@@ -21,17 +30,51 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
   Future<void> login(String email, String password) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref.read(authRepositoryProvider).login(email: email, password: password),
+      () => ref.read(authRepositoryProvider).login(
+            email: email,
+            password: password,
+          ),
     );
   }
 
-  Future<void> register(String name, String email, String password) async {
+  Future<void> register(
+    String name,
+    String email,
+    String password,
+    String passwordConfirmation,
+  ) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref
-          .read(authRepositoryProvider)
-          .register(name: name, email: email, password: password),
+      () => ref.read(authRepositoryProvider).register(
+            name: name,
+            email: email,
+            password: password,
+            passwordConfirmation: passwordConfirmation,
+          ),
     );
+  }
+
+  Future<String> forgotPassword(String email) async {
+    return ref.read(authRepositoryProvider).forgotPassword(email: email);
+  }
+
+  Future<String> resetPassword({
+    required String token,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    return ref.read(authRepositoryProvider).resetPassword(
+          token: token,
+          email: email,
+          password: password,
+          passwordConfirmation: passwordConfirmation,
+        );
+  }
+
+  Future<void> refreshUser() async {
+    final user = await ref.read(authRepositoryProvider).fetchCurrentUser();
+    state = AsyncData(user);
   }
 
   Future<void> updateProfile(UserProfile profile) async {

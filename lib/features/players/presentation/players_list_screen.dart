@@ -97,7 +97,7 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<SkillLevel?>(
-                value: _skill,
+                initialValue: _skill,
                 decoration: const InputDecoration(labelText: 'Nível'),
                 items: [
                   const DropdownMenuItem(child: Text('Todos')),

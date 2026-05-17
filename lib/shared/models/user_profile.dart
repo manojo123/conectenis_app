@@ -12,6 +12,8 @@ class UserProfile {
     this.latitude,
     this.longitude,
     this.profileComplete = false,
+    this.roles = const [],
+    this.emailVerifiedAt,
   });
 
   final int id;
@@ -24,6 +26,8 @@ class UserProfile {
   final double? latitude;
   final double? longitude;
   final bool profileComplete;
+  final List<String> roles;
+  final DateTime? emailVerifiedAt;
 
   UserProfile copyWith({
     int? id,
@@ -36,6 +40,8 @@ class UserProfile {
     double? latitude,
     double? longitude,
     bool? profileComplete,
+    List<String>? roles,
+    DateTime? emailVerifiedAt,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -48,6 +54,8 @@ class UserProfile {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       profileComplete: profileComplete ?? this.profileComplete,
+      roles: roles ?? this.roles,
+      emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
     );
   }
 
@@ -63,6 +71,8 @@ class UserProfile {
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       profileComplete: json['profile_complete'] as bool? ?? false,
+      roles: _parseRoles(json['roles']),
+      emailVerifiedAt: _parseDateTime(json['email_verified_at']),
     );
   }
 
@@ -77,6 +87,8 @@ class UserProfile {
         'latitude': latitude,
         'longitude': longitude,
         'profile_complete': profileComplete,
+        'roles': roles,
+        'email_verified_at': emailVerifiedAt?.toIso8601String(),
       };
 
   factory UserProfile.fromLaravelUser(Map<String, dynamic> json) {
@@ -85,6 +97,23 @@ class UserProfile {
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       profileComplete: false,
+      roles: _parseRoles(json['roles']),
+      emailVerifiedAt: _parseDateTime(json['email_verified_at']),
     );
+  }
+
+  static List<String> _parseRoles(dynamic value) {
+    if (value is List) {
+      return value.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
   }
 }

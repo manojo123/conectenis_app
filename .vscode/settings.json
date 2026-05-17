@@ -1,6 +1,10 @@
 {
   "dart.flutterHotReloadOnSave": "allIfDirty",
-  "dart.flutterSdkPath": "C:\\Users\\Jorge Moura\\projects\\flutter",
+  "dart.flutterSdkPath": "C:\\projects\\flutter",
+  "terminal.integrated.env.windows": {
+    "PUB_CACHE": "C:\\pub-cache",
+    "NUGET_CONFIG": "${workspaceFolder}/nuget.config"
+  },
   "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
   "java.configuration.runtimes": [
     {

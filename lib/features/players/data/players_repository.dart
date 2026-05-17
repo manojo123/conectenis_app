@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/data/mock_api_service.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
-import 'package:conectenis_app/features/auth/data/auth_repository.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 
@@ -45,8 +44,8 @@ class PlayersRepository {
         'lng': lng,
         'radius': 25,
         if (skill != null) 'skill_level': skill.value,
-        if (minAge != null) 'min_age': minAge,
-        if (maxAge != null) 'max_age': maxAge,
+        'min_age': ?minAge,
+        'max_age': ?maxAge,
       },
     );
     return (response.data ?? [])

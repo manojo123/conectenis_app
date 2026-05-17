@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/config/env.dart';
+import 'package:conectenis_app/core/network/session_provider.dart';
 import 'package:conectenis_app/core/storage/profile_storage.dart';
 import 'package:conectenis_app/core/storage/token_storage.dart';
 
@@ -30,6 +31,8 @@ final dioProvider = Provider<Dio>((ref) {
       onError: (error, handler) async {
         if (error.response?.statusCode == 401) {
           await ref.read(tokenStorageProvider).clearToken();
+          final onUnauthorized = ref.read(onUnauthorizedProvider);
+          onUnauthorized?.call();
         }
         handler.next(error);
       },

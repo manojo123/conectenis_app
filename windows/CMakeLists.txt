@@ -1,5 +1,13 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+
+# geolocator_windows restores CppWinRT via nuget.exe; ignore corporate feeds
+# (e.g. AWS CodeArtifact) that may be in the user-level NuGet.Config.
+set(_conectenis_nuget_config "${CMAKE_CURRENT_SOURCE_DIR}/../nuget.config")
+if(EXISTS "${_conectenis_nuget_config}")
+  set(ENV{NUGET_CONFIG} "${_conectenis_nuget_config}")
+endif()
+
 project(conectenis_app LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change

@@ -83,7 +83,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<SkillLevel>(
-            value: _skill,
+            initialValue: _skill,
             decoration: const InputDecoration(labelText: 'Nível'),
             items: SkillLevel.values
                 .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))
@@ -92,7 +92,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<PlayStyle>(
-            value: _style,
+            initialValue: _style,
             decoration: const InputDecoration(labelText: 'Estilo de jogo'),
             items: PlayStyle.values
                 .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))

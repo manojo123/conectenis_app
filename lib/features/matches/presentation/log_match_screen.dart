@@ -70,7 +70,7 @@ class _LogMatchScreenState extends ConsumerState<LogMatchScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           DropdownButtonFormField<Player>(
-            value: _opponent,
+            initialValue: _opponent,
             decoration: const InputDecoration(labelText: 'Adversário'),
             items: _players
                 .map((p) => DropdownMenuItem(value: p, child: Text(p.name)))

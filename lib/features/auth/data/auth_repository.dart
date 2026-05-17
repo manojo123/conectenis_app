@@ -3,20 +3,17 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/config/env.dart';
-import 'package:conectenis_app/core/data/mock_api_service.dart';
+import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
 import 'package:conectenis_app/core/storage/profile_storage.dart';
 import 'package:conectenis_app/core/storage/token_storage.dart';
 import 'package:conectenis_app/shared/models/user_profile.dart';
-
-final mockApiServiceProvider = Provider<MockApiService>((ref) => MockApiService());
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
     dio: ref.watch(dioProvider),
     tokenStorage: ref.watch(tokenStorageProvider),
     profileStorage: ref.watch(profileStorageProvider),
-    mockApi: ref.watch(mockApiServiceProvider),
   );
 });
 
@@ -25,90 +22,93 @@ class AuthRepository {
     required Dio dio,
     required TokenStorage tokenStorage,
     required ProfileStorage profileStorage,
-    required MockApiService mockApi,
   })  : _dio = dio,
         _tokenStorage = tokenStorage,
-        _profileStorage = profileStorage,
-        _mockApi = mockApi;
+        _profileStorage = profileStorage;
 
   final Dio _dio;
   final TokenStorage _tokenStorage;
   final ProfileStorage _profileStorage;
-  final MockApiService _mockApi;
 
   Future<String?> getToken() => _tokenStorage.getToken();
 
   Future<UserProfile> login({
     required String email,
     required String password,
-  }) async {
-    final response = await _dio.post<Map<String, dynamic>>(
-      '/sanctum/token',
-      data: {
-        'email': email,
-        'password': password,
-        'device_name': Platform.isAndroid
-            ? 'android'
-            : Platform.isIOS
-                ? 'ios'
-                : 'desktop',
+  }) {
+    return _guard(
+      () async {
+        final response = await _dio.post<Map<String, dynamic>>(
+          '/auth/login',
+          data: {
+            'email': email,
+            'password': password,
+            'device_name': _deviceName,
+          },
+        );
+        return _saveTokenAndProfile(response.data!);
       },
+      fallbackMessage: 'E-mail ou senha inválidos.',
     );
-
-    final token = response.data!['token'] as String;
-    await _tokenStorage.saveToken(token);
-
-    return fetchCurrentUser();
   }
 
   Future<UserProfile> register({
     required String name,
     required String email,
     required String password,
-  }) async {
-    if (Env.useMockApi) {
-      final profile = await _mockApi.registerMock(
-        name: name,
-        email: email,
-        password: password,
+    required String passwordConfirmation,
+  }) {
+    return _guard(() async {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/register',
+        data: {
+          'name': name,
+          'email': email,
+          'password': password,
+          'password_confirmation': passwordConfirmation,
+          'device_name': _deviceName,
+        },
       );
-      await _tokenStorage.saveToken('mock_token_${profile.id}');
-      await _profileStorage.write(profile);
-      return profile;
-    }
-
-    final response = await _dio.post<Map<String, dynamic>>(
-      '/register',
-      data: {'name': name, 'email': email, 'password': password},
-    );
-    final token = response.data!['token'] as String;
-    await _tokenStorage.saveToken(token);
-    return fetchCurrentUser();
+      return _saveTokenAndProfile(response.data!);
+    });
   }
 
-  Future<UserProfile> fetchCurrentUser() async {
-    final token = await _tokenStorage.getToken();
-    if (token != null && token.startsWith('mock_token_')) {
-      final local = await _profileStorage.read();
-      if (local != null) return local;
-    }
+  Future<UserProfile> fetchCurrentUser() {
+    return _guard(() async {
+      final response = await _dio.get<Map<String, dynamic>>('/auth/user');
+      return _mergeWithLocalProfile(UserProfile.fromLaravelUser(response.data!));
+    });
+  }
 
-    final response = await _dio.get<Map<String, dynamic>>('/user');
-    var profile = UserProfile.fromLaravelUser(response.data!);
-
-    final local = await _profileStorage.read();
-    if (local != null && local.id == profile.id) {
-      profile = profile.copyWith(
-        age: local.age,
-        skillLevel: local.skillLevel,
-        playStyle: local.playStyle,
-        avatarUrl: local.avatarUrl,
-        latitude: local.latitude,
-        longitude: local.longitude,
-        profileComplete: local.profileComplete,
+  Future<String> forgotPassword({required String email}) {
+    return _guard(() async {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/forgot-password',
+        data: {'email': email},
       );
-    }
-    return profile;
+      return response.data!['message'] as String? ??
+          'Se o e-mail existir, enviaremos um link para redefinir a senha.';
+    });
+  }
+
+  Future<String> resetPassword({
+    required String token,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+  }) {
+    return _guard(() async {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/reset-password',
+        data: {
+          'token': token,
+          'email': email,
+          'password': password,
+          'password_confirmation': passwordConfirmation,
+        },
+      );
+      return response.data!['message'] as String? ?? 'Senha redefinida com sucesso.';
+    });
   }
 
   Future<UserProfile> saveProfile(UserProfile profile) async {
@@ -131,9 +131,50 @@ class AuthRepository {
 
   Future<void> logout() async {
     try {
-      await _dio.post('/logout');
+      await _dio.post('/auth/logout');
     } catch (_) {}
     await _tokenStorage.clearToken();
     await _profileStorage.clear();
+  }
+
+  static String get _deviceName => Platform.isAndroid
+      ? 'android'
+      : Platform.isIOS
+          ? 'ios'
+          : 'desktop';
+
+  Future<UserProfile> _saveTokenAndProfile(Map<String, dynamic> data) async {
+    final token = data['token'] as String;
+    await _tokenStorage.saveToken(token);
+
+    final userJson = data['user'] as Map<String, dynamic>;
+    return _mergeWithLocalProfile(UserProfile.fromLaravelUser(userJson));
+  }
+
+  Future<UserProfile> _mergeWithLocalProfile(UserProfile profile) async {
+    final local = await _profileStorage.read();
+    if (local != null && local.id == profile.id) {
+      return profile.copyWith(
+        age: local.age,
+        skillLevel: local.skillLevel,
+        playStyle: local.playStyle,
+        avatarUrl: local.avatarUrl,
+        latitude: local.latitude,
+        longitude: local.longitude,
+        profileComplete: local.profileComplete,
+      );
+    }
+    return profile;
+  }
+
+  Future<T> _guard<T>(
+    Future<T> Function() action, {
+    String? fallbackMessage,
+  }) async {
+    try {
+      return await action();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e, fallbackMessage: fallbackMessage);
+    }
   }
 }

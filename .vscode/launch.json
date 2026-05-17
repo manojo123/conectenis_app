@@ -7,7 +7,22 @@
       "type": "dart",
       "program": "lib/main.dart",
       "deviceId": "windows",
-      "flutterMode": "debug"
+      "flutterMode": "debug",
+      "env": {
+        "NUGET_CONFIG": "${workspaceFolder}/nuget.config",
+        "PUB_CACHE": "C:\\pub-cache"
+      }
+    },
+    {
+      "name": "conectenis_app (Android)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "android",
+      "flutterMode": "debug",
+      "env": {
+        "PUB_CACHE": "C:\\pub-cache"
+      }
     },
     {
       "name": "Attach to running Flutter app",

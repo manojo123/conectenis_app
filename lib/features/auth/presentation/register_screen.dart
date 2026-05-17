@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -15,12 +16,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _passwordConfirmation = TextEditingController();
 
   @override
   void dispose() {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _passwordConfirmation.dispose();
     super.dispose();
   }
 
@@ -30,12 +33,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           _name.text.trim(),
           _email.text.trim(),
           _password.text,
+          _passwordConfirmation.text,
         );
     if (!mounted) return;
     final state = ref.read(authStateProvider);
     if (state.hasError) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(state.error.toString())),
+        SnackBar(content: Text(authErrorMessage(state.error!))),
       );
     } else {
       context.go('/onboarding');
@@ -75,7 +79,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'Senha'),
                   validator: (v) =>
-                      v == null || v.length < 6 ? 'Mínimo 6 caracteres' : null,
+                      v == null || v.length < 8 ? 'Mínimo 8 caracteres' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordConfirmation,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Confirmar senha'),
+                  validator: (v) {
+                    if (v == null || v.length < 8) {
+                      return 'Mínimo 8 caracteres';
+                    }
+                    if (v != _password.text) return 'As senhas não coincidem';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 24),
                 SizedBox(

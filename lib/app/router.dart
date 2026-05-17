@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/app/shell_scaffold.dart';
+import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/presentation/login_screen.dart';
 import 'package:conectenis_app/features/auth/presentation/onboarding_screen.dart';
 import 'package:conectenis_app/features/auth/presentation/register_screen.dart';
+import 'package:conectenis_app/features/auth/presentation/reset_password_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_list_screen.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
@@ -19,6 +21,13 @@ import 'package:conectenis_app/features/profile/presentation/profile_screen.dart
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
+const _publicAuthPaths = {
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+};
+
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authStateProvider);
 
@@ -29,14 +38,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoading = auth.isLoading;
       final user = auth.valueOrNull;
       final loggedIn = user != null;
-      final onAuth = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register';
+      final isPublicAuth = _publicAuthPaths.contains(state.matchedLocation);
       final onOnboarding = state.matchedLocation == '/onboarding';
 
       if (isLoading) return null;
 
-      if (!loggedIn && !onAuth) return '/login';
-      if (loggedIn && onAuth) {
+      if (!loggedIn && !isPublicAuth) return '/login';
+      if (loggedIn && isPublicAuth) {
         return user.profileComplete ? '/' : '/onboarding';
       }
       if (loggedIn && !user.profileComplete && !onOnboarding) {
@@ -46,12 +54,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
-      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, _) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (_, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          final email = state.uri.queryParameters['email'] ?? '';
+          return ResetPasswordScreen(token: token, email: email);
+        },
+      ),
+      GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
       GoRoute(
         path: '/chat',
-        builder: (_, __) => const ChatListScreen(),
+        builder: (_, _) => const ChatListScreen(),
         routes: [
           GoRoute(
             path: ':id',
@@ -73,25 +93,25 @@ final routerProvider = Provider<GoRouter>((ref) {
           courtId: int.parse(state.pathParameters['id']!),
         ),
       ),
-      GoRoute(path: '/matches/log', builder: (_, __) => const LogMatchScreen()),
+      GoRoute(path: '/matches/log', builder: (_, _) => const LogMatchScreen()),
       GoRoute(
         path: '/matches/history',
-        builder: (_, __) => const MatchHistoryScreen(),
+        builder: (_, _) => const MatchHistoryScreen(),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (_, __, navigationShell) =>
+        builder: (_, _, navigationShell) =>
             ShellScaffold(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(
             routes: [
-              GoRoute(path: '/', builder: (_, __) => const MapScreen()),
+              GoRoute(path: '/', builder: (_, _) => const MapScreen()),
             ],
           ),
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/players',
-                builder: (_, __) => const PlayersListScreen(),
+                builder: (_, _) => const PlayersListScreen(),
               ),
             ],
           ),
@@ -99,7 +119,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/courts',
-                builder: (_, __) => const CourtsListScreen(),
+                builder: (_, _) => const CourtsListScreen(),
               ),
             ],
           ),
@@ -107,7 +127,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/profile',
-                builder: (_, __) => const ProfileScreen(),
+                builder: (_, _) => const ProfileScreen(),
               ),
             ],
           ),
