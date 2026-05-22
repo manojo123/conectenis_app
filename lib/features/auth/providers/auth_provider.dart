@@ -13,9 +13,12 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
       ref.read(onUnauthorizedProvider.notifier).state = null;
     });
 
-    ref.read(onUnauthorizedProvider.notifier).state = () {
-      state = const AsyncData(null);
-    };
+    // Register after build — Riverpod forbids modifying other providers during build().
+    Future.microtask(() {
+      ref.read(onUnauthorizedProvider.notifier).state = () {
+        state = const AsyncData(null);
+      };
+    });
 
     final token = await ref.read(authRepositoryProvider).getToken();
     if (token == null) return null;

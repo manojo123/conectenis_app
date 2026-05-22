@@ -2,32 +2,31 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "conectenis_app (Windows)",
-      "request": "launch",
+      "name": "Debug: conectenis_app (Pixel 8 emulator)",
       "type": "dart",
+      "request": "launch",
       "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}",
+      "deviceId": "emulator-5554",
+      "flutterMode": "debug",
+      "debugSdkLibraries": false,
+      "toolEnv": {
+        "PUB_CACHE": "C:\\pub-cache"
+      }
+    },
+    {
+      "name": "Debug: conectenis_app (Windows)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}",
       "deviceId": "windows",
       "flutterMode": "debug",
-      "env": {
-        "NUGET_CONFIG": "${workspaceFolder}/nuget.config",
-        "PUB_CACHE": "C:\\pub-cache"
+      "debugSdkLibraries": false,
+      "toolEnv": {
+        "PUB_CACHE": "C:\\pub-cache",
+        "NUGET_CONFIG": "${workspaceFolder}/nuget.config"
       }
-    },
-    {
-      "name": "conectenis_app (Android)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "deviceId": "android",
-      "flutterMode": "debug",
-      "env": {
-        "PUB_CACHE": "C:\\pub-cache"
-      }
-    },
-    {
-      "name": "Attach to running Flutter app",
-      "request": "attach",
-      "type": "dart"
     }
   ]
 }

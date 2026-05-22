@@ -1,6 +1,8 @@
 {
   "dart.flutterHotReloadOnSave": "allIfDirty",
   "dart.flutterSdkPath": "C:\\projects\\flutter",
+  "dart.debugExternalPackageLibraries": false,
+  "dart.openDevTools": "flutter",
   "terminal.integrated.env.windows": {
     "PUB_CACHE": "C:\\pub-cache",
     "NUGET_CONFIG": "${workspaceFolder}/nuget.config"
