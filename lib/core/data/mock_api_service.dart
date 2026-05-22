@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
-import 'package:conectenis_app/shared/models/court.dart';
+import 'package:conectenis_app/shared/models/place.dart';
+import 'package:conectenis_app/shared/models/play_invitation.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/match_record.dart';
 import 'package:conectenis_app/shared/models/message.dart';
@@ -15,6 +16,9 @@ class MockApiService {
   int _messageId = 100;
   int _conversationId = 1;
   int _matchId = 1;
+  int _placeId = 100;
+  final List<Place> _places = List.from(MockData.places);
+  List<PlayInvitation> _invitations = MockData.playInvitations();
 
   Future<List<Player>> nearbyPlayers({
     double? lat,
@@ -46,18 +50,135 @@ class MockApiService {
     }
   }
 
-  Future<List<Court>> courts({double? lat, double? lng}) async {
+  Future<List<Place>> places({double? lat, double? lng}) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    return List<Court>.from(MockData.courts);
+    return List<Place>.from(_places);
   }
 
-  Future<Court?> courtById(int id) async {
+  Future<Place?> placeById(int id) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
     try {
-      return MockData.courts.firstWhere((c) => c.id == id);
+      return _places.firstWhere((p) => p.id == id);
     } catch (_) {
       return null;
     }
+  }
+
+  Future<Place> createPlace({
+    required String name,
+    required double latitude,
+    required double longitude,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final place = Place(
+      id: _placeId++,
+      name: name,
+      latitude: latitude,
+      longitude: longitude,
+      createdByUserId: MockData.currentUserId,
+    );
+    _places.add(place);
+    return place;
+  }
+
+  Future<Place> updatePlace({
+    required int id,
+    String? name,
+    double? latitude,
+    double? longitude,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final idx = _places.indexWhere((p) => p.id == id);
+    if (idx < 0) throw StateError('Place not found');
+    final old = _places[idx];
+    final updated = Place(
+      id: old.id,
+      name: name ?? old.name,
+      latitude: latitude ?? old.latitude,
+      longitude: longitude ?? old.longitude,
+      createdByUserId: old.createdByUserId,
+      averageRating: old.averageRating,
+      ratingsCount: old.ratingsCount,
+      distanceKm: old.distanceKm,
+    );
+    _places[idx] = updated;
+    return updated;
+  }
+
+  Future<String> ratePlace({required int id, required int stars}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    return 'Avaliação salva.';
+  }
+
+  Future<List<PlayInvitation>> playInvitations({InvitationListRole role = InvitationListRole.all}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    return switch (role) {
+      InvitationListRole.sent => _invitations.where((i) => i.role == 'sent').toList(),
+      InvitationListRole.received => _invitations.where((i) => i.role == 'received').toList(),
+      _ => List<PlayInvitation>.from(_invitations),
+    };
+  }
+
+  Future<PlayInvitation> playInvitationById(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    return _invitations.firstWhere((i) => i.id == id);
+  }
+
+  Future<PlayInvitation> createPlayInvitation({
+    required int inviteeId,
+    required int placeId,
+    required DateTime scheduledAt,
+    String? message,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final invitee = MockData.players.firstWhere((p) => p.id == inviteeId);
+    final place = _places.firstWhere((p) => p.id == placeId);
+    final inv = PlayInvitation(
+      id: _invitations.length + 10,
+      status: PlayInvitationStatus.pending,
+      scheduledAt: scheduledAt,
+      message: message,
+      inviter: Player(
+        id: MockData.currentUserId,
+        name: 'Você',
+        latitude: MockData.centerLat,
+        longitude: MockData.centerLng,
+      ),
+      invitee: invitee,
+      place: place,
+      role: 'sent',
+    );
+    _invitations.insert(0, inv);
+    return inv;
+  }
+
+  Future<PlayInvitation> playInvitationAction(int id, String action) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final idx = _invitations.indexWhere((i) => i.id == id);
+    if (idx < 0) throw StateError('Invitation not found');
+    final old = _invitations[idx];
+    final status = switch (action) {
+      'accept' => PlayInvitationStatus.accepted,
+      'decline' => PlayInvitationStatus.declined,
+      'cancel' => PlayInvitationStatus.cancelled,
+      'complete' => PlayInvitationStatus.completed,
+      _ => old.status,
+    };
+    final updated = PlayInvitation(
+      id: old.id,
+      status: status,
+      scheduledAt: old.scheduledAt,
+      message: old.message,
+      completedAt: action == 'complete' ? DateTime.now() : old.completedAt,
+      completedByUserId: action == 'complete' ? MockData.currentUserId : old.completedByUserId,
+      inviter: old.inviter,
+      invitee: old.invitee,
+      place: old.place,
+      role: old.role,
+      hasRatedOpponent: old.hasRatedOpponent,
+    );
+    _invitations[idx] = updated;
+    return updated;
   }
 
   Future<List<Conversation>> conversations() async {

@@ -28,4 +28,72 @@ enum PlayStyle {
       );
 }
 
-enum MapFilter { players, courts }
+enum MapFilter { players, places }
+
+enum PlayInvitationStatus {
+  pending('pending', 'Pendente'),
+  accepted('accepted', 'Aceito'),
+  declined('declined', 'Recusado'),
+  cancelled('cancelled', 'Cancelado'),
+  completed('completed', 'Realizado');
+
+  const PlayInvitationStatus(this.value, this.label);
+  final String value;
+  final String label;
+
+  static PlayInvitationStatus fromValue(String? value) =>
+      PlayInvitationStatus.values.firstWhere(
+        (e) => e.value == value,
+        orElse: () => PlayInvitationStatus.pending,
+      );
+}
+
+enum PlaceReportReason {
+  badConditions('bad_conditions', 'Quadra/local em más condições que prejudica o jogo'),
+  doesNotExist('does_not_exist', 'Local não existe'),
+  wrongLocation('wrong_location', 'Pin / localização incorreta no mapa'),
+  duplicate('duplicate', 'Local duplicado (já existe outro cadastro)'),
+  noAccess('no_access', 'Sem acesso ao local (fechado, privado, inacessível)'),
+  incorrectName('incorrect_name', 'Nome enganoso ou incorreto'),
+  other('other', 'Outro (obrigatório detalhar no texto)');
+
+  const PlaceReportReason(this.value, this.label);
+  final String value;
+  final String label;
+
+  static PlaceReportReason fromValue(String? value) =>
+      PlaceReportReason.values.firstWhere(
+        (e) => e.value == value,
+        orElse: () => PlaceReportReason.other,
+      );
+}
+
+enum UserReportReason {
+  skillMismatch('skill_mismatch', 'Nível de jogo não condiz com o perfil'),
+  disrespectful('disrespectful', 'Comportamento desrespeitoso'),
+  noShow('no_show', 'Não compareceu no horário combinado'),
+  harassment('harassment', 'Assédio ou mensagens inadequadas'),
+  unsportsmanlike('unsportsmanlike', 'Conduta antidesportiva durante o jogo'),
+  other('other', 'Outro (obrigatório detalhar no texto)');
+
+  const UserReportReason(this.value, this.label);
+  final String value;
+  final String label;
+
+  static UserReportReason fromValue(String? value) =>
+      UserReportReason.values.firstWhere(
+        (e) => e.value == value,
+        orElse: () => UserReportReason.other,
+      );
+}
+
+/// Filter for invitation list API (`role` query).
+enum InvitationListRole {
+  all('all', 'Todos'),
+  sent('sent', 'Enviados'),
+  received('received', 'Recebidos');
+
+  const InvitationListRole(this.value, this.label);
+  final String value;
+  final String label;
+}

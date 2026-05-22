@@ -1,81 +1,94 @@
 openapi: 3.0.3
 info:
   title: ConecTenis API
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    Laravel API at ~/projects/conec/conectenis (Sail).
-    Implemented today: sanctum token + GET user.
-    Planned endpoints below — Flutter uses mock layer until available.
+    Laravel API at ~/projects/conec/conectenis (Sail, port 80).
+    Auth, players, chat, places, and play-invitations are implemented on the backend.
 servers:
-  - url: http://localhost:8000/api
+  - url: http://localhost/api
 paths:
-  /sanctum/token:
+  /auth/login:
     post:
-      summary: Login (implemented)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password, device_name]
-              properties:
-                email: { type: string, format: email }
-                password: { type: string }
-                device_name: { type: string }
-      responses:
-        '200':
-          description: Bearer token
-  /user:
+      summary: Login
+  /auth/user:
     get:
-      summary: Current user (implemented)
+      summary: Current user
       security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: User resource
-  /register:
-    post:
-      summary: Register (planned)
-  /user/profile:
-    put:
-      summary: Update profile (planned)
-  /user/avatar:
-    post:
-      summary: Upload avatar (planned)
-  /user/location:
-    put:
-      summary: Update location (planned)
   /players/nearby:
     get:
-      summary: Nearby players (planned)
-  /courts:
+      summary: Nearby players
+      security: [{ bearerAuth: [] }]
+  /players/{id}:
     get:
-      summary: List courts (planned)
-  /courts/nearby:
+      summary: Player detail
+      security: [{ bearerAuth: [] }]
+  /places/nearby:
     get:
-      summary: Nearby courts (planned)
-  /courts/{id}:
+      summary: Nearby places
+      security: [{ bearerAuth: [] }]
+  /places:
+    post:
+      summary: Create place
+      security: [{ bearerAuth: [] }]
+  /places/{id}:
     get:
-      summary: Court detail (planned)
+      summary: Place detail
+      security: [{ bearerAuth: [] }]
+    put:
+      summary: Update place (creator only)
+      security: [{ bearerAuth: [] }]
+  /places/{id}/ratings:
+    post:
+      summary: Rate place (after completed match)
+      security: [{ bearerAuth: [] }]
+  /places/{id}/reports:
+    post:
+      summary: Report place
+      security: [{ bearerAuth: [] }]
+  /play-invitations:
+    get:
+      summary: List invitations (role=all|sent|received)
+      security: [{ bearerAuth: [] }]
+    post:
+      summary: Create invitation
+      security: [{ bearerAuth: [] }]
+  /play-invitations/{id}:
+    get:
+      summary: Invitation detail
+      security: [{ bearerAuth: [] }]
+  /play-invitations/{id}/accept:
+    post:
+      summary: Accept invitation
+      security: [{ bearerAuth: [] }]
+  /play-invitations/{id}/decline:
+    post:
+      summary: Decline invitation
+      security: [{ bearerAuth: [] }]
+  /play-invitations/{id}/cancel:
+    post:
+      summary: Cancel invitation
+      security: [{ bearerAuth: [] }]
+  /play-invitations/{id}/complete:
+    post:
+      summary: Mark match completed
+      security: [{ bearerAuth: [] }]
+  /play-invitations/{id}/rate-player:
+    post:
+      summary: Rate opponent
+      security: [{ bearerAuth: [] }]
+  /play-invitations/{id}/report-player:
+    post:
+      summary: Report player
+      security: [{ bearerAuth: [] }]
   /conversations:
     get:
-      summary: List conversations (planned)
-    post:
-      summary: Start conversation (planned)
-  /conversations/{id}/messages:
-    get:
-      summary: Messages (planned)
+      summary: List conversations
+      security: [{ bearerAuth: [] }]
   /messages:
     post:
-      summary: Send message (planned)
-  /matches:
-    get:
-      summary: Match history (planned)
-    post:
-      summary: Log match (planned)
-  /matches/rivals:
-    get:
-      summary: Rival stats (planned)
+      summary: Send message
+      security: [{ bearerAuth: [] }]
 components:
   securitySchemes:
     bearerAuth:

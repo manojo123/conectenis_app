@@ -1,11 +1,14 @@
-import 'package:conectenis_app/shared/models/court.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/models/place.dart';
+import 'package:conectenis_app/shared/models/play_invitation.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 
 /// Seed data around Jundiaí/SP for alpha demos.
 abstract final class MockData {
   static const centerLat = -23.1864;
   static const centerLng = -46.8842;
+
+  static const currentUserId = 1;
 
   static final players = <Player>[
     const Player(
@@ -50,38 +53,89 @@ abstract final class MockData {
     ),
   ];
 
-  static final courts = <Court>[
-    const Court(
+  static final places = <Place>[
+    const Place(
       id: 1,
       name: 'Clube Esportivo Jundiaí',
-      address: 'Av. Antônio Frederico Ozanan, 1000',
-      phone: '(11) 4580-0000',
-      city: 'Jundiaí',
-      state: 'SP',
       latitude: -23.1855,
       longitude: -46.886,
+      createdByUserId: 1,
+      averageRating: 4.5,
+      ratingsCount: 12,
       distanceKm: 0.5,
     ),
-    const Court(
+    const Place(
       id: 2,
       name: 'Tennis Center Jundiaí',
-      address: 'R. Barão de Teffé, 450',
-      phone: '(11) 4581-1234',
-      city: 'Jundiaí',
-      state: 'SP',
       latitude: -23.189,
       longitude: -46.881,
+      createdByUserId: 2,
+      averageRating: 4.0,
+      ratingsCount: 8,
       distanceKm: 1.0,
     ),
-    const Court(
+    const Place(
       id: 3,
       name: 'Quadra Pública do Parque da Cidade',
-      address: 'Parque da Cidade',
-      city: 'Jundiaí',
-      state: 'SP',
       latitude: -23.192,
       longitude: -46.888,
+      createdByUserId: 1,
+      ratingsCount: 0,
       distanceKm: 1.8,
     ),
   ];
+
+  static List<PlayInvitation> playInvitations() {
+    final rafael = players[0];
+    final mariana = players[1];
+    final place = places[0];
+    return [
+      PlayInvitation(
+        id: 1,
+        status: PlayInvitationStatus.pending,
+        scheduledAt: DateTime.now().add(const Duration(days: 2)),
+        message: 'Bora jogar um set?',
+        inviter: Player(
+          id: currentUserId,
+          name: 'Você',
+          latitude: centerLat,
+          longitude: centerLng,
+        ),
+        invitee: mariana,
+        place: place,
+        role: 'sent',
+      ),
+      PlayInvitation(
+        id: 2,
+        status: PlayInvitationStatus.accepted,
+        scheduledAt: DateTime.now().add(const Duration(days: 1)),
+        inviter: rafael,
+        invitee: Player(
+          id: currentUserId,
+          name: 'Você',
+          latitude: centerLat,
+          longitude: centerLng,
+        ),
+        place: places[1],
+        role: 'received',
+      ),
+      PlayInvitation(
+        id: 3,
+        status: PlayInvitationStatus.completed,
+        scheduledAt: DateTime.now().subtract(const Duration(days: 3)),
+        completedAt: DateTime.now().subtract(const Duration(days: 2)),
+        completedByUserId: currentUserId,
+        inviter: Player(
+          id: currentUserId,
+          name: 'Você',
+          latitude: centerLat,
+          longitude: centerLng,
+        ),
+        invitee: players[2],
+        place: place,
+        role: 'sent',
+        hasRatedOpponent: true,
+      ),
+    ];
+  }
 }

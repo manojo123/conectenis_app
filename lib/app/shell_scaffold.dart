@@ -16,7 +16,11 @@ class ShellScaffold extends StatelessWidget {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: 'Mapa'),
           NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Jogadores'),
-          NavigationDestination(icon: Icon(Icons.sports_tennis), label: 'Quadras'),
+          NavigationDestination(
+            icon: Icon(Icons.mail_outline),
+            selectedIcon: Icon(Icons.mail),
+            label: 'Convites',
+          ),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),

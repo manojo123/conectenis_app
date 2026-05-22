@@ -10,11 +10,14 @@ import 'package:conectenis_app/features/auth/presentation/reset_password_screen.
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_list_screen.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
-import 'package:conectenis_app/features/courts/presentation/court_detail_screen.dart';
-import 'package:conectenis_app/features/courts/presentation/courts_list_screen.dart';
 import 'package:conectenis_app/features/map/presentation/map_screen.dart';
 import 'package:conectenis_app/features/matches/presentation/log_match_screen.dart';
 import 'package:conectenis_app/features/matches/presentation/match_history_screen.dart';
+import 'package:conectenis_app/features/places/presentation/create_place_screen.dart';
+import 'package:conectenis_app/features/places/presentation/place_detail_screen.dart';
+import 'package:conectenis_app/features/play_invitations/presentation/create_invitation_screen.dart';
+import 'package:conectenis_app/features/play_invitations/presentation/invitation_detail_screen.dart';
+import 'package:conectenis_app/features/play_invitations/presentation/invitations_list_screen.dart';
 import 'package:conectenis_app/features/players/presentation/player_detail_screen.dart';
 import 'package:conectenis_app/features/players/presentation/players_list_screen.dart';
 import 'package:conectenis_app/features/profile/presentation/profile_screen.dart';
@@ -88,9 +91,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '/courts/:id',
-        builder: (_, state) => CourtDetailScreen(
-          courtId: int.parse(state.pathParameters['id']!),
+        path: '/places/new',
+        builder: (_, _) => const CreatePlaceScreen(),
+      ),
+      GoRoute(
+        path: '/places/:id',
+        builder: (_, state) => PlaceDetailScreen(
+          placeId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/invitations/new',
+        builder: (_, state) {
+          final playerId = int.parse(state.uri.queryParameters['playerId'] ?? '0');
+          return CreateInvitationScreen(inviteeId: playerId);
+        },
+      ),
+      GoRoute(
+        path: '/invitations/:id',
+        builder: (_, state) => InvitationDetailScreen(
+          invitationId: int.parse(state.pathParameters['id']!),
         ),
       ),
       GoRoute(path: '/matches/log', builder: (_, _) => const LogMatchScreen()),
@@ -118,8 +138,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/courts',
-                builder: (_, _) => const CourtsListScreen(),
+                path: '/invitations',
+                builder: (_, _) => const InvitationsListScreen(),
               ),
             ],
           ),

@@ -46,6 +46,12 @@ class PlayerDetailScreen extends ConsumerWidget {
                   _InfoRow('Distância', '${player.distanceKm!.toStringAsFixed(1)} km'),
                 const Spacer(),
                 ElevatedButton.icon(
+                  onPressed: () => context.push('/invitations/new?playerId=${player.id}'),
+                  icon: const Icon(Icons.sports_tennis),
+                  label: const Text('Convidar para jogar'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
                   onPressed: () async {
                     final conv = await ref.read(chatRepositoryProvider).start(
                           player.id,

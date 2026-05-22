@@ -148,7 +148,10 @@ class AuthRepository {
     await _tokenStorage.saveToken(token);
 
     final userJson = data['user'] as Map<String, dynamic>;
-    return _mergeWithLocalProfile(UserProfile.fromLaravelUser(userJson));
+    final profile =
+        await _mergeWithLocalProfile(UserProfile.fromLaravelUser(userJson));
+    await _profileStorage.write(profile);
+    return profile;
   }
 
   Future<UserProfile> _mergeWithLocalProfile(UserProfile profile) async {

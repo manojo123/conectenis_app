@@ -28,10 +28,19 @@ class ApiException implements Exception {
       );
     }
 
+    final connectionMessage = _connectionMessage(error);
     return ApiException(
-      fallbackMessage ?? _defaultMessage(status),
+      connectionMessage ?? fallbackMessage ?? _defaultMessage(status),
       statusCode: status,
     );
+  }
+
+  static String? _connectionMessage(DioException error) {
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout) {
+      return 'Não foi possível conectar à API. Verifique se o Laravel Sail está rodando (porta 80) e o endereço em .env.';
+    }
+    return null;
   }
 
   static Map<String, List<String>>? _parseFieldErrors(dynamic errors) {

@@ -1,4 +1,5 @@
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/models/json_parsers.dart';
 
 class Player {
   const Player({
@@ -25,15 +26,17 @@ class Player {
 
   factory Player.fromJson(Map<String, dynamic> json) {
     return Player(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      age: json['age'] as int?,
+      id: parseJsonInt(json['id']),
+      name: json['name'] as String? ?? '',
+      age: json['age'] == null ? null : parseJsonInt(json['age']),
       skillLevel: SkillLevel.fromValue(json['skill_level'] as String?),
       playStyle: PlayStyle.fromValue(json['play_style'] as String?),
       avatarUrl: json['avatar_url'] as String?,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
-      distanceKm: (json['distance_km'] as num?)?.toDouble(),
+      latitude: parseJsonDouble(json['latitude']),
+      longitude: parseJsonDouble(json['longitude']),
+      distanceKm: json['distance_km'] == null
+          ? null
+          : parseJsonDouble(json['distance_km']),
     );
   }
 }

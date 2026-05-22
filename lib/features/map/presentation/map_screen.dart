@@ -9,10 +9,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
-import 'package:conectenis_app/features/courts/data/courts_repository.dart';
+import 'package:conectenis_app/features/places/data/places_repository.dart';
 import 'package:conectenis_app/features/players/data/players_repository.dart';
-import 'package:conectenis_app/shared/models/court.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
@@ -32,7 +32,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _loading = true;
   String? _error;
   List<Player> _players = [];
-  List<Court> _courts = [];
+  List<Place> _places = [];
 
   @override
   void initState() {
@@ -69,14 +69,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     setState(() => _loading = true);
     try {
       final playersRepo = ref.read(playersRepositoryProvider);
-      final courtsRepo = ref.read(courtsRepositoryProvider);
+      final placesRepo = ref.read(placesRepositoryProvider);
       final results = await Future.wait([
         playersRepo.nearby(lat: _center.latitude, lng: _center.longitude),
-        courtsRepo.list(lat: _center.latitude, lng: _center.longitude),
+        placesRepo.nearby(lat: _center.latitude, lng: _center.longitude),
       ]);
       setState(() {
         _players = results[0] as List<Player>;
-        _courts = results[1] as List<Court>;
+        _places = results[1] as List<Place>;
         _loading = false;
         _error = null;
       });
@@ -102,14 +102,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           )
           .toSet();
     }
-    return _courts
+    return _places
         .map(
-          (c) => Marker(
-            markerId: MarkerId('court_${c.id}'),
-            position: LatLng(c.latitude, c.longitude),
+          (p) => Marker(
+            markerId: MarkerId('place_${p.id}'),
+            position: LatLng(p.latitude, p.longitude),
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-            infoWindow: InfoWindow(title: c.name),
-            onTap: () => context.push('/courts/${c.id}'),
+            infoWindow: InfoWindow(title: p.name, snippet: p.subtitle),
+            onTap: () => context.push('/places/${p.id}'),
           ),
         )
         .toSet();
@@ -154,6 +154,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
       ),
+      floatingActionButton: filter == MapFilter.places
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push('/places/new'),
+              icon: const Icon(Icons.add_location_alt),
+              label: const Text('Adicionar local'),
+            )
+          : null,
       body: Column(
         children: [
           Padding(
@@ -161,7 +168,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             child: SegmentedButton<MapFilter>(
               segments: const [
                 ButtonSegment(value: MapFilter.players, label: Text('Jogadores'), icon: Icon(Icons.person)),
-                ButtonSegment(value: MapFilter.courts, label: Text('Quadras'), icon: Icon(Icons.sports_tennis)),
+                ButtonSegment(value: MapFilter.places, label: Text('Lugares'), icon: Icon(Icons.place)),
               ],
               selected: {filter},
               onSelectionChanged: (s) => ref.read(mapFilterProvider.notifier).state = s.first,
@@ -176,9 +183,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ? _MapListFallback(
                             filter: filter,
                             players: _players,
-                            courts: _courts,
+                            places: _places,
                             onPlayerTap: (p) => context.push('/players/${p.id}'),
-                            onCourtTap: (c) => context.push('/courts/${c.id}'),
+                            onPlaceTap: (p) => context.push('/places/${p.id}'),
                           )
                         : GoogleMap(
                             initialCameraPosition: CameraPosition(target: _center, zoom: 13),
@@ -197,16 +204,16 @@ class _MapListFallback extends StatelessWidget {
   const _MapListFallback({
     required this.filter,
     required this.players,
-    required this.courts,
+    required this.places,
     required this.onPlayerTap,
-    required this.onCourtTap,
+    required this.onPlaceTap,
   });
 
   final MapFilter filter;
   final List<Player> players;
-  final List<Court> courts;
+  final List<Place> places;
   final void Function(Player) onPlayerTap;
-  final void Function(Court) onCourtTap;
+  final void Function(Place) onPlaceTap;
 
   @override
   Widget build(BuildContext context) {
@@ -231,22 +238,22 @@ class _MapListFallback extends StatelessWidget {
         },
       );
     }
-    if (courts.isEmpty) {
+    if (places.isEmpty) {
       return const EmptyState(
-        icon: Icons.sports_tennis,
-        title: 'Nenhuma quadra cadastrada',
-        subtitle: 'Em breve mais quadras na sua região.',
+        icon: Icons.place_outlined,
+        title: 'Nenhum local cadastrado',
+        subtitle: 'Adicione um local no mapa ou ao convidar para jogar.',
       );
     }
     return ListView.builder(
-      itemCount: courts.length,
+      itemCount: places.length,
       itemBuilder: (_, i) {
-        final c = courts[i];
+        final p = places[i];
         return ListTile(
           leading: const Icon(Icons.place, color: AppColors.navy),
-          title: Text(c.name),
-          subtitle: Text(c.address),
-          onTap: () => onCourtTap(c),
+          title: Text(p.name),
+          subtitle: Text(p.subtitle),
+          onTap: () => onPlaceTap(p),
         );
       },
     );

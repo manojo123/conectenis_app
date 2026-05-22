@@ -1,8 +1,34 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class Env {
-  static String get apiBaseUrl =>
-      dotenv.env['API_BASE_URL'] ?? 'http://laravel.test/api';
+  /// Resolves [API_BASE_URL] for the current platform (emulator vs desktop).
+  static String get apiBaseUrl {
+    final configured = dotenv.env['API_BASE_URL'];
+    if (configured != null && configured.isNotEmpty) {
+      return _resolveForPlatform(configured);
+    }
+    if (!kIsWeb && Platform.isAndroid) {
+      return 'http://10.0.2.2/api';
+    }
+    return 'http://localhost/api';
+  }
+
+  static String _resolveForPlatform(String url) {
+    if (kIsWeb) return url;
+
+    var resolved = url;
+    if (Platform.isAndroid) {
+      resolved = resolved
+          .replaceAll('localhost', '10.0.2.2')
+          .replaceAll('127.0.0.1', '10.0.2.2');
+      // Sail on this project uses host port 80, not 8000.
+      resolved = resolved.replaceAll(':8000', '');
+    }
+    return resolved;
+  }
 
   static bool get useMockApi =>
       (dotenv.env['USE_MOCK_API'] ?? 'true').toLowerCase() == 'true';
