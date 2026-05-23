@@ -1,6 +1,7 @@
 {
   "version": "0.2.0",
   "configurations": [
+
     {
       "name": "Debug: conectenis_app (Pixel 8 emulator)",
       "type": "dart",
@@ -23,6 +24,11 @@
       "deviceId": "windows",
       "flutterMode": "debug",
       "debugSdkLibraries": false,
+      "screenSize": {
+        "width": 412,
+        "height": 915
+      },
+
       "toolEnv": {
         "PUB_CACHE": "C:\\pub-cache",
         "NUGET_CONFIG": "${workspaceFolder}/nuget.config"

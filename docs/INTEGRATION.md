@@ -126,6 +126,12 @@ If build fails on **native assets** / `objective_c`, see **[WINDOWS_BUILD.md](WI
 5. Verify decline/cancel flows and overlap error (second invite within ±2h).
 6. Map **Lugares** filter shows nearby places; **Adicionar local** works.
 
+### Google Maps (Android)
+
+Set `GOOGLE_MAPS_API_KEY` in `.env`. The Android build injects it from `.env` or `android/local.properties` (`android/app/build.gradle.kts`). **Stop the app and run a full rebuild** after changing the key (hot reload is not enough).
+
+On the map tab, switch to **Lugares** for blue place pins. **Adicionar local** opens a map where you tap or drag the pin before saving; the main map then refreshes and centers on the new place.
+
 ## Reverb
 
 When Reverb is enabled on the API, set `REVERB_*` in `.env` to match Laravel `.env`.

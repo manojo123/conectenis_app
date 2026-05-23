@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/places/data/places_repository.dart';
+import 'package:conectenis_app/shared/widgets/place_picker_map.dart';
 
 class CreatePlaceScreen extends ConsumerStatefulWidget {
   const CreatePlaceScreen({super.key});
@@ -55,6 +56,13 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
     }
   }
 
+  void _onMapLocationChanged(double lat, double lng) {
+    setState(() {
+      _lat = lat;
+      _lng = lng;
+    });
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
@@ -94,22 +102,34 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
               validator: (v) =>
                   v == null || v.trim().length < 2 ? 'Mínimo 2 caracteres' : null,
             ),
-            const SizedBox(height: 24),
-            Text('Coordenadas', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 16),
+            Text(
+              'Posição no mapa',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Toque no mapa ou arraste o pin azul para ajustar.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 8),
             if (_loadingGps)
-              const LinearProgressIndicator()
-            else ...[
-              Text('Latitude: ${_lat.toStringAsFixed(5)}'),
-              Text('Longitude: ${_lng.toStringAsFixed(5)}'),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _loadGps,
-                icon: const Icon(Icons.my_location),
-                label: const Text('Usar minha localização atual'),
+              const SizedBox(height: 220, child: Center(child: CircularProgressIndicator()))
+            else
+              PlacePickerMap(
+                latitude: _lat,
+                longitude: _lng,
+                onLocationChanged: _onMapLocationChanged,
               ),
-            ],
-            const SizedBox(height: 32),
+            const SizedBox(height: 8),
+            Text('Lat: ${_lat.toStringAsFixed(5)}, Lng: ${_lng.toStringAsFixed(5)}'),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _loadingGps ? null : _loadGps,
+              icon: const Icon(Icons.my_location),
+              label: const Text('Centralizar na minha localização'),
+            ),
+            const SizedBox(height: 24),
             FilledButton(
               onPressed: _submitting ? null : _submit,
               child: _submitting

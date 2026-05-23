@@ -1,12 +1,8 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/features/places/data/places_repository.dart';
@@ -17,8 +13,12 @@ import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
+import 'package:conectenis_app/shared/widgets/place_picker_map.dart';
 
 final mapFilterProvider = StateProvider<MapFilter>((ref) => MapFilter.players);
+
+bool _hasValidCoordinates(double lat, double lng) =>
+    lat.abs() > 0.001 || lng.abs() > 0.001;
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -28,16 +28,22 @@ class MapScreen extends ConsumerStatefulWidget {
 }
 
 class _MapScreenState extends ConsumerState<MapScreen> {
+  GoogleMapController? _mapController;
   LatLng _center = const LatLng(MockData.centerLat, MockData.centerLng);
   bool _loading = true;
   String? _error;
   List<Player> _players = [];
   List<Place> _places = [];
-
   @override
   void initState() {
     super.initState();
     _initLocation();
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
   }
 
   Future<void> _initLocation() async {
@@ -55,14 +61,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         return;
       }
       final pos = await Geolocator.getCurrentPosition();
-      setState(() => _center = LatLng(pos.latitude, pos.longitude));
+      _center = LatLng(pos.latitude, pos.longitude);
       await _loadData();
+      await _moveCamera(_center);
     } catch (e) {
       setState(() {
         _loading = false;
         _error = e.toString();
       });
     }
+  }
+
+  Future<void> _moveCamera(LatLng target, {double zoom = 13}) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: target, zoom: zoom),
+      ),
+    );
   }
 
   Future<void> _loadData() async {
@@ -91,6 +108,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Set<Marker> _buildMarkers(MapFilter filter) {
     if (filter == MapFilter.players) {
       return _players
+          .where((p) => _hasValidCoordinates(p.latitude, p.longitude))
           .map(
             (p) => Marker(
               markerId: MarkerId('player_${p.id}'),
@@ -103,16 +121,48 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           .toSet();
     }
     return _places
+        .where((p) => _hasValidCoordinates(p.latitude, p.longitude))
         .map(
           (p) => Marker(
             markerId: MarkerId('place_${p.id}'),
             position: LatLng(p.latitude, p.longitude),
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-            infoWindow: InfoWindow(title: p.name, snippet: p.subtitle),
-            onTap: () => context.push('/places/${p.id}'),
+            infoWindow: InfoWindow(
+              title: p.name,
+              snippet: p.averageRating != null
+                  ? '${p.averageRating!.toStringAsFixed(1)} ★ · ${p.subtitle}'
+                  : p.subtitle,
+            ),
+            onTap: () => _openPlace(p),
           ),
         )
         .toSet();
+  }
+
+  void _openPlace(Place place) {
+    context.push('/places/${place.id}').then((_) => _loadData());
+  }
+
+  Future<void> _addPlace() async {
+    final created = await context.push<Place>('/places/new');
+    if (!mounted) return;
+    if (created != null) {
+      ref.read(mapFilterProvider.notifier).state = MapFilter.places;
+      await _loadData();
+      if (_hasValidCoordinates(created.latitude, created.longitude)) {
+        await _moveCamera(
+          LatLng(created.latitude, created.longitude),
+          zoom: 15,
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Local "${created.name}" adicionado ao mapa')),
+        );
+      }
+    } else {
+      await _loadData();
+    }
   }
 
   void _showPlayerSheet(Player player) {
@@ -140,12 +190,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  bool get _mapsSupported =>
-      !kIsWeb && (Platform.isAndroid || Platform.isIOS) && Env.googleMapsApiKey.isNotEmpty;
+  bool get _mapsSupported => PlacePickerMap.isSupported;
 
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(mapFilterProvider);
+    final markers = _loading ? <Marker>{} : _buildMarkers(filter);
+    final placeCount = _places.where((p) => _hasValidCoordinates(p.latitude, p.longitude)).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -156,7 +207,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ),
       floatingActionButton: filter == MapFilter.places
           ? FloatingActionButton.extended(
-              onPressed: () => context.push('/places/new'),
+              onPressed: _addPlace,
               icon: const Icon(Icons.add_location_alt),
               label: const Text('Adicionar local'),
             )
@@ -164,16 +215,42 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
             child: SegmentedButton<MapFilter>(
               segments: const [
                 ButtonSegment(value: MapFilter.players, label: Text('Jogadores'), icon: Icon(Icons.person)),
                 ButtonSegment(value: MapFilter.places, label: Text('Lugares'), icon: Icon(Icons.place)),
               ],
               selected: {filter},
-              onSelectionChanged: (s) => ref.read(mapFilterProvider.notifier).state = s.first,
+              onSelectionChanged: (s) {
+                ref.read(mapFilterProvider.notifier).state = s.first;
+                setState(() {});
+              },
             ),
           ),
+          if (filter == MapFilter.places && !_loading && _error == null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '$placeCount local(is) no mapa · toque no pin para detalhes',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ),
+          if (!_mapsSupported && !_loading)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: MaterialBanner(
+                content: const Text(
+                  'Google Maps nativo sem chave. Adicione GOOGLE_MAPS_API_KEY em .env e faça rebuild do app.',
+                ),
+                actions: [
+                  TextButton(onPressed: _loadData, child: const Text('Atualizar')),
+                ],
+              ),
+            ),
           Expanded(
             child: _loading
                 ? const LoadingView(message: 'Carregando mapa...')
@@ -185,13 +262,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             players: _players,
                             places: _places,
                             onPlayerTap: (p) => context.push('/players/${p.id}'),
-                            onPlaceTap: (p) => context.push('/places/${p.id}'),
+                            onPlaceTap: _openPlace,
                           )
                         : GoogleMap(
+                            key: ValueKey('map_${filter.name}_${markers.length}'),
                             initialCameraPosition: CameraPosition(target: _center, zoom: 13),
-                            markers: _buildMarkers(filter),
+                            markers: markers,
                             myLocationEnabled: true,
-                            onMapCreated: (_) {},
+                            myLocationButtonEnabled: true,
+                            onMapCreated: (controller) {
+                              _mapController = controller;
+                              _moveCamera(_center);
+                            },
                           ),
           ),
         ],
@@ -238,17 +320,18 @@ class _MapListFallback extends StatelessWidget {
         },
       );
     }
-    if (places.isEmpty) {
+    final visible = places.where((p) => _hasValidCoordinates(p.latitude, p.longitude)).toList();
+    if (visible.isEmpty) {
       return const EmptyState(
         icon: Icons.place_outlined,
         title: 'Nenhum local cadastrado',
-        subtitle: 'Adicione um local no mapa ou ao convidar para jogar.',
+        subtitle: 'Toque em Adicionar local para cadastrar no mapa.',
       );
     }
     return ListView.builder(
-      itemCount: places.length,
+      itemCount: visible.length,
       itemBuilder: (_, i) {
-        final p = places[i];
+        final p = visible[i];
         return ListTile(
           leading: const Icon(Icons.place, color: AppColors.navy),
           title: Text(p.name),
