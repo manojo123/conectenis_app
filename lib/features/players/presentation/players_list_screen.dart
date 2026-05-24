@@ -16,6 +16,7 @@ import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/gender_selector.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
+import 'package:conectenis_app/shared/utils/debounce.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class PlayersListScreen extends ConsumerStatefulWidget {
@@ -29,6 +30,7 @@ class PlayersListScreen extends ConsumerStatefulWidget {
 
 class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
   final _searchController = TextEditingController();
+  final _debouncer = Debouncer();
   double _minNtrp = 1.0;
   double _maxNtrp = 5.0;
   final int _minAge = 18;
@@ -40,11 +42,17 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_onSearchChanged);
     _load();
+  }
+
+  void _onSearchChanged() {
+    _debouncer.run(_load);
   }
 
   @override
   void dispose() {
+    _debouncer.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -136,7 +144,6 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
                           : 'Digite o nome do jogador...',
                       prefixIcon: const Icon(Icons.search),
                     ),
-                    onSubmitted: (_) => _load(),
                   ),
                 ),
                 const SizedBox(width: 8),

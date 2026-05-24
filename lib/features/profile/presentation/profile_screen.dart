@@ -13,7 +13,7 @@ class ProfileScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).value;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Perfil')),
+      appBar: AppBar(title: const Text('Menu')),
       body: ListView(
         padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
@@ -46,10 +46,10 @@ class ProfileScreen extends ConsumerWidget {
             onTap: () => context.push('/profile/edit'),
           ),
           ListTile(
-            leading: const Icon(Icons.leaderboard),
-            title: const Text('Ranking'),
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Notificações'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/ranking'),
+            onTap: () => context.push('/notifications'),
           ),
           ListTile(
             leading: const Icon(Icons.search),

@@ -26,12 +26,18 @@ class PlacesRepository {
     required double lat,
     required double lng,
     double radiusKm = 50,
+    String? name,
   }) {
     return _guard(() async {
-      if (Env.useMockApi) return _mock.places(lat: lat, lng: lng);
+      if (Env.useMockApi) return _mock.places(lat: lat, lng: lng, name: name);
       final response = await _dio.get<List<dynamic>>(
         '/places/nearby',
-        queryParameters: {'lat': lat, 'lng': lng, 'radius': radiusKm},
+        queryParameters: {
+          'lat': lat,
+          'lng': lng,
+          'radius': radiusKm,
+          if (name != null && name.isNotEmpty) 'name': name,
+        },
       );
       return (response.data ?? [])
           .map((e) => Place.fromJson(e as Map<String, dynamic>))
@@ -97,7 +103,7 @@ class PlacesRepository {
     String? comment,
   }) {
     return _guard(() async {
-      if (Env.useMockApi) return _mock.ratePlace(id: id, stars: stars);
+      if (Env.useMockApi) return _mock.ratePlace(id: id, stars: stars, comment: comment);
       final response = await _dio.post<Map<String, dynamic>>(
         '/places/$id/ratings',
         data: {

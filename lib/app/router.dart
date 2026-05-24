@@ -19,6 +19,7 @@ import 'package:conectenis_app/shared/models/conversation.dart';
 import 'package:conectenis_app/features/map/presentation/map_screen.dart';
 import 'package:conectenis_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:conectenis_app/features/places/presentation/create_place_screen.dart';
+import 'package:conectenis_app/features/places/presentation/places_list_screen.dart';
 import 'package:conectenis_app/features/places/presentation/place_detail_screen.dart';
 import 'package:conectenis_app/features/players/presentation/player_detail_screen.dart';
 import 'package:conectenis_app/features/players/presentation/players_list_screen.dart';
@@ -54,7 +55,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (loggedIn && isPublicAuth) {
         return user.profileComplete ? '/' : '/onboarding';
       }
-      if (loggedIn && !user.profileComplete && !onOnboarding) {
+      if (loggedIn && !user.profileComplete && !onOnboarding && state.matchedLocation != '/profile/edit') {
         return '/onboarding';
       }
       if (loggedIn && user.profileComplete && onOnboarding) return '/';
@@ -83,6 +84,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           selectMode: state.uri.queryParameters['select'] == 'true',
         ),
       ),
+      GoRoute(
+        path: '/places-search',
+        builder: (_, state) => PlacesListScreen(
+          selectMode: state.uri.queryParameters['select'] == 'true',
+        ),
+      ),
       GoRoute(path: '/places/new', builder: (_, _) => const CreatePlaceScreen()),
       GoRoute(
         path: '/places/:id',
@@ -107,11 +114,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           challengeId: int.parse(state.pathParameters['id']!),
         ),
       ),
+      GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
       GoRoute(path: '/ranking', builder: (_, _) => const RankingScreen()),
       GoRoute(path: '/profile/edit', builder: (_, _) => const EditProfileScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, navigationShell) => ShellScaffold(navigationShell: navigationShell),
         branches: [
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen())],
+          ),
           StatefulShellBranch(routes: [GoRoute(path: '/', builder: (_, _) => const MapScreen())]),
           StatefulShellBranch(
             routes: [
@@ -140,10 +151,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [GoRoute(path: '/challenges', builder: (_, _) => const ChallengesWallScreen())],
           ),
           StatefulShellBranch(
-            routes: [GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen())],
-          ),
-          StatefulShellBranch(
-            routes: [GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen())],
+            routes: [GoRoute(path: '/ranking-tab', builder: (_, _) => const RankingScreen())],
           ),
         ],
       ),

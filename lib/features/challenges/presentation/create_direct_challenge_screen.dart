@@ -9,7 +9,8 @@ import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/utils/date_time_format.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
-import 'package:conectenis_app/shared/widgets/place_selector_field.dart';
+import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
+import 'package:conectenis_app/shared/widgets/place_select_field.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class CreateDirectChallengeScreen extends ConsumerStatefulWidget {
@@ -88,6 +89,7 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
             placeId: _place!.id,
             scheduledStart: _start,
           );
+      bumpChallengesRefresh(ref);
       if (!mounted) return;
       context.go('/challenges');
     } catch (e) {
@@ -166,7 +168,7 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
           const Divider(),
           const Text('Local'),
           const SizedBox(height: 8),
-          PlaceSelectorField(
+          PlaceSelectField(
             selectedPlace: _place,
             onChanged: (place) => setState(() => _place = place),
           ),

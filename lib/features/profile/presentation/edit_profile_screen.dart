@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:conectenis_app/core/theme/layout.dart';
+import 'package:conectenis_app/features/auth/data/auth_repository.dart';
+import 'package:conectenis_app/shared/utils/avatar_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +11,7 @@ import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/user_profile.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/ntrp_rating_picker.dart';
+import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -24,6 +29,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   PlayStyle _style = PlayStyle.both;
   bool _saving = false;
   bool _initialized = false;
+  String? _localAvatarPath;
 
   @override
   void dispose() {
@@ -45,12 +51,22 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _initialized = true;
   }
 
+  Future<void> _pickAvatar() async {
+    final path = await pickAvatarImagePath(context);
+    if (path != null) setState(() => _localAvatarPath = path);
+  }
+
   Future<void> _save() async {
     final user = ref.read(authStateProvider).value;
     if (user == null) return;
 
     setState(() => _saving = true);
     try {
+      var avatarUrl = user.avatarUrl;
+      if (_localAvatarPath != null) {
+        avatarUrl = await ref.read(authRepositoryProvider).uploadAvatar(_localAvatarPath!);
+      }
+
       await ref.read(authStateProvider.notifier).updateProfile(
             user.copyWith(
               profession: _professionController.text.trim(),
@@ -59,6 +75,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               state: _stateController.text.trim(),
               ntrpRating: _ntrp,
               playStyle: _style,
+              avatarUrl: avatarUrl,
+              profileComplete: true,
             ),
           );
       if (mounted) context.pop();
@@ -79,18 +97,46 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
     _initFromUser(user);
 
+    final displayAvatar = _localAvatarPath ?? user.avatarUrl;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Editar perfil')),
       body: ListView(
         padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
+          Center(
+            child: GestureDetector(
+              onTap: _pickAvatar,
+              child: _localAvatarPath != null
+                  ? CircleAvatar(
+                      radius: 52,
+                      backgroundImage: FileImage(File(_localAvatarPath!)),
+                    )
+                  : UserAvatar(name: user.name, avatarUrl: displayAvatar, radius: 52),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton(onPressed: _pickAvatar, child: const Text('Trocar foto')),
+          ),
+          const SizedBox(height: 12),
           InputDecorator(
-            decoration: const InputDecoration(labelText: 'Sexo'),
+            decoration: InputDecoration(
+              labelText: 'Sexo',
+              enabled: false,
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
             child: Text(user.gender?.label ?? '—'),
           ),
           const SizedBox(height: 12),
           InputDecorator(
-            decoration: const InputDecoration(labelText: 'Idade'),
+            decoration: InputDecoration(
+              labelText: 'Idade',
+              enabled: false,
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
             child: Text(user.age?.toString() ?? '—'),
           ),
           const SizedBox(height: 12),

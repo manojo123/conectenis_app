@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
+import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/utils/date_time_format.dart';
 import 'package:conectenis_app/shared/widgets/gender_multi_selector.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/ntrp_rating_picker.dart';
-import 'package:conectenis_app/shared/widgets/place_selector_field.dart';
+import 'package:conectenis_app/shared/widgets/place_select_field.dart';
 
 class CreatePublicChallengeScreen extends ConsumerStatefulWidget {
   const CreatePublicChallengeScreen({super.key});
@@ -19,7 +20,7 @@ class CreatePublicChallengeScreen extends ConsumerStatefulWidget {
 }
 
 class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChallengeScreen> {
-  ChallengeFormat _format = ChallengeFormat.singles;
+  final Set<ChallengeFormat> _formats = {ChallengeFormat.singles};
   double _minNtrp = 3.0;
   final double _maxNtrp = 4.0;
   Set<Gender> _genderPrefs = {};
@@ -27,6 +28,16 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
   bool _openLocation = false;
   Place? _selectedPlace;
   bool _submitting = false;
+
+  void _toggleFormat(ChallengeFormat format) {
+    setState(() {
+      if (_formats.contains(format)) {
+        if (_formats.length > 1) _formats.remove(format);
+      } else {
+        _formats.add(format);
+      }
+    });
+  }
 
   Future<void> _pickDateTime() async {
     final picked = await pickDateTimeWithFiveMinuteSteps(
@@ -39,6 +50,12 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
   }
 
   Future<void> _submit() async {
+    if (_formats.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione simples e/ou duplas.')),
+      );
+      return;
+    }
     if (!_openLocation && _selectedPlace == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione um local ou marque "local em aberto".')),
@@ -48,15 +65,19 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
 
     setState(() => _submitting = true);
     try {
-      await ref.read(challengesRepositoryProvider).createPublic(
-            format: _format,
-            scheduledStart: _start,
-            openLocation: _openLocation,
-            placeId: _openLocation ? null : _selectedPlace?.id,
-            minNtrp: _minNtrp,
-            maxNtrp: _maxNtrp,
-            genderPreference: genderPreferenceFromSet(_genderPrefs),
-          );
+      final repo = ref.read(challengesRepositoryProvider);
+      for (final format in _formats) {
+        await repo.createPublic(
+          format: format,
+          scheduledStart: _start,
+          openLocation: _openLocation,
+          placeId: _openLocation ? null : _selectedPlace?.id,
+          minNtrp: _minNtrp,
+          maxNtrp: _maxNtrp,
+          genderPreference: genderPreferenceFromSet(_genderPrefs),
+        );
+      }
+      bumpChallengesRefresh(ref);
       if (!mounted) return;
       context.go('/challenges');
     } catch (e) {
@@ -76,16 +97,23 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
           const Text('Nível procurado'),
           NtrpRatingPicker(value: _minNtrp, onChanged: (v) => setState(() => _minNtrp = v)),
           const SizedBox(height: 8),
-          const Text('Sexo preferido'),
           GenderMultiSelector(
             selected: _genderPrefs,
             onChanged: (g) => setState(() => _genderPrefs = g),
           ),
           const SizedBox(height: 16),
-          SegmentedButton<ChallengeFormat>(
-            segments: ChallengeFormat.values.map((f) => ButtonSegment(value: f, label: Text(f.label))).toList(),
-            selected: {_format},
-            onSelectionChanged: (s) => setState(() => _format = s.first),
+          const Text('Modalidade'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: ChallengeFormat.values.map((format) {
+              final selected = _formats.contains(format);
+              return FilterChip(
+                label: Text(format.label),
+                selected: selected,
+                onSelected: (_) => _toggleFormat(format),
+              );
+            }).toList(),
           ),
           const SizedBox(height: 16),
           ListTile(
@@ -107,9 +135,7 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
           ),
           if (!_openLocation) ...[
             const SizedBox(height: 8),
-            const Text('Local do desafio'),
-            const SizedBox(height: 8),
-            PlaceSelectorField(
+            PlaceSelectField(
               selectedPlace: _selectedPlace,
               onChanged: (place) => setState(() => _selectedPlace = place),
             ),

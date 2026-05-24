@@ -68,15 +68,33 @@ class MockApiService {
     }
   }
 
-  Future<List<Place>> places({double? lat, double? lng}) async {
+  Future<List<Place>> places({double? lat, double? lng, String? name}) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    return List<Place>.from(_places);
+    var list = List<Place>.from(_places);
+    if (name != null && name.trim().isNotEmpty) {
+      final q = name.trim().toLowerCase();
+      list = list.where((p) => p.name.toLowerCase().contains(q)).toList();
+    }
+    return list;
   }
 
   Future<Place?> placeById(int id) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
     try {
-      return _places.firstWhere((p) => p.id == id);
+      final place = _places.firstWhere((p) => p.id == id);
+      final reviews = _placeReviews[id] ?? place.recentReviews;
+      if (reviews == place.recentReviews) return place;
+      return Place(
+        id: place.id,
+        name: place.name,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        createdByUserId: place.createdByUserId,
+        averageRating: place.averageRating,
+        ratingsCount: place.ratingsCount,
+        distanceKm: place.distanceKm,
+        recentReviews: reviews,
+      );
     } catch (_) {
       return null;
     }
@@ -123,8 +141,38 @@ class MockApiService {
     return updated;
   }
 
-  Future<String> ratePlace({required int id, required int stars}) async {
+  final Map<int, List<PlaceReview>> _placeReviews = {};
+
+  Future<String> ratePlace({
+    required int id,
+    required int stars,
+    String? comment,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _places.indexWhere((p) => p.id == id);
+    if (idx < 0) return 'Avaliação salva.';
+    final old = _places[idx];
+    final reviews = List<PlaceReview>.from(_placeReviews[id] ?? []);
+    reviews.insert(
+      0,
+      PlaceReview(author: 'Você', comment: comment ?? '', stars: stars),
+    );
+    _placeReviews[id] = reviews;
+    final count = old.ratingsCount + 1;
+    final avg = reviews.isEmpty
+        ? stars.toDouble()
+        : reviews.map((r) => r.stars).reduce((a, b) => a + b) / reviews.length;
+    _places[idx] = Place(
+      id: old.id,
+      name: old.name,
+      latitude: old.latitude,
+      longitude: old.longitude,
+      createdByUserId: old.createdByUserId,
+      averageRating: avg,
+      ratingsCount: count,
+      distanceKm: old.distanceKm,
+      recentReviews: reviews.take(10).toList(),
+    );
     return 'Avaliação salva.';
   }
 
@@ -327,12 +375,26 @@ class MockApiService {
 
   Future<List<Challenge>> challenges({required ChallengeListRole role}) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
-    return MockData.challenges(role: role);
+    final seed = MockData.challenges(role: role);
+    final extra = _challenges.where((c) {
+      if (role == ChallengeListRole.created) return c.role == 'created';
+      if (role == ChallengeListRole.received) return c.role == 'received';
+      return true;
+    });
+    final ids = <int>{};
+    final merged = <Challenge>[];
+    for (final c in [...extra, ...seed]) {
+      if (ids.add(c.id)) merged.add(c);
+    }
+    return merged;
   }
 
   Future<Challenge> challengeById(int id) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
-    return _challenges.firstWhere((c) => c.id == id, orElse: () => MockData.challenges().first);
+    return _challenges.firstWhere(
+      (c) => c.id == id,
+      orElse: () => MockData.challenges().firstWhere((c) => c.id == id, orElse: () => MockData.challenges().first),
+    );
   }
 
   Future<Challenge> createDirectChallenge({
@@ -360,9 +422,21 @@ class MockApiService {
   Future<Challenge> createPublicChallenge({
     required ChallengeFormat format,
     required DateTime scheduledStart,
+    int? placeId,
+    bool openLocation = false,
+    double? minNtrp,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final me = Player(id: MockData.currentUserId, name: 'Você', latitude: MockData.centerLat, longitude: MockData.centerLng);
+    Place? place;
+    if (placeId != null) {
+      for (final p in _places) {
+        if (p.id == placeId) {
+          place = p;
+          break;
+        }
+      }
+    }
     final challenge = Challenge(
       id: 300 + _challenges.length,
       type: ChallengeType.public,
@@ -370,10 +444,42 @@ class MockApiService {
       status: ChallengeStatus.pendingCandidates,
       scheduledStart: scheduledStart,
       creator: me,
+      place: place,
+      openLocation: openLocation,
+      minNtrp: minNtrp,
       role: 'created',
     );
     _challenges = [challenge, ..._challenges];
     return challenge;
+  }
+
+  Future<Challenge> cancelChallenge(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _challenges.indexWhere((c) => c.id == id);
+    if (idx < 0) return challengeById(id);
+    final old = _challenges[idx];
+    final updated = Challenge(
+      id: old.id,
+      type: old.type,
+      format: old.format,
+      status: ChallengeStatus.cancelled,
+      scheduledStart: old.scheduledStart,
+      scheduledEnd: old.scheduledEnd,
+      message: old.message,
+      openLocation: old.openLocation,
+      minNtrp: old.minNtrp,
+      maxNtrp: old.maxNtrp,
+      genderPreference: old.genderPreference,
+      slotsTotal: old.slotsTotal,
+      creator: old.creator,
+      place: old.place,
+      participants: old.participants,
+      candidatesCount: old.candidatesCount,
+      role: old.role,
+      hasSubmittedEvaluation: old.hasSubmittedEvaluation,
+    );
+    _challenges[idx] = updated;
+    return updated;
   }
 
   Future<UserProfile> registerMock({

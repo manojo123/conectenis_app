@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:conectenis_app/core/config/env.dart';
@@ -24,6 +25,10 @@ class PlacePickerMap extends StatefulWidget {
 
   static bool get isSupported =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS) && Env.googleMapsApiKey.isNotEmpty;
+
+  static final Set<Factory<OneSequenceGestureRecognizer>> _gestureRecognizers = {
+    Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+  };
 
   @override
   State<PlacePickerMap> createState() => _PlacePickerMapState();
@@ -102,6 +107,7 @@ class _PlacePickerMapState extends State<PlacePickerMap> {
             GoogleMap(
               initialCameraPosition: CameraPosition(target: _position, zoom: 15),
               markers: _markers,
+              gestureRecognizers: PlacePickerMap._gestureRecognizers,
               onMapCreated: (c) => _controller = c,
               onTap: (pos) {
                 setState(() => _position = pos);
@@ -165,45 +171,69 @@ Future<void> showFullscreenPlacePicker({
   required double longitude,
   required void Function(double lat, double lng) onLocationChanged,
 }) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (ctx) {
-      final height = MediaQuery.sizeOf(ctx).height * 0.92;
-      return SizedBox(
-        height: height,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Ajustar posição no mapa',
-                      style: Theme.of(ctx).textTheme.titleMedium,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: PlacePickerMap(
-                latitude: latitude,
-                longitude: longitude,
-                height: height - 72,
-                showZoomControls: true,
-                onLocationChanged: onLocationChanged,
-              ),
-            ),
-          ],
-        ),
-      );
-    },
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (ctx) => _FullscreenPlacePickerPage(
+        latitude: latitude,
+        longitude: longitude,
+        onLocationChanged: onLocationChanged,
+      ),
+    ),
   );
+}
+
+class _FullscreenPlacePickerPage extends StatefulWidget {
+  const _FullscreenPlacePickerPage({
+    required this.latitude,
+    required this.longitude,
+    required this.onLocationChanged,
+  });
+
+  final double latitude;
+  final double longitude;
+  final void Function(double lat, double lng) onLocationChanged;
+
+  @override
+  State<_FullscreenPlacePickerPage> createState() => _FullscreenPlacePickerPageState();
+}
+
+class _FullscreenPlacePickerPageState extends State<_FullscreenPlacePickerPage> {
+  late double _lat;
+  late double _lng;
+
+  @override
+  void initState() {
+    super.initState();
+    _lat = widget.latitude;
+    _lng = widget.longitude;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ajustar posição'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Concluir'),
+          ),
+        ],
+      ),
+      body: PlacePickerMap(
+        latitude: _lat,
+        longitude: _lng,
+        height: MediaQuery.sizeOf(context).height,
+        showZoomControls: true,
+        onLocationChanged: (lat, lng) {
+          setState(() {
+            _lat = lat;
+            _lng = lng;
+          });
+          widget.onLocationChanged(lat, lng);
+        },
+      ),
+    );
+  }
 }

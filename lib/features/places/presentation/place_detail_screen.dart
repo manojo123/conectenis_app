@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/places/data/places_repository.dart';
@@ -10,6 +10,7 @@ import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/report_reason_sheet.dart';
 import 'package:conectenis_app/shared/widgets/star_rating_input.dart';
+import 'package:conectenis_app/shared/widgets/static_place_map.dart';
 
 class PlaceDetailScreen extends ConsumerStatefulWidget {
   const PlaceDetailScreen({super.key, required this.placeId});
@@ -27,12 +28,13 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
   bool _editing = false;
   bool _busy = false;
   int _rateStars = 0;
-
+  final _commentController = TextEditingController();
   final _nameController = TextEditingController();
 
   @override
   void dispose() {
     _nameController.dispose();
+    _commentController.dispose();
     super.dispose();
   }
 
@@ -128,9 +130,12 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
       final msg = await ref.read(placesRepositoryProvider).rate(
             id: _place!.id,
             stars: _rateStars,
+            comment: _commentController.text.trim(),
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        _commentController.clear();
+        _rateStars = 0;
         await _load();
       }
     } catch (e) {
@@ -170,7 +175,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
           if (_editing) ...[
             TextField(
@@ -199,45 +204,58 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
               ],
             ),
           ] else ...[
-            if (place.averageRating != null)
-              Row(
-                children: [
-                  const Icon(Icons.star, color: Colors.amber),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${place.averageRating!.toStringAsFixed(1)} (${place.ratingsCount} avaliações)',
-                  ),
-                ],
-              )
-            else
-              Text('Sem avaliações ainda', style: Theme.of(context).textTheme.bodyMedium),
+            Row(
+              children: [
+                const Icon(Icons.star, color: Colors.amber),
+                const SizedBox(width: 4),
+                Text(
+                  place.averageRating != null
+                      ? '${place.averageRating!.toStringAsFixed(1)} · ${place.ratingsCount} avaliação(ões)'
+                      : 'Sem avaliações ainda',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text(place.subtitle),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () => launchUrl(
-                Uri.parse(
-                  'https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}',
-                ),
-                mode: LaunchMode.externalApplication,
-              ),
-              icon: const Icon(Icons.map),
-              label: const Text('Abrir no mapa'),
-            ),
+            const SizedBox(height: 12),
+            StaticPlaceMap(latitude: place.latitude, longitude: place.longitude),
             const Divider(height: 32),
-            const Text('Avaliar local'),
-            const Text(
-              'Disponível após um jogo realizado neste local.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
+            Text('Avaliar local', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
             StarRatingInput(
               value: _rateStars,
               onChanged: (v) => setState(() => _rateStars = v),
             ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _commentController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Comentário (opcional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
             FilledButton.tonal(
               onPressed: _busy || _rateStars < 1 ? null : _rate,
               child: const Text('Enviar avaliação'),
             ),
+            if (place.recentReviews.isNotEmpty) ...[
+              const Divider(height: 32),
+              Text('Comentários', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              ...place.recentReviews.map(
+                (review) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    title: Text(review.author),
+                    subtitle: Text(review.comment.isEmpty ? '(sem comentário)' : review.comment),
+                    trailing: Text('★' * review.stars),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _busy ? null : _report,

@@ -22,6 +22,11 @@ class ShellScaffold extends StatelessWidget {
           onDestinationSelected: navigationShell.goBranch,
           destinations: const [
             NavigationDestination(
+              icon: Icon(Icons.menu),
+              selectedIcon: Icon(Icons.menu_open),
+              label: 'Menu',
+            ),
+            NavigationDestination(
               icon: Icon(Icons.map_outlined),
               selectedIcon: Icon(Icons.map),
               label: 'Mapa',
@@ -37,19 +42,14 @@ class ShellScaffold extends StatelessWidget {
               label: 'Desafios',
             ),
             NavigationDestination(
-              icon: Icon(Icons.notifications_outlined),
-              selectedIcon: Icon(Icons.notifications),
-              label: 'Notificações',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Perfil',
+              icon: Icon(Icons.leaderboard_outlined),
+              selectedIcon: Icon(Icons.leaderboard),
+              label: 'Ranking',
             ),
           ],
         ),
       ),
-      floatingActionButton: navigationShell.currentIndex == 2
+      floatingActionButton: navigationShell.currentIndex == 3
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 8),

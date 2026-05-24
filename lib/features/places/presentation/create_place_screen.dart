@@ -6,6 +6,7 @@ import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/places/data/places_repository.dart';
+import 'package:conectenis_app/shared/utils/reverse_geocode.dart';
 import 'package:conectenis_app/shared/widgets/place_picker_map.dart';
 
 class CreatePlaceScreen extends ConsumerStatefulWidget {
@@ -20,7 +21,9 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
   final _nameController = TextEditingController();
   double _lat = MockData.centerLat;
   double _lng = MockData.centerLng;
+  String? _address;
   bool _loadingGps = true;
+  bool _loadingAddress = false;
   bool _submitting = false;
 
   @override
@@ -35,6 +38,17 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
     super.dispose();
   }
 
+  Future<void> _refreshAddress() async {
+    setState(() => _loadingAddress = true);
+    final address = await reverseGeocodeAddress(_lat, _lng);
+    if (mounted) {
+      setState(() {
+        _address = address;
+        _loadingAddress = false;
+      });
+    }
+  }
+
   Future<void> _loadGps() async {
     try {
       var permission = await Geolocator.checkPermission();
@@ -44,6 +58,7 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         setState(() => _loadingGps = false);
+        await _refreshAddress();
         return;
       }
       final pos = await Geolocator.getCurrentPosition();
@@ -52,8 +67,10 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
         _lng = pos.longitude;
         _loadingGps = false;
       });
+      await _refreshAddress();
     } catch (_) {
       setState(() => _loadingGps = false);
+      await _refreshAddress();
     }
   }
 
@@ -62,6 +79,7 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
       _lat = lat;
       _lng = lng;
     });
+    _refreshAddress();
   }
 
   Future<void> _openFullscreenMap() async {
@@ -138,7 +156,15 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
               label: const Text('Abrir mapa em tela cheia'),
             ),
             const SizedBox(height: 8),
-            Text('Lat: ${_lat.toStringAsFixed(5)}, Lng: ${_lng.toStringAsFixed(5)}'),
+            if (_loadingAddress)
+              const Text('Buscando endereço...')
+            else if (_address != null && _address!.isNotEmpty)
+              Text(_address!, style: Theme.of(context).textTheme.bodyMedium)
+            else
+              Text(
+                'Endereço não disponível para esta posição.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: _loadingGps ? null : _loadGps,

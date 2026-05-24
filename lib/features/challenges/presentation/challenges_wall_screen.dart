@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
+import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/widgets/challenge_status_chip.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:intl/intl.dart';
@@ -52,10 +53,9 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen>
       _error = null;
     });
     try {
-      final created = await ref.read(challengesRepositoryProvider).list(ChallengeListRole.created);
-      final received = await ref.read(challengesRepositoryProvider).list(ChallengeListRole.received);
+      final list = await ref.read(challengesRepositoryProvider).list(_role);
       setState(() {
-        _items = _role == ChallengeListRole.created ? created : received;
+        _items = list;
         _loading = false;
       });
     } catch (e) {
@@ -68,13 +68,13 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(challengesRefreshProvider, (previous, next) => _load());
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mural de Desafios'),
         bottom: TabBar(
           controller: _tabs,
-          indicatorColor: AppColors.lime,
-          labelColor: AppColors.lime,
           tabs: const [
             Tab(text: 'CRIADOS'),
             Tab(text: 'RECEBIDOS'),
@@ -131,7 +131,7 @@ class _ChallengeCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  _StatusChip(status: challenge.status),
+                  ChallengeStatusChip(status: challenge.status),
                 ],
               ),
               const SizedBox(height: 8),
@@ -142,28 +142,6 @@ class _ChallengeCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final ChallengeStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.lime.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.lime),
-      ),
-      child: Text(
-        status.label.toUpperCase(),
-        style: const TextStyle(fontSize: 10, color: AppColors.lime, fontWeight: FontWeight.bold),
       ),
     );
   }

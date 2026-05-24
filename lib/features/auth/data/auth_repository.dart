@@ -112,6 +112,7 @@ class AuthRepository {
   }
 
   Future<UserProfile> saveProfile(UserProfile profile) async {
+    final wasComplete = profile.profileComplete;
     await _profileStorage.write(profile);
 
     if (!Env.useMockApi) {
@@ -122,15 +123,16 @@ class AuthRepository {
       final merged = await _mergeWithLocalProfile(
         UserProfile.fromJson(response.data ?? profile.toJson()),
       );
-      await _profileStorage.write(merged);
-      return merged;
+      final result = merged.copyWith(profileComplete: wasComplete || merged.profileComplete);
+      await _profileStorage.write(result);
+      return result;
     }
 
     final complete = profile.name.isNotEmpty &&
         profile.age != null &&
         profile.age! >= 10 &&
-        profile.avatarUrl != null;
-    return profile.copyWith(profileComplete: complete);
+        (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty);
+    return profile.copyWith(profileComplete: wasComplete || complete);
   }
 
   Future<String> uploadAvatar(String filePath) async {

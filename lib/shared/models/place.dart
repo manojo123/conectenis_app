@@ -12,6 +12,7 @@ class Place {
     this.ratingsCount = 0,
     this.distanceKm,
     this.createdAt,
+    this.recentReviews = const [],
   });
 
   final int id;
@@ -23,6 +24,7 @@ class Place {
   final int ratingsCount;
   final double? distanceKm;
   final DateTime? createdAt;
+  final List<PlaceReview> recentReviews;
 
   String get subtitle {
     if (distanceKm != null) {
@@ -42,6 +44,7 @@ class Place {
       ratingsCount: ratingsCount,
       distanceKm: distanceKmBetween(lat, lng, latitude, longitude),
       createdAt: createdAt,
+      recentReviews: recentReviews,
     );
   }
 
@@ -60,6 +63,10 @@ class Place {
           ? null
           : parseJsonDouble(json['distance_km']),
       createdAt: _parseDateTime(json['created_at']),
+      recentReviews: (json['recent_reviews'] as List<dynamic>?)
+              ?.map((e) => PlaceReview.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 
@@ -77,4 +84,24 @@ class Place {
 
   @override
   int get hashCode => id.hashCode;
+}
+
+class PlaceReview {
+  const PlaceReview({
+    required this.author,
+    required this.comment,
+    required this.stars,
+  });
+
+  final String author;
+  final String comment;
+  final int stars;
+
+  factory PlaceReview.fromJson(Map<String, dynamic> json) {
+    return PlaceReview(
+      author: json['author'] as String? ?? json['user_name'] as String? ?? 'Jogador',
+      comment: json['comment'] as String? ?? '',
+      stars: parseJsonInt(json['stars']),
+    );
+  }
 }

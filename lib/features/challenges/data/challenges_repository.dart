@@ -88,7 +88,13 @@ class ChallengesRepository {
   }) {
     return _guard(() async {
       if (Env.useMockApi) {
-        return _mock.createPublicChallenge(format: format, scheduledStart: scheduledStart);
+        return _mock.createPublicChallenge(
+          format: format,
+          scheduledStart: scheduledStart,
+          placeId: placeId,
+          openLocation: openLocation,
+          minNtrp: minNtrp,
+        );
       }
       final response = await _dio.post<Map<String, dynamic>>(
         '/challenges/public',
@@ -143,7 +149,10 @@ class ChallengesRepository {
 
   Future<Challenge> _action(int id, String action) {
     return _guard(() async {
-      if (Env.useMockApi) return _mock.challengeById(id);
+      if (Env.useMockApi) {
+        if (action == 'cancel') return _mock.cancelChallenge(id);
+        return _mock.challengeById(id);
+      }
       final response = await _dio.post<Map<String, dynamic>>('/challenges/$id/$action');
       return Challenge.fromJson(response.data!);
     });
