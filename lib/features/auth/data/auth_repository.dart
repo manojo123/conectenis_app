@@ -112,21 +112,46 @@ class AuthRepository {
   }
 
   Future<UserProfile> saveProfile(UserProfile profile) async {
-    final complete = profile.name.isNotEmpty &&
-        profile.age != null &&
-        profile.age! > 0;
-
-    final updated = profile.copyWith(profileComplete: complete);
-    await _profileStorage.write(updated);
+    await _profileStorage.write(profile);
 
     if (!Env.useMockApi) {
-      try {
-        await _dio.put('/user/profile', data: updated.toJson());
-      } catch (_) {
-        // API endpoint not live yet — local storage is enough for MVP.
-      }
+      final response = await _dio.put<Map<String, dynamic>>(
+        '/user/profile',
+        data: profile.toJson(),
+      );
+      final merged = await _mergeWithLocalProfile(
+        UserProfile.fromJson(response.data ?? profile.toJson()),
+      );
+      await _profileStorage.write(merged);
+      return merged;
     }
-    return updated;
+
+    final complete = profile.name.isNotEmpty &&
+        profile.age != null &&
+        profile.age! >= 10 &&
+        profile.avatarUrl != null;
+    return profile.copyWith(profileComplete: complete);
+  }
+
+  Future<String> uploadAvatar(String filePath) async {
+    final formData = FormData.fromMap({
+      'avatar': await MultipartFile.fromFile(filePath),
+    });
+    final response = await _dio.post<Map<String, dynamic>>('/user/avatar', data: formData);
+    return response.data!['avatar_url'] as String;
+  }
+
+  Future<UserProfile> socialLogin({
+    required String provider,
+    required String token,
+  }) async {
+    return _guard(() async {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/social/$provider',
+        data: {'token': token, 'device_name': _deviceName},
+      );
+      return _saveTokenAndProfile(response.data!);
+    });
   }
 
   Future<void> logout() async {
@@ -159,12 +184,17 @@ class AuthRepository {
     if (local != null && local.id == profile.id) {
       return profile.copyWith(
         age: local.age,
-        skillLevel: local.skillLevel,
+        ntrpRating: local.ntrpRating,
+        gender: local.gender,
+        profession: local.profession,
+        city: local.city,
+        state: local.state,
+        addressLine: local.addressLine,
         playStyle: local.playStyle,
-        avatarUrl: local.avatarUrl,
+        avatarUrl: local.avatarUrl ?? profile.avatarUrl,
         latitude: local.latitude,
         longitude: local.longitude,
-        profileComplete: local.profileComplete,
+        profileComplete: profile.profileComplete || local.profileComplete,
       );
     }
     return profile;

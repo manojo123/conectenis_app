@@ -80,7 +80,63 @@ If build fails on **native assets** / `objective_c`, see **[WINDOWS_BUILD.md](WI
 | `POST` | `/api/places/{id}/ratings` | After completed match at place — `{ stars, comment? }` |
 | `POST` | `/api/places/{id}/reports` | `{ reason, details? }` — `details` required if `reason=other` (min 10 chars) |
 
-## Play invitations (`/api/play-invitations/*`)
+## Challenges (`/api/challenges/*`)
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `GET` | `/api/challenges` | Query: `role=created\|received\|public_nearby` |
+| `POST` | `/api/challenges/direct` | `{ format, participant_ids[], place_id, scheduled_start, message? }` |
+| `POST` | `/api/challenges/public` | No `profession` filter; `{ format, place_id?, open_location, min_ntrp?, max_ntrp?, gender_preference?, scheduled_start }` |
+| `GET` | `/api/challenges/{id}` | |
+| `POST` | `/api/challenges/{id}/accept` | |
+| `POST` | `/api/challenges/{id}/decline` | |
+| `POST` | `/api/challenges/{id}/cancel` | |
+| `POST` | `/api/challenges/{id}/apply` | Public challenges |
+| `GET` | `/api/challenges/{id}/candidates` | Creator only |
+| `POST` | `/api/challenges/{id}/candidates/{userId}/accept` | |
+| `POST` | `/api/challenges/{id}/evaluation` | `{ skip_score?, my_games_won?, opponent_games_won?, winner_user_id?, opponent_punctuality_stars, place_quality_stars?, ... }` |
+
+## Profile fields (`PUT /api/user/profile`)
+
+`ntrp_rating` (1.0–5.0, step 0.5), `gender`, `profession`, `address_line`, `city`, `state`, `country`, `play_style`.  
+`profile_complete` requires avatar (`POST /api/user/avatar`), age, NTRP, gender, city, state.
+
+## Players (`GET /api/players/nearby`)
+
+Filters: `name`, `city`, `gender`, `min_ntrp`, `max_ntrp`, `min_age`, `max_age`, `sort` (`distance` \| `ntrp_desc` \| `age_asc`).
+
+## Rankings (`GET /api/rankings`)
+
+Query: `scope=home|played`, optional `city_id`, `state`, `country`.
+
+## Social auth
+
+| Method | Path |
+|--------|------|
+| `POST` | `/api/auth/social/{google\|facebook\|linkedin}` body: `{ token, device_name }` |
+| `POST` | `/api/auth/social/{provider}/link` (authenticated) |
+| `DELETE` | `/api/auth/social/{provider}/link` |
+
+Laravel `.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (+ Facebook/LinkedIn when added).
+
+Flutter Google login: see **[GOOGLE_SIGNIN.md](GOOGLE_SIGNIN.md)** — set `GOOGLE_OAUTH_WEB_CLIENT_ID` (same as Laravel Web client ID).
+
+## Notifications (`GET /api/notifications`)
+
+Mark read: `POST /api/notifications/{id}/read`. Unread count on `GET /api/auth/user`.
+
+## Chat (`/api/conversations`, `/api/messages`)
+
+| Method | Path | Body | Notes |
+|--------|------|------|--------|
+| `GET` | `/api/conversations` | — | Excludes conversations hidden by the current user |
+| `POST` | `/api/conversations` | `{ user_id }` | Idempotent — returns existing thread if present |
+| `DELETE` | `/api/conversations/{id}` | — | `204` — hides thread for current user only |
+| `GET` | `/api/conversations/{id}/messages` | — | Excludes deleted/hidden messages; `403` if thread hidden for user |
+| `POST` | `/api/messages` | `{ conversation_id, body }` | Re-opens hidden thread for both participants |
+| `DELETE` | `/api/messages/{id}` | `{ scope: "for_me" \| "for_everyone" }` | `for_me`: hide for current user; `for_everyone`: sender only, removes for both |
+
+## Play invitations (`/api/play-invitations/*`) — legacy
 
 | Method | Path | Notes |
 |--------|------|--------|

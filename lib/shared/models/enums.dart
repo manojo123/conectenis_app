@@ -1,16 +1,20 @@
-enum SkillLevel {
-  beginner('beginner', 'Iniciante'),
-  intermediate('intermediate', 'Intermediário'),
-  advanced('advanced', 'Avançado');
+enum Gender {
+  male('male', 'Masculino'),
+  female('female', 'Feminino');
 
-  const SkillLevel(this.value, this.label);
+  const Gender(this.value, this.label);
   final String value;
   final String label;
 
-  static SkillLevel fromValue(String? value) => SkillLevel.values.firstWhere(
-        (e) => e.value == value,
-        orElse: () => SkillLevel.intermediate,
-      );
+  static Gender? fromValue(String? value) {
+    if (value == null || value.isEmpty || value == 'prefer_not_to_say') {
+      return null;
+    }
+    for (final gender in Gender.values) {
+      if (gender.value == value) return gender;
+    }
+    return null;
+  }
 }
 
 enum PlayStyle {
@@ -29,6 +33,66 @@ enum PlayStyle {
 }
 
 enum MapFilter { players, places }
+
+enum ChallengeType {
+  direct('direct', 'Direto'),
+  public('public', 'Público');
+
+  const ChallengeType(this.value, this.label);
+  final String value;
+  final String label;
+
+  static ChallengeType fromValue(String? value) => ChallengeType.values.firstWhere(
+        (e) => e.value == value,
+        orElse: () => ChallengeType.direct,
+      );
+}
+
+enum ChallengeFormat {
+  singles('singles', 'Simples'),
+  doubles('doubles', 'Duplas');
+
+  const ChallengeFormat(this.value, this.label);
+  final String value;
+  final String label;
+
+  int get slotsTotal => this == ChallengeFormat.singles ? 2 : 4;
+
+  static ChallengeFormat fromValue(String? value) => ChallengeFormat.values.firstWhere(
+        (e) => e.value == value,
+        orElse: () => ChallengeFormat.singles,
+      );
+}
+
+enum ChallengeStatus {
+  pendingAcceptance('pending_acceptance', 'Pendente aceite'),
+  pendingCandidates('pending_candidates', 'Pendente candidatos'),
+  candidatesAwaitingAccept('candidates_awaiting_accept', 'Candidatos aguardando'),
+  accepted('accepted', 'Aceito'),
+  pendingScore('pending_score', 'Pendente placar'),
+  completed('completed', 'Realizado'),
+  declined('declined', 'Recusado'),
+  cancelled('cancelled', 'Cancelado');
+
+  const ChallengeStatus(this.value, this.label);
+  final String value;
+  final String label;
+
+  static ChallengeStatus fromValue(String? value) => ChallengeStatus.values.firstWhere(
+        (e) => e.value == value,
+        orElse: () => ChallengeStatus.pendingAcceptance,
+      );
+}
+
+enum ChallengeListRole {
+  created('created', 'Criados'),
+  received('received', 'Recebidos'),
+  publicNearby('public_nearby', 'Públicos');
+
+  const ChallengeListRole(this.value, this.label);
+  final String value;
+  final String label;
+}
 
 enum PlayInvitationStatus {
   pending('pending', 'Pendente'),
@@ -87,13 +151,21 @@ enum UserReportReason {
       );
 }
 
-/// Filter for invitation list API (`role` query).
 enum InvitationListRole {
   all('all', 'Todos'),
   sent('sent', 'Enviados'),
   received('received', 'Recebidos');
 
   const InvitationListRole(this.value, this.label);
+  final String value;
+  final String label;
+}
+
+enum RankingScope {
+  home('home', 'Cidade do perfil'),
+  played('played', 'Vitórias na cidade');
+
+  const RankingScope(this.value, this.label);
   final String value;
   final String label;
 }

@@ -16,6 +16,23 @@
       }
     },
     {
+      "name": "Debug: conectenis_app (SM S948B wireless)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "adb: connect Samsung phone",
+      "deviceId": "adb-RXGL20BCPVE",
+      "flutterMode": "debug",
+      "debugSdkLibraries": false,
+      "toolArgs": [
+        "--device-timeout=60"
+      ],
+      "toolEnv": {
+        "PUB_CACHE": "C:\\pub-cache"
+      }
+    },
+    {
       "name": "Debug: conectenis_app (Windows)",
       "type": "dart",
       "request": "launch",

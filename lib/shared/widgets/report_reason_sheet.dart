@@ -73,12 +73,19 @@ class _ReportReasonSheetBodyState extends State<_ReportReasonSheetBody> {
         children: [
           Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
-          ...widget.reasons.map(
-            (r) => RadioListTile<String>(
-              title: Text(r.label, style: const TextStyle(fontSize: 14)),
-              value: r.value,
-              groupValue: _selected,
-              onChanged: (v) => setState(() => _selected = v),
+          RadioGroup<String>(
+            groupValue: _selected,
+            onChanged: (v) => setState(() => _selected = v),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: widget.reasons
+                  .map(
+                    (r) => RadioListTile<String>(
+                      title: Text(r.label, style: const TextStyle(fontSize: 14)),
+                      value: r.value,
+                    ),
+                  )
+                  .toList(),
             ),
           ),
           if (_needsDetails) ...[

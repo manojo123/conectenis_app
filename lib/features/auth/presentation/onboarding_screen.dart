@@ -1,11 +1,16 @@
 import 'dart:io';
 
+import 'package:conectenis_app/core/theme/layout.dart';
+import 'package:conectenis_app/shared/utils/avatar_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:conectenis_app/features/auth/data/auth_repository.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/widgets/gender_selector.dart';
+import 'package:conectenis_app/shared/widgets/lime_button.dart';
+import 'package:conectenis_app/shared/widgets/ntrp_rating_picker.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -16,14 +21,29 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _ageController = TextEditingController();
-  SkillLevel _skill = SkillLevel.intermediate;
+  final _professionController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _stateController = TextEditingController(text: 'SP');
+  final _addressController = TextEditingController();
+  double _ntrp = 3.0;
+  Gender _gender = Gender.male;
   PlayStyle _style = PlayStyle.both;
   String? _avatarPath;
+  bool _saving = false;
 
   @override
   void dispose() {
     _ageController.dispose();
+    _professionController.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _addressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAvatar() async {
+    final path = await pickAvatarImagePath(context);
+    if (path != null) setState(() => _avatarPath = path);
   }
 
   Future<void> _save() async {
@@ -37,17 +57,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
       return;
     }
+    if (_avatarPath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inclua uma foto obrigatória')),
+      );
+      return;
+    }
 
-    await ref.read(authStateProvider.notifier).updateProfile(
-          user.copyWith(
-            age: age,
-            skillLevel: _skill,
-            playStyle: _style,
-            avatarUrl: _avatarPath,
-            profileComplete: true,
-          ),
-        );
-    if (mounted) context.go('/');
+    setState(() => _saving = true);
+    try {
+      var avatarUrl = user.avatarUrl;
+      if (_avatarPath != null) {
+        avatarUrl = await ref.read(authRepositoryProvider).uploadAvatar(_avatarPath!);
+      }
+
+      await ref.read(authStateProvider.notifier).updateProfile(
+            user.copyWith(
+              age: age,
+              ntrpRating: _ntrp,
+              gender: _gender,
+              profession: _professionController.text.trim(),
+              addressLine: _addressController.text.trim(),
+              city: _cityController.text.trim(),
+              state: _stateController.text.trim(),
+              playStyle: _style,
+              avatarUrl: avatarUrl,
+              profileComplete: true,
+            ),
+          );
+      if (mounted) context.go('/');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -55,52 +100,55 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final user = ref.watch(authStateProvider).value;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Seu perfil')),
+      appBar: AppBar(title: const Text('Crie Seu Perfil')),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
-          Text('Olá, ${user?.name ?? ''}! Complete seu perfil para encontrar parceiros.'),
-          const SizedBox(height: 16),
           Center(
             child: GestureDetector(
-              onTap: () async {
-                final file = await ImagePicker().pickImage(source: ImageSource.gallery);
-                if (file != null) setState(() => _avatarPath = file.path);
-              },
+              onTap: _pickAvatar,
               child: CircleAvatar(
-                radius: 44,
-                backgroundImage:
-                    _avatarPath != null ? FileImage(File(_avatarPath!)) : null,
-                child: _avatarPath == null ? const Icon(Icons.camera_alt, size: 32) : null,
+                radius: 52,
+                backgroundImage: _avatarPath != null ? FileImage(File(_avatarPath!)) : null,
+                child: _avatarPath == null ? const Icon(Icons.add_a_photo, size: 36) : null,
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: _ageController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Idade'),
-          ),
+          const SizedBox(height: 8),
+          const Text('Incluir Foto Obrigatória', textAlign: TextAlign.center),
+          TextButton(onPressed: _pickAvatar, child: const Text('Tirar foto ou escolher da galeria')),
+          const SizedBox(height: 8),
+          Text('Olá, ${user?.name ?? ''}!'),
           const SizedBox(height: 16),
-          DropdownButtonFormField<SkillLevel>(
-            initialValue: _skill,
-            decoration: const InputDecoration(labelText: 'Nível'),
-            items: SkillLevel.values
-                .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))
-                .toList(),
-            onChanged: (v) => setState(() => _skill = v!),
+          const Text('Sexo'),
+          GenderSelector(
+            value: _gender,
+            onChanged: (g) {
+              if (g != null) setState(() => _gender = g);
+            },
           ),
+          const SizedBox(height: 12),
+          TextField(controller: _ageController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Idade')),
+          const SizedBox(height: 12),
+          TextField(controller: _professionController, decoration: const InputDecoration(labelText: 'Profissão')),
+          const SizedBox(height: 12),
+          TextField(controller: _addressController, decoration: const InputDecoration(labelText: 'Endereço')),
+          const SizedBox(height: 12),
+          TextField(controller: _cityController, decoration: const InputDecoration(labelText: 'Cidade')),
+          const SizedBox(height: 12),
+          TextField(controller: _stateController, decoration: const InputDecoration(labelText: 'Estado (UF)')),
+          const SizedBox(height: 16),
+          const Text('Nível de Jogo (NTRP)'),
+          NtrpRatingPicker(value: _ntrp, onChanged: (v) => setState(() => _ntrp = v)),
           const SizedBox(height: 16),
           DropdownButtonFormField<PlayStyle>(
             initialValue: _style,
             decoration: const InputDecoration(labelText: 'Estilo de jogo'),
-            items: PlayStyle.values
-                .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))
-                .toList(),
+            items: PlayStyle.values.map((s) => DropdownMenuItem(value: s, child: Text(s.label))).toList(),
             onChanged: (v) => setState(() => _style = v!),
           ),
           const SizedBox(height: 32),
-          ElevatedButton(onPressed: _save, child: const Text('Continuar')),
+          LimeButton(label: 'Salvar perfil', loading: _saving, onPressed: _save),
         ],
       ),
     );

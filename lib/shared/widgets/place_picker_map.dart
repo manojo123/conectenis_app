@@ -13,12 +13,14 @@ class PlacePickerMap extends StatefulWidget {
     required this.longitude,
     required this.onLocationChanged,
     this.height = 220,
+    this.showZoomControls = false,
   });
 
   final double latitude;
   final double longitude;
   final void Function(double lat, double lng) onLocationChanged;
   final double height;
+  final bool showZoomControls;
 
   static bool get isSupported =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS) && Env.googleMapsApiKey.isNotEmpty;
@@ -50,6 +52,13 @@ class _PlacePickerMapState extends State<PlacePickerMap> {
   void dispose() {
     _controller?.dispose();
     super.dispose();
+  }
+
+  Future<void> _zoomBy(double delta) async {
+    final controller = _controller;
+    if (controller == null) return;
+    final zoom = await controller.getZoomLevel();
+    await controller.animateCamera(CameraUpdate.zoomTo((zoom + delta).clamp(3, 20)));
   }
 
   Set<Marker> get _markers => {
@@ -88,19 +97,113 @@ class _PlacePickerMapState extends State<PlacePickerMap> {
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
         height: widget.height,
-        child: GoogleMap(
-          initialCameraPosition: CameraPosition(target: _position, zoom: 15),
-          markers: _markers,
-          onMapCreated: (c) => _controller = c,
-          onTap: (pos) {
-            setState(() => _position = pos);
-            widget.onLocationChanged(pos.latitude, pos.longitude);
-          },
-          myLocationEnabled: true,
-          myLocationButtonEnabled: true,
-          zoomControlsEnabled: false,
+        child: Stack(
+          children: [
+            GoogleMap(
+              initialCameraPosition: CameraPosition(target: _position, zoom: 15),
+              markers: _markers,
+              onMapCreated: (c) => _controller = c,
+              onTap: (pos) {
+                setState(() => _position = pos);
+                widget.onLocationChanged(pos.latitude, pos.longitude);
+              },
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
+              zoomControlsEnabled: widget.showZoomControls,
+              zoomGesturesEnabled: true,
+              scrollGesturesEnabled: true,
+              rotateGesturesEnabled: true,
+              tiltGesturesEnabled: true,
+            ),
+            if (widget.showZoomControls)
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: Column(
+                  children: [
+                    _ZoomButton(icon: Icons.add, onPressed: () => _zoomBy(1)),
+                    const SizedBox(height: 8),
+                    _ZoomButton(icon: Icons.remove, onPressed: () => _zoomBy(-1)),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _ZoomButton extends StatelessWidget {
+  const _ZoomButton({required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      elevation: 2,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> showFullscreenPlacePicker({
+  required BuildContext context,
+  required double latitude,
+  required double longitude,
+  required void Function(double lat, double lng) onLocationChanged,
+}) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (ctx) {
+      final height = MediaQuery.sizeOf(ctx).height * 0.92;
+      return SizedBox(
+        height: height,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Ajustar posição no mapa',
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: PlacePickerMap(
+                latitude: latitude,
+                longitude: longitude,
+                height: height - 72,
+                showZoomControls: true,
+                onLocationChanged: onLocationChanged,
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
 }

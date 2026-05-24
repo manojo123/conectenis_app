@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/network/session_provider.dart';
 import 'package:conectenis_app/features/auth/data/auth_repository.dart';
+import 'package:conectenis_app/features/auth/data/google_auth_service.dart';
 import 'package:conectenis_app/shared/models/user_profile.dart';
 
 final authStateProvider =
@@ -27,6 +28,25 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
     } catch (_) {
       await ref.read(authRepositoryProvider).logout();
       return null;
+    }
+  }
+
+  Future<void> loginWithGoogle() async {
+    final previous = state.valueOrNull;
+    state = const AsyncLoading();
+    try {
+      final idToken = await ref.read(googleAuthServiceProvider).signInForIdToken();
+      if (idToken == null) {
+        state = AsyncData(previous);
+        return;
+      }
+      final user = await ref.read(authRepositoryProvider).socialLogin(
+            provider: 'google',
+            token: idToken,
+          );
+      state = AsyncData(user);
+    } catch (e, st) {
+      state = AsyncError(e, st);
     }
   }
 
@@ -86,6 +106,7 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
   }
 
   Future<void> logout() async {
+    await ref.read(googleAuthServiceProvider).signOut();
     await ref.read(authRepositoryProvider).logout();
     state = const AsyncData(null);
   }

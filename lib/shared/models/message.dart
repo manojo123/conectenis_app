@@ -1,3 +1,5 @@
+import 'package:conectenis_app/shared/models/json_parsers.dart';
+
 class Message {
   const Message({
     required this.id,
@@ -25,13 +27,13 @@ class Message {
       );
 
   factory Message.fromJson(Map<String, dynamic> json, {int? currentUserId}) {
-    final userId = json['user_id'] as int;
+    final userId = parseJsonInt(json['user_id']);
     return Message(
-      id: json['id'] as int,
-      conversationId: json['conversation_id'] as int,
+      id: parseJsonInt(json['id']),
+      conversationId: parseJsonInt(json['conversation_id']),
       userId: userId,
-      body: json['body'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      body: json['body'] as String? ?? '',
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
       isMine: currentUserId != null && userId == currentUserId,
     );
   }

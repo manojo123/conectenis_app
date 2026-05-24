@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/data/mock_api_service.dart';
+import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/player.dart';
@@ -24,38 +25,64 @@ class PlayersRepository {
   Future<List<Player>> nearby({
     required double lat,
     required double lng,
-    SkillLevel? skill,
+    String? name,
+    String? city,
+    Gender? gender,
+    double? minNtrp,
+    double? maxNtrp,
     int? minAge,
     int? maxAge,
-  }) async {
-    if (Env.useMockApi) {
-      return _mock.nearbyPlayers(
-        lat: lat,
-        lng: lng,
-        skill: skill,
-        minAge: minAge,
-        maxAge: maxAge,
+    String sort = 'distance',
+    double radiusKm = 50,
+  }) {
+    return _guard(() async {
+      if (Env.useMockApi) {
+        return _mock.nearbyPlayers(
+          lat: lat,
+          lng: lng,
+          name: name,
+          gender: gender,
+          minNtrp: minNtrp,
+          maxNtrp: maxNtrp,
+          minAge: minAge,
+          maxAge: maxAge,
+        );
+      }
+      final response = await _dio.get<List<dynamic>>(
+        '/players/nearby',
+        queryParameters: {
+          'lat': lat,
+          'lng': lng,
+          'radius': radiusKm,
+          if (name != null && name.isNotEmpty) 'name': name,
+          if (city != null && city.isNotEmpty) 'city': city,
+          if (gender != null) 'gender': gender.value,
+          'min_ntrp': ?minNtrp,
+          'max_ntrp': ?maxNtrp,
+          'min_age': ?minAge,
+          'max_age': ?maxAge,
+          'sort': sort,
+        },
       );
-    }
-    final response = await _dio.get<List<dynamic>>(
-      '/players/nearby',
-      queryParameters: {
-        'lat': lat,
-        'lng': lng,
-        'radius': 25,
-        if (skill != null) 'skill_level': skill.value,
-        'min_age': ?minAge,
-        'max_age': ?maxAge,
-      },
-    );
-    return (response.data ?? [])
-        .map((e) => Player.fromJson(e as Map<String, dynamic>))
-        .toList();
+      return (response.data ?? [])
+          .map((e) => Player.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
   }
 
-  Future<Player?> byId(int id) async {
-    if (Env.useMockApi) return _mock.playerById(id);
-    final response = await _dio.get<Map<String, dynamic>>('/players/$id');
-    return Player.fromJson(response.data!);
+  Future<Player?> byId(int id) {
+    return _guard(() async {
+      if (Env.useMockApi) return _mock.playerById(id);
+      final response = await _dio.get<Map<String, dynamic>>('/players/$id');
+      return Player.fromJson(response.data!);
+    });
+  }
+
+  Future<T> _guard<T>(Future<T> Function() run) async {
+    try {
+      return await run();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
   }
 }

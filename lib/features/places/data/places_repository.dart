@@ -120,7 +120,7 @@ class PlacesRepository {
         '/places/$id/reports',
         data: {
           'reason': reason.value,
-          if (details != null) 'details': details,
+          'details': ?details,
         },
       );
       return response.data!['message'] as String? ?? 'Denúncia enviada.';

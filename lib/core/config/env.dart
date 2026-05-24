@@ -35,6 +35,14 @@ class Env {
 
   static String get googleMapsApiKey => dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
 
+  /// OAuth 2.0 **Web application** client ID (same value as Laravel `GOOGLE_CLIENT_ID`).
+  static String get googleOAuthWebClientId =>
+      dotenv.env['GOOGLE_OAUTH_WEB_CLIENT_ID'] ?? '';
+
+  /// OAuth 2.0 **iOS** client ID (optional; required for Google Sign-In on iPhone).
+  static String get googleOAuthIosClientId =>
+      dotenv.env['GOOGLE_OAUTH_IOS_CLIENT_ID'] ?? '';
+
   static String get reverbAppKey => dotenv.env['REVERB_APP_KEY'] ?? '';
 
   static String get reverbHost => dotenv.env['REVERB_HOST'] ?? 'http://laravel.test';

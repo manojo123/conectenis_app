@@ -11,18 +11,26 @@ void main() {
       name: 'Test',
       email: 'test@example.com',
       age: 30,
-      skillLevel: SkillLevel.intermediate,
+      ntrpRating: 3.5,
+      gender: Gender.male,
       playStyle: PlayStyle.singles,
       profileComplete: true,
       roles: ['user'],
     );
 
     final json = profile.toJson();
-    final restored = UserProfile.fromJson(json);
+    final restored = UserProfile.fromJson({
+      ...json,
+      'id': 1,
+      'name': 'Test',
+      'email': 'test@example.com',
+      'profile_complete': true,
+      'roles': ['user'],
+    });
 
     expect(restored.id, 1);
     expect(restored.name, 'Test');
-    expect(restored.skillLevel, SkillLevel.intermediate);
+    expect(restored.ntrpRating, 3.5);
     expect(restored.profileComplete, true);
     expect(restored.roles, ['user']);
   });
@@ -63,8 +71,10 @@ void main() {
     expect(apiError.fieldErrors?['email']?.first, contains('taken'));
   });
 
-  test('SkillLevel fromValue defaults to intermediate', () {
-    expect(SkillLevel.fromValue(null), SkillLevel.intermediate);
-    expect(SkillLevel.fromValue('advanced'), SkillLevel.advanced);
+  test('Gender fromValue returns null for missing or prefer_not_to_say', () {
+    expect(Gender.fromValue(null), isNull);
+    expect(Gender.fromValue(''), isNull);
+    expect(Gender.fromValue('prefer_not_to_say'), isNull);
+    expect(Gender.fromValue('male'), Gender.male);
   });
 }

@@ -1,5 +1,7 @@
+import 'package:conectenis_app/features/chat/data/delete_message_scope.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
+import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/models/play_invitation.dart';
@@ -12,25 +14,41 @@ import 'package:conectenis_app/shared/models/user_profile.dart';
 class MockApiService {
   final Map<int, List<Message>> _messages = {};
   final List<Conversation> _conversations = [];
+  final Set<int> _hiddenConversationIds = {};
+  final Set<int> _hiddenMessageIdsForMe = {};
+  final Set<int> _deletedForAllMessageIds = {};
   final List<MatchRecord> _matches = [];
   int _messageId = 100;
   int _conversationId = 1;
   int _matchId = 1;
   int _placeId = 100;
   final List<Place> _places = List.from(MockData.places);
-  List<PlayInvitation> _invitations = MockData.playInvitations();
+  final List<PlayInvitation> _invitations = MockData.playInvitations();
 
   Future<List<Player>> nearbyPlayers({
     double? lat,
     double? lng,
-    SkillLevel? skill,
+    String? name,
+    Gender? gender,
+    double? minNtrp,
+    double? maxNtrp,
     int? minAge,
     int? maxAge,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     var list = List<Player>.from(MockData.players);
-    if (skill != null) {
-      list = list.where((p) => p.skillLevel == skill).toList();
+    if (name != null && name.isNotEmpty) {
+      final query = name.toLowerCase();
+      list = list.where((p) => p.name.toLowerCase().contains(query)).toList();
+    }
+    if (gender != null) {
+      list = list.where((p) => p.gender == gender).toList();
+    }
+    if (minNtrp != null) {
+      list = list.where((p) => p.ntrpRating >= minNtrp).toList();
+    }
+    if (maxNtrp != null) {
+      list = list.where((p) => p.ntrpRating <= maxNtrp).toList();
     }
     if (minAge != null) {
       list = list.where((p) => (p.age ?? 0) >= minAge).toList();
@@ -183,7 +201,7 @@ class MockApiService {
 
   Future<List<Conversation>> conversations() async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
-    return List<Conversation>.from(_conversations);
+    return _conversations.where((c) => !_hiddenConversationIds.contains(c.id)).toList();
   }
 
   Future<Conversation> startConversation(int otherUserId, String otherName) async {
@@ -205,6 +223,9 @@ class MockApiService {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final list = _messages[conversationId] ?? [];
     return list
+        .where((m) =>
+            !_deletedForAllMessageIds.contains(m.id) &&
+            !_hiddenMessageIdsForMe.contains(m.id))
         .map((m) => m.copyWith(isMine: currentUserId != null && m.userId == currentUserId))
         .toList();
   }
@@ -223,6 +244,7 @@ class MockApiService {
       isMine: true,
     );
     _messages.putIfAbsent(conversationId, () => []).add(msg);
+    _hiddenConversationIds.remove(conversationId);
 
     final idx = _conversations.indexWhere((c) => c.id == conversationId);
     if (idx >= 0) {
@@ -237,6 +259,20 @@ class MockApiService {
       );
     }
     return msg;
+  }
+
+  Future<void> deleteConversation(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    _hiddenConversationIds.add(id);
+  }
+
+  Future<void> deleteMessage(int id, {required DeleteMessageScope scope}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    if (scope == DeleteMessageScope.forEveryone) {
+      _deletedForAllMessageIds.add(id);
+    } else {
+      _hiddenMessageIdsForMe.add(id);
+    }
   }
 
   Future<List<MatchRecord>> matches() async {
@@ -285,6 +321,59 @@ class MockApiService {
     );
     _matches.insert(0, record);
     return record;
+  }
+
+  List<Challenge> _challenges = MockData.challenges();
+
+  Future<List<Challenge>> challenges({required ChallengeListRole role}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    return MockData.challenges(role: role);
+  }
+
+  Future<Challenge> challengeById(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    return _challenges.firstWhere((c) => c.id == id, orElse: () => MockData.challenges().first);
+  }
+
+  Future<Challenge> createDirectChallenge({
+    required ChallengeFormat format,
+    required List<int> participantIds,
+    required int placeId,
+    required DateTime scheduledStart,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final me = Player(id: MockData.currentUserId, name: 'Você', latitude: MockData.centerLat, longitude: MockData.centerLng);
+    final challenge = Challenge(
+      id: 200 + _challenges.length,
+      type: ChallengeType.direct,
+      format: format,
+      status: ChallengeStatus.pendingAcceptance,
+      scheduledStart: scheduledStart,
+      creator: me,
+      place: _places.firstWhere((p) => p.id == placeId, orElse: () => _places.first),
+      role: 'created',
+    );
+    _challenges = [challenge, ..._challenges];
+    return challenge;
+  }
+
+  Future<Challenge> createPublicChallenge({
+    required ChallengeFormat format,
+    required DateTime scheduledStart,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final me = Player(id: MockData.currentUserId, name: 'Você', latitude: MockData.centerLat, longitude: MockData.centerLng);
+    final challenge = Challenge(
+      id: 300 + _challenges.length,
+      type: ChallengeType.public,
+      format: format,
+      status: ChallengeStatus.pendingCandidates,
+      scheduledStart: scheduledStart,
+      creator: me,
+      role: 'created',
+    );
+    _challenges = [challenge, ..._challenges];
+    return challenge;
   }
 
   Future<UserProfile> registerMock({

@@ -5,17 +5,17 @@ import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:conectenis_app/features/chat/data/chat_repository.dart';
+import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/features/places/data/places_repository.dart';
 import 'package:conectenis_app/features/players/data/players_repository.dart';
-import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/models/conversation.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/place_picker_map.dart';
-
-final mapFilterProvider = StateProvider<MapFilter>((ref) => MapFilter.players);
 
 bool _hasValidCoordinates(double lat, double lng) =>
     lat.abs() > 0.001 || lng.abs() > 0.001;
@@ -34,6 +34,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   String? _error;
   List<Player> _players = [];
   List<Place> _places = [];
+  bool _showPlayers = true;
+  bool _showPlaces = true;
+
   @override
   void initState() {
     super.initState();
@@ -105,38 +108,47 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  Set<Marker> _buildMarkers(MapFilter filter) {
-    if (filter == MapFilter.players) {
-      return _players
-          .where((p) => _hasValidCoordinates(p.latitude, p.longitude))
-          .map(
-            (p) => Marker(
-              markerId: MarkerId('player_${p.id}'),
-              position: LatLng(p.latitude, p.longitude),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-              infoWindow: InfoWindow(title: p.name, snippet: p.skillLevel.label),
-              onTap: () => _showPlayerSheet(p),
+  Set<Marker> _buildMarkers() {
+    final markers = <Marker>{};
+    if (_showPlayers) {
+      markers.addAll(
+        _players
+            .where((p) => _hasValidCoordinates(p.latitude, p.longitude))
+            .map(
+              (p) => Marker(
+                markerId: MarkerId('player_${p.id}'),
+                position: LatLng(p.latitude, p.longitude),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                infoWindow: InfoWindow(
+                  title: p.name,
+                  snippet: 'NTRP ${p.ntrpRating.toStringAsFixed(1)}',
+                ),
+                onTap: () => _showPlayerSheet(p),
+              ),
             ),
-          )
-          .toSet();
+      );
     }
-    return _places
-        .where((p) => _hasValidCoordinates(p.latitude, p.longitude))
-        .map(
-          (p) => Marker(
-            markerId: MarkerId('place_${p.id}'),
-            position: LatLng(p.latitude, p.longitude),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-            infoWindow: InfoWindow(
-              title: p.name,
-              snippet: p.averageRating != null
-                  ? '${p.averageRating!.toStringAsFixed(1)} ★ · ${p.subtitle}'
-                  : p.subtitle,
+    if (_showPlaces) {
+      markers.addAll(
+        _places
+            .where((p) => _hasValidCoordinates(p.latitude, p.longitude))
+            .map(
+              (p) => Marker(
+                markerId: MarkerId('place_${p.id}'),
+                position: LatLng(p.latitude, p.longitude),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                infoWindow: InfoWindow(
+                  title: p.name,
+                  snippet: p.averageRating != null
+                      ? '${p.averageRating!.toStringAsFixed(1)} ★ · ${p.subtitle}'
+                      : p.subtitle,
+                ),
+                onTap: () => _openPlace(p),
+              ),
             ),
-            onTap: () => _openPlace(p),
-          ),
-        )
-        .toSet();
+      );
+    }
+    return markers;
   }
 
   void _openPlace(Place place) {
@@ -147,7 +159,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final created = await context.push<Place>('/places/new');
     if (!mounted) return;
     if (created != null) {
-      ref.read(mapFilterProvider.notifier).state = MapFilter.places;
+      setState(() => _showPlaces = true);
       await _loadData();
       if (_hasValidCoordinates(created.latitude, created.longitude)) {
         await _moveCamera(
@@ -165,6 +177,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
+  Future<void> _messagePlayer(Player player) async {
+    try {
+      final conv = await ref.read(chatRepositoryProvider).start(player.id, player.name);
+      if (!mounted) return;
+      openChatThread(
+        context,
+        Conversation(
+          id: conv.id,
+          otherUserId: conv.otherUserId,
+          otherUserName: conv.otherUserName,
+          otherAvatarUrl: player.avatarUrl ?? conv.otherAvatarUrl,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   void _showPlayerSheet(Player player) {
     showModalBottomSheet<void>(
       context: context,
@@ -175,14 +206,30 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(player.name, style: Theme.of(ctx).textTheme.titleLarge),
-            Text('${player.skillLevel.label} · ${player.age ?? '?'} anos'),
+            Text('NTRP ${player.ntrpRating.toStringAsFixed(1)} · ${player.age ?? '?'} anos'),
             const SizedBox(height: 16),
-            ElevatedButton(
+            OutlinedButton(
               onPressed: () {
                 Navigator.pop(ctx);
                 context.push('/players/${player.id}');
               },
               child: const Text('Ver perfil'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _messagePlayer(player);
+              },
+              child: const Text('Mensagem'),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.push('/challenges/new/direct?playerId=${player.id}');
+              },
+              child: const Text('Desafiar'),
             ),
           ],
         ),
@@ -192,53 +239,56 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   bool get _mapsSupported => PlacePickerMap.isSupported;
 
+  int get _playerCount =>
+      _players.where((p) => _hasValidCoordinates(p.latitude, p.longitude)).length;
+
+  int get _placeCount =>
+      _places.where((p) => _hasValidCoordinates(p.latitude, p.longitude)).length;
+
   @override
   Widget build(BuildContext context) {
-    final filter = ref.watch(mapFilterProvider);
-    final markers = _loading ? <Marker>{} : _buildMarkers(filter);
-    final placeCount = _places.where((p) => _hasValidCoordinates(p.latitude, p.longitude)).length;
+    final markers = _loading ? <Marker>{} : _buildMarkers();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mapa'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => context.push('/players-search'),
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
       ),
-      floatingActionButton: filter == MapFilter.places
-          ? FloatingActionButton.extended(
-              onPressed: _addPlace,
-              icon: const Icon(Icons.add_location_alt),
-              label: const Text('Adicionar local'),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addPlace,
+        icon: const Icon(Icons.add_location_alt),
+        label: const Text('Adicionar local'),
+      ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: SegmentedButton<MapFilter>(
-              segments: const [
-                ButtonSegment(value: MapFilter.players, label: Text('Jogadores'), icon: Icon(Icons.person)),
-                ButtonSegment(value: MapFilter.places, label: Text('Lugares'), icon: Icon(Icons.place)),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilterChip(
+                  label: Text('Jogadores ($_playerCount)'),
+                  selected: _showPlayers,
+                  onSelected: (v) => setState(() => _showPlayers = v),
+                  avatar: const Icon(Icons.person, size: 18),
+                ),
+                FilterChip(
+                  label: Text('Lugares ($_placeCount)'),
+                  selected: _showPlaces,
+                  onSelected: (v) => setState(() => _showPlaces = v),
+                  avatar: const Icon(Icons.place, size: 18),
+                ),
               ],
-              selected: {filter},
-              onSelectionChanged: (s) {
-                ref.read(mapFilterProvider.notifier).state = s.first;
-                setState(() {});
-              },
             ),
           ),
-          if (filter == MapFilter.places && !_loading && _error == null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '$placeCount local(is) no mapa · toque no pin para detalhes',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            ),
           if (!_mapsSupported && !_loading)
             Padding(
               padding: const EdgeInsets.all(12),
@@ -258,14 +308,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ? ErrorView(message: _error!, onRetry: _initLocation)
                     : !_mapsSupported
                         ? _MapListFallback(
-                            filter: filter,
+                            showPlayers: _showPlayers,
+                            showPlaces: _showPlaces,
                             players: _players,
                             places: _places,
                             onPlayerTap: (p) => context.push('/players/${p.id}'),
                             onPlaceTap: _openPlace,
                           )
                         : GoogleMap(
-                            key: ValueKey('map_${filter.name}_${markers.length}'),
+                            key: ValueKey('map_${markers.length}'),
                             initialCameraPosition: CameraPosition(target: _center, zoom: 13),
                             markers: markers,
                             myLocationEnabled: true,
@@ -284,14 +335,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
 class _MapListFallback extends StatelessWidget {
   const _MapListFallback({
-    required this.filter,
+    required this.showPlayers,
+    required this.showPlaces,
     required this.players,
     required this.places,
     required this.onPlayerTap,
     required this.onPlaceTap,
   });
 
-  final MapFilter filter;
+  final bool showPlayers;
+  final bool showPlaces;
   final List<Player> players;
   final List<Place> places;
   final void Function(Player) onPlayerTap;
@@ -299,46 +352,64 @@ class _MapListFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (filter == MapFilter.players) {
-      if (players.isEmpty) {
-        return const EmptyState(
-          icon: Icons.people_outline,
-          title: 'Nenhum jogador por perto',
-          subtitle: 'Convide amigos para aparecerem no mapa.',
-        );
-      }
-      return ListView.builder(
-        itemCount: players.length,
-        itemBuilder: (_, i) {
-          final p = players[i];
-          return ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.sports_tennis)),
-            title: Text(p.name),
-            subtitle: Text('${p.skillLevel.label} · ${p.distanceKm?.toStringAsFixed(1) ?? '?'} km'),
-            onTap: () => onPlayerTap(p),
-          );
-        },
-      );
-    }
-    final visible = places.where((p) => _hasValidCoordinates(p.latitude, p.longitude)).toList();
-    if (visible.isEmpty) {
+  final visiblePlayers =
+      players.where((p) => _hasValidCoordinates(p.latitude, p.longitude)).toList();
+  final visiblePlaces =
+      places.where((p) => _hasValidCoordinates(p.latitude, p.longitude)).toList();
+
+    if (!showPlayers && !showPlaces) {
       return const EmptyState(
-        icon: Icons.place_outlined,
-        title: 'Nenhum local cadastrado',
-        subtitle: 'Toque em Adicionar local para cadastrar no mapa.',
+        icon: Icons.layers_clear,
+        title: 'Nenhuma camada visível',
+        subtitle: 'Ative jogadores ou locais nos filtros acima.',
       );
     }
-    return ListView.builder(
-      itemCount: visible.length,
-      itemBuilder: (_, i) {
-        final p = visible[i];
-        return ListTile(
-          leading: const Icon(Icons.place, color: AppColors.navy),
-          title: Text(p.name),
-          subtitle: Text(p.subtitle),
-          onTap: () => onPlaceTap(p),
-        );
-      },
+
+    if (showPlayers && visiblePlayers.isEmpty && (!showPlaces || visiblePlaces.isEmpty)) {
+      return const EmptyState(
+        icon: Icons.map_outlined,
+        title: 'Nada por perto',
+        subtitle: 'Cadastre um local ou convide jogadores para aparecerem no mapa.',
+      );
+    }
+
+    return ListView(
+      children: [
+        if (showPlayers) ...[
+          const ListTile(
+            title: Text('Jogadores', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          if (visiblePlayers.isEmpty)
+            const ListTile(title: Text('Nenhum jogador por perto'))
+          else
+            ...visiblePlayers.map(
+              (p) => ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.sports_tennis)),
+                title: Text(p.name),
+                subtitle: Text(
+                  'NTRP ${p.ntrpRating.toStringAsFixed(1)} · ${p.distanceKm?.toStringAsFixed(1) ?? '?'} km',
+                ),
+                onTap: () => onPlayerTap(p),
+              ),
+            ),
+        ],
+        if (showPlaces) ...[
+          const ListTile(
+            title: Text('Locais', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          if (visiblePlaces.isEmpty)
+            const ListTile(title: Text('Nenhum local cadastrado'))
+          else
+            ...visiblePlaces.map(
+              (p) => ListTile(
+                leading: const Icon(Icons.place, color: AppColors.navy),
+                title: Text(p.name),
+                subtitle: Text(p.subtitle),
+                onTap: () => onPlaceTap(p),
+              ),
+            ),
+        ],
+      ],
     );
   }
 }

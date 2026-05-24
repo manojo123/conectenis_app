@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
+import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
+import 'package:conectenis_app/shared/utils/date_time_format.dart';
 import 'package:conectenis_app/features/places/data/places_repository.dart';
 import 'package:conectenis_app/features/play_invitations/data/play_invitations_repository.dart';
 import 'package:conectenis_app/shared/models/place.dart';
@@ -19,7 +21,7 @@ class CreateInvitationScreen extends ConsumerStatefulWidget {
 
 class _CreateInvitationScreenState extends ConsumerState<CreateInvitationScreen> {
   final _messageController = TextEditingController();
-  DateTime _scheduledAt = DateTime.now().add(const Duration(hours: 2));
+  DateTime _scheduledAt = roundToFiveMinutes(DateTime.now().add(const Duration(hours: 2)));
   Place? _selectedPlace;
   List<Place> _places = [];
   bool _loadingPlaces = true;
@@ -64,21 +66,13 @@ class _CreateInvitationScreenState extends ConsumerState<CreateInvitationScreen>
   }
 
   Future<void> _pickDateTime() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _scheduledAt,
+    final picked = await pickDateTimeWithFiveMinuteSteps(
+      context,
+      initial: _scheduledAt,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_scheduledAt),
-    );
-    if (time == null) return;
-    setState(() {
-      _scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    });
+    if (picked != null) setState(() => _scheduledAt = picked);
   }
 
   Future<void> _addNewPlace() async {
@@ -131,7 +125,7 @@ class _CreateInvitationScreenState extends ConsumerState<CreateInvitationScreen>
     return Scaffold(
       appBar: AppBar(title: const Text('Convidar para jogar')),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -160,7 +154,7 @@ class _CreateInvitationScreenState extends ConsumerState<CreateInvitationScreen>
             )
           else ...[
             DropdownButtonFormField<Place>(
-              value: _selectedPlace,
+              initialValue: _selectedPlace,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: _places
                   .map(
@@ -205,9 +199,5 @@ class _CreateInvitationScreenState extends ConsumerState<CreateInvitationScreen>
     );
   }
 
-  String _formatDateTime(DateTime dt) {
-    final local = dt.toLocal();
-    return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year} '
-        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-  }
+  String _formatDateTime(DateTime dt) => formatDateTimePt(dt);
 }

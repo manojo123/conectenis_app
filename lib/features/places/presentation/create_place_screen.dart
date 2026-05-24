@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
+import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/places/data/places_repository.dart';
 import 'package:conectenis_app/shared/widgets/place_picker_map.dart';
@@ -63,6 +64,15 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
     });
   }
 
+  Future<void> _openFullscreenMap() async {
+    await showFullscreenPlacePicker(
+      context: context,
+      latitude: _lat,
+      longitude: _lng,
+      onLocationChanged: _onMapLocationChanged,
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
@@ -91,7 +101,7 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
           children: [
             TextFormField(
               controller: _nameController,
@@ -121,6 +131,12 @@ class _CreatePlaceScreenState extends ConsumerState<CreatePlaceScreen> {
                 longitude: _lng,
                 onLocationChanged: _onMapLocationChanged,
               ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _loadingGps ? null : _openFullscreenMap,
+              icon: const Icon(Icons.fullscreen),
+              label: const Text('Abrir mapa em tela cheia'),
+            ),
             const SizedBox(height: 8),
             Text('Lat: ${_lat.toStringAsFixed(5)}, Lng: ${_lng.toStringAsFixed(5)}'),
             const SizedBox(height: 8),

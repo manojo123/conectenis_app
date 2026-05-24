@@ -1,3 +1,4 @@
+import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/models/play_invitation.dart';
@@ -15,7 +16,11 @@ abstract final class MockData {
       id: 2,
       name: 'Rafael Costa',
       age: 34,
-      skillLevel: SkillLevel.advanced,
+      ntrpRating: 4.0,
+      gender: Gender.male,
+      profession: 'Advogado',
+      city: 'Jundiaí',
+      state: 'SP',
       playStyle: PlayStyle.singles,
       latitude: -23.188,
       longitude: -46.882,
@@ -25,7 +30,11 @@ abstract final class MockData {
       id: 3,
       name: 'Mariana Silva',
       age: 28,
-      skillLevel: SkillLevel.intermediate,
+      ntrpRating: 3.5,
+      gender: Gender.female,
+      profession: 'Médica',
+      city: 'Campinas',
+      state: 'SP',
       playStyle: PlayStyle.both,
       latitude: -23.184,
       longitude: -46.887,
@@ -35,7 +44,7 @@ abstract final class MockData {
       id: 4,
       name: 'Pedro Almeida',
       age: 42,
-      skillLevel: SkillLevel.beginner,
+      ntrpRating: 2.0,
       playStyle: PlayStyle.doubles,
       latitude: -23.191,
       longitude: -46.879,
@@ -45,7 +54,7 @@ abstract final class MockData {
       id: 5,
       name: 'Camila Rocha',
       age: 31,
-      skillLevel: SkillLevel.intermediate,
+      ntrpRating: 3.0,
       playStyle: PlayStyle.singles,
       latitude: -23.182,
       longitude: -46.891,
@@ -119,23 +128,62 @@ abstract final class MockData {
         place: places[1],
         role: 'received',
       ),
-      PlayInvitation(
-        id: 3,
-        status: PlayInvitationStatus.completed,
-        scheduledAt: DateTime.now().subtract(const Duration(days: 3)),
-        completedAt: DateTime.now().subtract(const Duration(days: 2)),
-        completedByUserId: currentUserId,
-        inviter: Player(
-          id: currentUserId,
-          name: 'Você',
-          latitude: centerLat,
-          longitude: centerLng,
-        ),
-        invitee: players[2],
-        place: place,
-        role: 'sent',
-        hasRatedOpponent: true,
-      ),
     ];
+  }
+
+  static List<Challenge> challenges({ChallengeListRole role = ChallengeListRole.created}) {
+    final me = Player(id: currentUserId, name: 'Você', latitude: centerLat, longitude: centerLng, ntrpRating: 3.5);
+    final opponent = players[0];
+    final place = places[0];
+
+    final direct = Challenge(
+      id: 101,
+      type: ChallengeType.direct,
+      format: ChallengeFormat.singles,
+      status: ChallengeStatus.pendingAcceptance,
+      scheduledStart: DateTime.now().add(const Duration(days: 1)),
+      creator: me,
+      place: place,
+      participants: [
+        ChallengeParticipant(id: 1, role: 'creator', status: 'accepted', user: me),
+        ChallengeParticipant(id: 2, role: 'invitee', status: 'pending', user: opponent),
+      ],
+      role: 'created',
+    );
+
+    final received = Challenge(
+      id: 102,
+      type: ChallengeType.direct,
+      format: ChallengeFormat.singles,
+      status: ChallengeStatus.pendingAcceptance,
+      scheduledStart: DateTime.now().add(const Duration(days: 2)),
+      creator: players[1],
+      place: places[1],
+      participants: [
+        ChallengeParticipant(id: 3, role: 'creator', status: 'accepted', user: players[1]),
+        ChallengeParticipant(id: 4, role: 'invitee', status: 'pending', user: me),
+      ],
+      role: 'received',
+    );
+
+    final publicChallenge = Challenge(
+      id: 103,
+      type: ChallengeType.public,
+      format: ChallengeFormat.doubles,
+      status: ChallengeStatus.pendingCandidates,
+      scheduledStart: DateTime.now().add(const Duration(days: 3)),
+      creator: players[2],
+      place: place,
+      minNtrp: 3.0,
+      maxNtrp: 4.0,
+      candidatesCount: 2,
+      role: 'public_nearby',
+    );
+
+    return switch (role) {
+      ChallengeListRole.created => [direct],
+      ChallengeListRole.received => [received],
+      ChallengeListRole.publicNearby => [publicChallenge],
+    };
   }
 }

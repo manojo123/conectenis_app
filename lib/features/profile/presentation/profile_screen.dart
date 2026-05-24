@@ -1,7 +1,9 @@
+import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
+import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -13,47 +15,47 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Perfil')),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
-          CircleAvatar(
-            radius: 40,
-            child: Text(
-              (user?.name.isNotEmpty == true) ? user!.name[0] : '?',
-              style: const TextStyle(fontSize: 28),
+          Center(
+            child: UserAvatar(
+              name: user?.name ?? '',
+              avatarUrl: user?.avatarUrl,
+              radius: 40,
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            user?.name ?? '',
-            style: Theme.of(context).textTheme.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
+          Text(user?.name ?? '', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
           Text(user?.email ?? '', textAlign: TextAlign.center),
           if (user?.age != null) ...[
             const SizedBox(height: 8),
             Text(
-              '${user!.skillLevel.label} · ${user.age} anos',
+              'NTRP ${user!.ntrpRating.toStringAsFixed(1)} · ${user.age} anos',
               textAlign: TextAlign.center,
             ),
+            if (user.gender != null) Text(user.gender!.label, textAlign: TextAlign.center),
+            if (user.city != null) Text('${user.city}, ${user.state}', textAlign: TextAlign.center),
+            if (user.profession != null && user.profession!.isNotEmpty)
+              Text(user.profession!, textAlign: TextAlign.center),
           ],
           const SizedBox(height: 32),
           ListTile(
-            leading: const Icon(Icons.chat),
-            title: const Text('Mensagens'),
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Editar perfil'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/chat'),
+            onTap: () => context.push('/profile/edit'),
           ),
           ListTile(
-            leading: const Icon(Icons.sports_score),
-            title: const Text('Registrar partida'),
+            leading: const Icon(Icons.leaderboard),
+            title: const Text('Ranking'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/matches/log'),
+            onTap: () => context.push('/ranking'),
           ),
           ListTile(
-            leading: const Icon(Icons.history),
-            title: const Text('Histórico e rivais'),
+            leading: const Icon(Icons.search),
+            title: const Text('Buscar jogadores'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/matches/history'),
+            onTap: () => context.push('/players-search'),
           ),
           const Divider(height: 32),
           ListTile(

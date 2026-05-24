@@ -2,47 +2,15 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Start Pixel 8 emulator and wait",
-      "dependsOrder": "sequence",
-      "dependsOn": [
-        "Start Pixel 8 emulator",
-        "Wait for Android emulator (flutter devices)"
-      ],
+      "label": "adb: connect Samsung phone",
+      "type": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File \"${workspaceFolder}/scripts/adb-connect-phone.ps1\"",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "showReuseMessage": false
+      },
       "problemMatcher": []
-    },
-    {
-      "label": "Start Pixel 8 emulator",
-      "type": "shell",
-      "command": "flutter",
-      "args": ["emulators", "--launch", "Pixel_8"],
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "PUB_CACHE": "C:\\pub-cache"
-        }
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "silent",
-        "panel": "dedicated"
-      }
-    },
-    {
-      "label": "Wait for Android emulator (flutter devices)",
-      "type": "shell",
-      "command": "flutter",
-      "args": ["devices", "--device-timeout", "120"],
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "PUB_CACHE": "C:\\pub-cache"
-        }
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "silent",
-        "panel": "dedicated"
-      }
     }
   ]
 }

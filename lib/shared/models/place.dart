@@ -1,4 +1,5 @@
 import 'package:conectenis_app/shared/models/json_parsers.dart';
+import 'package:conectenis_app/shared/utils/geo.dart';
 
 class Place {
   const Place({
@@ -27,7 +28,21 @@ class Place {
     if (distanceKm != null) {
       return '${distanceKm!.toStringAsFixed(1)} km';
     }
-    return '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
+    return 'Próximo';
+  }
+
+  Place withDistanceFrom(double lat, double lng) {
+    return Place(
+      id: id,
+      name: name,
+      latitude: latitude,
+      longitude: longitude,
+      createdByUserId: createdByUserId,
+      averageRating: averageRating,
+      ratingsCount: ratingsCount,
+      distanceKm: distanceKmBetween(lat, lng, latitude, longitude),
+      createdAt: createdAt,
+    );
   }
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -55,4 +70,11 @@ class Place {
     }
     return null;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is Place && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
