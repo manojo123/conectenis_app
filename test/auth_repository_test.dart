@@ -6,11 +6,11 @@ import 'package:conectenis_app/shared/models/user_profile.dart';
 
 void main() {
   test('UserProfile fromJson roundtrip', () {
-    const profile = UserProfile(
+    final profile = UserProfile(
       id: 1,
       name: 'Test',
       email: 'test@example.com',
-      age: 30,
+      dateOfBirth: DateTime(1995, 6, 15),
       ntrpRating: 3.5,
       gender: Gender.male,
       playStyle: PlayStyle.singles,

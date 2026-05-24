@@ -24,12 +24,13 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
   final _searchController = TextEditingController();
   final _debouncer = Debouncer();
   AsyncValue<List<Place>> _places = const AsyncLoading();
+  List<Place> _cachedPlaces = [];
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
-    _load();
+    _load(initial: true);
   }
 
   @override
@@ -40,7 +41,7 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
   }
 
   void _onSearchChanged() {
-    _debouncer.run(_load);
+    _debouncer.run(() => _load(initial: false));
   }
 
   Future<({double lat, double lng})> _currentCenter() async {
@@ -61,8 +62,10 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
     return (lat: lat, lng: lng);
   }
 
-  Future<void> _load() async {
-    setState(() => _places = const AsyncLoading());
+  Future<void> _load({required bool initial}) async {
+    if (initial || _cachedPlaces.isEmpty) {
+      setState(() => _places = const AsyncLoading());
+    }
     try {
       final center = await _currentCenter();
       final list = await ref.read(placesRepositoryProvider).nearby(
@@ -70,10 +73,42 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
             lng: center.lng,
             name: _searchController.text.trim(),
           );
-      setState(() => _places = AsyncData(list));
+      setState(() {
+        _cachedPlaces = list;
+        _places = AsyncData(list);
+      });
     } catch (e, st) {
       setState(() => _places = AsyncError(e, st));
     }
+  }
+
+  Widget _placesList(List<Place> list) {
+    if (list.isEmpty) {
+      return const EmptyState(
+        icon: Icons.place_outlined,
+        title: 'Nenhum local encontrado',
+        subtitle: 'Tente outro nome ou cadastre um novo local.',
+      );
+    }
+    return ListView.builder(
+      padding: EdgeInsets.fromLTRB(12, 12, 12, screenBottomInset(context) + 12),
+      itemCount: list.length,
+      itemBuilder: (_, i) {
+        final place = list[i];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          child: ListTile(
+            leading: const Icon(Icons.place),
+            title: Text(place.name),
+            subtitle: Text(place.subtitle),
+            trailing: widget.selectMode ? const Icon(Icons.chevron_right) : null,
+            onTap: widget.selectMode
+                ? () => context.pop(place)
+                : () => context.push('/places/${place.id}'),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -94,38 +129,16 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _load,
+              onRefresh: () => _load(initial: _cachedPlaces.isEmpty),
               child: _places.when(
-                loading: () => const LoadingView(),
-                error: (e, _) => ErrorView(message: e.toString(), onRetry: _load),
-                data: (list) {
-                  if (list.isEmpty) {
-                    return const EmptyState(
-                      icon: Icons.place_outlined,
-                      title: 'Nenhum local encontrado',
-                      subtitle: 'Tente outro nome ou cadastre um novo local.',
-                    );
+                loading: () {
+                  if (_cachedPlaces.isNotEmpty) {
+                    return _placesList(_cachedPlaces);
                   }
-                  return ListView.builder(
-                    padding: EdgeInsets.fromLTRB(12, 12, 12, screenBottomInset(context) + 12),
-                    itemCount: list.length,
-                    itemBuilder: (_, i) {
-                      final place = list[i];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        child: ListTile(
-                          leading: const Icon(Icons.place),
-                          title: Text(place.name),
-                          subtitle: Text(place.subtitle),
-                          trailing: widget.selectMode ? const Icon(Icons.chevron_right) : null,
-                          onTap: widget.selectMode
-                              ? () => context.pop(place)
-                              : () => context.push('/places/${place.id}'),
-                        ),
-                      );
-                    },
-                  );
+                  return const LoadingView();
                 },
+                error: (e, _) => ErrorView(message: e.toString(), onRetry: () => _load(initial: true)),
+                data: (list) => _placesList(list),
               ),
             ),
           ),

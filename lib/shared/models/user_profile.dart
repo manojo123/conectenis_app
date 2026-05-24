@@ -1,12 +1,13 @@
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/json_parsers.dart';
+import 'package:conectenis_app/shared/utils/date_of_birth.dart';
 
 class UserProfile {
   const UserProfile({
     required this.id,
     required this.name,
     required this.email,
-    this.age,
+    this.dateOfBirth,
     this.ntrpRating = 3.0,
     this.gender,
     this.profession,
@@ -29,7 +30,7 @@ class UserProfile {
   final int id;
   final String name;
   final String email;
-  final int? age;
+  final DateTime? dateOfBirth;
   final double ntrpRating;
   final Gender? gender;
   final String? profession;
@@ -48,11 +49,15 @@ class UserProfile {
   final DateTime? emailVerifiedAt;
   final int unreadNotificationsCount;
 
+  int? get age => ageFromDateOfBirth(dateOfBirth);
+
+  bool get isAdmin => roles.any((r) => r.toLowerCase() == 'admin');
+
   UserProfile copyWith({
     int? id,
     String? name,
     String? email,
-    int? age,
+    DateTime? dateOfBirth,
     double? ntrpRating,
     Gender? gender,
     String? profession,
@@ -75,7 +80,7 @@ class UserProfile {
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
-      age: age ?? this.age,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       ntrpRating: ntrpRating ?? this.ntrpRating,
       gender: gender ?? this.gender,
       profession: profession ?? this.profession,
@@ -97,11 +102,14 @@ class UserProfile {
   }
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
+    final dob = parseDateOfBirth(json['date_of_birth']) ??
+        _dateOfBirthFromAge(json['age']);
+
     return UserProfile(
       id: parseJsonInt(json['id']),
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
-      age: json['age'] == null ? null : parseJsonInt(json['age']),
+      dateOfBirth: dob,
       ntrpRating: parseJsonDouble(json['ntrp_rating'] ?? 3.0),
       gender: json['gender'] == null ? null : Gender.fromValue(json['gender'] as String?),
       profession: json['profession'] as String?,
@@ -124,7 +132,7 @@ class UserProfile {
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'age': age,
+        if (dateOfBirth != null) 'date_of_birth': dateOfBirth!.toIso8601String().split('T').first,
         'ntrp_rating': ntrpRating,
         'gender': gender?.value,
         'profession': profession,
@@ -140,9 +148,19 @@ class UserProfile {
     return UserProfile.fromJson(json);
   }
 
+  static DateTime? _dateOfBirthFromAge(dynamic ageValue) {
+    if (ageValue == null) return null;
+    final age = parseJsonInt(ageValue);
+    if (age <= 0) return null;
+    return DateTime(DateTime.now().year - age, 1, 1);
+  }
+
   static List<String> _parseRoles(dynamic value) {
     if (value is List) {
-      return value.map((e) => e.toString()).toList();
+      return value.map((e) {
+        if (e is Map) return e['name']?.toString() ?? '';
+        return e.toString();
+      }).where((r) => r.isNotEmpty).toList();
     }
     return const [];
   }

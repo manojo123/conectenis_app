@@ -11,6 +11,7 @@ import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/static_place_map.dart';
+import 'package:conectenis_app/shared/utils/player_navigation.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 import 'package:intl/intl.dart';
 
@@ -123,7 +124,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
               title: Text(p.user.name),
               subtitle: Text('NTRP ${p.user.ntrpRating.toStringAsFixed(1)} · ${p.status}'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/players/${p.user.id}'),
+              onTap: () => openPlayerProfile(context, ref, p.user.id),
             ),
           ),
           if (c.creator.id != 0 &&
@@ -134,7 +135,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
               title: Text(c.creator.name),
               subtitle: const Text('Criador'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/players/${c.creator.id}'),
+              onTap: () => openPlayerProfile(context, ref, c.creator.id),
             ),
           ],
           if (c.place != null) ...[
@@ -180,6 +181,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
             LimeButton(
               label: 'Cancelar desafio',
               outlined: true,
+              danger: true,
               onPressed: _busy ? null : _confirmCancel,
             ),
           if (c.status == ChallengeStatus.accepted || c.status == ChallengeStatus.pendingScore)

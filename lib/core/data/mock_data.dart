@@ -12,10 +12,10 @@ abstract final class MockData {
   static const currentUserId = 1;
 
   static final players = <Player>[
-    const Player(
+    Player(
       id: 2,
       name: 'Rafael Costa',
-      age: 34,
+      dateOfBirth: DateTime(1991, 3, 12),
       ntrpRating: 4.0,
       gender: Gender.male,
       profession: 'Advogado',
@@ -26,10 +26,10 @@ abstract final class MockData {
       longitude: -46.882,
       distanceKm: 1.2,
     ),
-    const Player(
+    Player(
       id: 3,
       name: 'Mariana Silva',
-      age: 28,
+      dateOfBirth: DateTime(1997, 8, 5),
       ntrpRating: 3.5,
       gender: Gender.female,
       profession: 'Médica',
@@ -40,20 +40,20 @@ abstract final class MockData {
       longitude: -46.887,
       distanceKm: 0.8,
     ),
-    const Player(
+    Player(
       id: 4,
       name: 'Pedro Almeida',
-      age: 42,
+      dateOfBirth: DateTime(1983, 11, 20),
       ntrpRating: 2.0,
       playStyle: PlayStyle.doubles,
       latitude: -23.191,
       longitude: -46.879,
       distanceKm: 2.1,
     ),
-    const Player(
+    Player(
       id: 5,
       name: 'Camila Rocha',
-      age: 31,
+      dateOfBirth: DateTime(1994, 1, 9),
       ntrpRating: 3.0,
       playStyle: PlayStyle.singles,
       latitude: -23.182,

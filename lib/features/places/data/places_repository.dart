@@ -39,9 +39,14 @@ class PlacesRepository {
           if (name != null && name.isNotEmpty) 'name': name,
         },
       );
-      return (response.data ?? [])
+      var places = (response.data ?? [])
           .map((e) => Place.fromJson(e as Map<String, dynamic>))
           .toList();
+      if (name != null && name.trim().isNotEmpty) {
+        final q = name.trim().toLowerCase();
+        places = places.where((p) => p.name.toLowerCase().contains(q)).toList();
+      }
+      return places;
     });
   }
 
@@ -104,14 +109,14 @@ class PlacesRepository {
   }) {
     return _guard(() async {
       if (Env.useMockApi) return _mock.ratePlace(id: id, stars: stars, comment: comment);
-      final response = await _dio.post<Map<String, dynamic>>(
+      await _dio.post<Map<String, dynamic>>(
         '/places/$id/ratings',
         data: {
           'stars': stars,
           if (comment != null && comment.isNotEmpty) 'comment': comment,
         },
       );
-      return response.data!['message'] as String? ?? 'Avaliação salva.';
+      return 'Avaliação enviada com sucesso.';
     });
   }
 
@@ -122,14 +127,14 @@ class PlacesRepository {
   }) {
     return _guard(() async {
       if (Env.useMockApi) return 'Denúncia registrada.';
-      final response = await _dio.post<Map<String, dynamic>>(
+      await _dio.post<Map<String, dynamic>>(
         '/places/$id/reports',
         data: {
           'reason': reason.value,
           'details': ?details,
         },
       );
-      return response.data!['message'] as String? ?? 'Denúncia enviada.';
+      return 'Denúncia enviada com sucesso.';
     });
   }
 

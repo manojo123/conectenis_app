@@ -1,3 +1,4 @@
+import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:flutter/material.dart';
 
 typedef ReportReasonOption = ({String value, String label});
@@ -65,7 +66,7 @@ class _ReportReasonSheetBodyState extends State<_ReportReasonSheetBody> {
         left: 24,
         right: 24,
         top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + screenBottomInset(context) + 24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

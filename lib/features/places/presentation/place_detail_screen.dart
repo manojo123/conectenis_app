@@ -65,9 +65,10 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     }
   }
 
-  bool get _isCreator {
-    final userId = ref.read(authStateProvider).valueOrNull?.id;
-    return userId != null && _place?.createdByUserId == userId;
+  bool get _canEdit {
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null || _place == null) return false;
+    return _place!.createdByUserId == user.id || user.isAdmin;
   }
 
   Future<void> _saveEdit() async {
@@ -104,13 +105,15 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     if (result == null || _place == null) return;
     setState(() => _busy = true);
     try {
-      final msg = await ref.read(placesRepositoryProvider).report(
+      await ref.read(placesRepositoryProvider).report(
             id: _place!.id,
             reason: PlaceReportReason.fromValue(result.reason),
             details: result.details,
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Denúncia enviada com sucesso.')),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -127,13 +130,15 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     if (_place == null || _rateStars < 1) return;
     setState(() => _busy = true);
     try {
-      final msg = await ref.read(placesRepositoryProvider).rate(
+      await ref.read(placesRepositoryProvider).rate(
             id: _place!.id,
             stars: _rateStars,
             comment: _commentController.text.trim(),
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Avaliação enviada com sucesso.')),
+        );
         _commentController.clear();
         _rateStars = 0;
         await _load();
@@ -167,7 +172,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
       appBar: AppBar(
         title: Text(_editing ? 'Editar local' : place.name),
         actions: [
-          if (_isCreator && !_editing)
+          if (_canEdit && !_editing)
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () => setState(() => _editing = true),

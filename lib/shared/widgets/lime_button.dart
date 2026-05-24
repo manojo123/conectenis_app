@@ -9,6 +9,7 @@ class LimeButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.outlined = false,
+    this.danger = false,
   });
 
   final String label;
@@ -16,14 +17,19 @@ class LimeButton extends StatelessWidget {
   final IconData? icon;
   final bool loading;
   final bool outlined;
+  /// Red outline/text for destructive actions (e.g. cancel challenge).
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
     final child = loading
-        ? const SizedBox(
+        ? SizedBox(
             height: 22,
             width: 22,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.background),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: outlined ? (danger ? AppColors.error : null) : AppColors.background,
+            ),
           )
         : Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -35,7 +41,17 @@ class LimeButton extends StatelessWidget {
           );
 
     if (outlined) {
-      return OutlinedButton(onPressed: loading ? null : onPressed, child: child);
+      final style = danger
+          ? OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: const BorderSide(color: AppColors.error),
+            )
+          : null;
+      return OutlinedButton(
+        style: style,
+        onPressed: loading ? null : onPressed,
+        child: child,
+      );
     }
     return ElevatedButton(onPressed: loading ? null : onPressed, child: child);
   }

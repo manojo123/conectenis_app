@@ -7,6 +7,8 @@ import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
 import 'package:conectenis_app/core/storage/profile_storage.dart';
 import 'package:conectenis_app/core/storage/token_storage.dart';
+import 'package:conectenis_app/shared/utils/date_of_birth.dart';
+import 'package:conectenis_app/shared/utils/media_url.dart';
 import 'package:conectenis_app/shared/models/user_profile.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -123,14 +125,19 @@ class AuthRepository {
       final merged = await _mergeWithLocalProfile(
         UserProfile.fromJson(response.data ?? profile.toJson()),
       );
-      final result = merged.copyWith(profileComplete: wasComplete || merged.profileComplete);
+      final result = merged.copyWith(
+        profileComplete: wasComplete || merged.profileComplete,
+        avatarUrl: resolveMediaUrl(merged.avatarUrl).isEmpty
+            ? merged.avatarUrl
+            : resolveMediaUrl(merged.avatarUrl),
+      );
       await _profileStorage.write(result);
       return result;
     }
 
     final complete = profile.name.isNotEmpty &&
-        profile.age != null &&
-        profile.age! >= 10 &&
+        profile.dateOfBirth != null &&
+        ageFromDateOfBirth(profile.dateOfBirth)! >= 10 &&
         (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty);
     return profile.copyWith(profileComplete: wasComplete || complete);
   }
@@ -140,7 +147,8 @@ class AuthRepository {
       'avatar': await MultipartFile.fromFile(filePath),
     });
     final response = await _dio.post<Map<String, dynamic>>('/user/avatar', data: formData);
-    return response.data!['avatar_url'] as String;
+    final raw = response.data!['avatar_url'] as String;
+    return resolveMediaUrl(raw);
   }
 
   Future<UserProfile> socialLogin({
@@ -175,8 +183,9 @@ class AuthRepository {
     await _tokenStorage.saveToken(token);
 
     final userJson = data['user'] as Map<String, dynamic>;
-    final profile =
-        await _mergeWithLocalProfile(UserProfile.fromLaravelUser(userJson));
+    final profile = _withResolvedAvatar(
+      await _mergeWithLocalProfile(UserProfile.fromLaravelUser(userJson)),
+    );
     await _profileStorage.write(profile);
     return profile;
   }
@@ -185,7 +194,7 @@ class AuthRepository {
     final local = await _profileStorage.read();
     if (local != null && local.id == profile.id) {
       return profile.copyWith(
-        age: local.age,
+        dateOfBirth: local.dateOfBirth ?? profile.dateOfBirth,
         ntrpRating: local.ntrpRating,
         gender: local.gender,
         profession: local.profession,
@@ -193,13 +202,23 @@ class AuthRepository {
         state: local.state,
         addressLine: local.addressLine,
         playStyle: local.playStyle,
-        avatarUrl: local.avatarUrl ?? profile.avatarUrl,
+        avatarUrl: resolveMediaUrl(local.avatarUrl ?? profile.avatarUrl).isEmpty
+            ? (profile.avatarUrl != null ? resolveMediaUrl(profile.avatarUrl) : null)
+            : resolveMediaUrl(local.avatarUrl ?? profile.avatarUrl),
         latitude: local.latitude,
         longitude: local.longitude,
         profileComplete: profile.profileComplete || local.profileComplete,
       );
     }
-    return profile;
+    return _withResolvedAvatar(profile);
+  }
+
+  UserProfile _withResolvedAvatar(UserProfile profile) {
+    final url = profile.avatarUrl;
+    if (url == null || url.isEmpty) return profile;
+    final resolved = resolveMediaUrl(url);
+    if (resolved == url || resolved.isEmpty) return profile;
+    return profile.copyWith(avatarUrl: resolved);
   }
 
   Future<T> _guard<T>(

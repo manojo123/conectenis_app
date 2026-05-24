@@ -11,6 +11,7 @@ import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/full_screen_image_viewer.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
+import 'package:conectenis_app/shared/utils/date_of_birth.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class PlayerDetailScreen extends ConsumerWidget {
@@ -66,7 +67,8 @@ class PlayerDetailScreen extends ConsumerWidget {
                         Text(player.name, style: Theme.of(context).textTheme.headlineSmall),
                         Text('NTRP ${player.ntrpRating.toStringAsFixed(1)}'),
                         if (player.profession != null) Text('Profissão: ${player.profession}'),
-                        Text('Idade: ${player.age ?? '?'}'),
+                        Text('Nascimento: ${formatDateOfBirth(player.dateOfBirth)}'),
+                        if (player.age != null) Text('${player.age} anos'),
                         if (player.locationLabel.isNotEmpty) Text(player.locationLabel),
                       ],
                     ),

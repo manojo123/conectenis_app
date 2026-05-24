@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/data/auth_repository.dart';
+import 'package:conectenis_app/features/profile/providers/profile_feedback_provider.dart';
 import 'package:conectenis_app/shared/utils/avatar_picker.dart';
+import 'package:conectenis_app/shared/utils/date_of_birth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -79,7 +81,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               profileComplete: true,
             ),
           );
-      if (mounted) context.pop();
+      if (mounted) {
+        ref.read(profileUpdatedNoticeProvider.notifier).state = true;
+        context.go('/profile');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -132,12 +137,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(height: 12),
           InputDecorator(
             decoration: InputDecoration(
-              labelText: 'Idade',
+              labelText: 'Data de nascimento',
               enabled: false,
               filled: true,
               fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
-            child: Text(user.age?.toString() ?? '—'),
+            child: Text(formatDateOfBirth(user.dateOfBirth)),
           ),
           const SizedBox(height: 12),
           TextField(

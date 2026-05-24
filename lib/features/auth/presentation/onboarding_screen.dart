@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/shared/utils/avatar_picker.dart';
+import 'package:conectenis_app/shared/utils/date_of_birth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,11 +21,11 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  final _ageController = TextEditingController();
   final _professionController = TextEditingController();
   final _cityController = TextEditingController();
   final _stateController = TextEditingController(text: 'SP');
   final _addressController = TextEditingController();
+  DateTime? _dateOfBirth;
   double _ntrp = 3.0;
   Gender _gender = Gender.male;
   PlayStyle _style = PlayStyle.both;
@@ -33,7 +34,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   void dispose() {
-    _ageController.dispose();
     _professionController.dispose();
     _cityController.dispose();
     _stateController.dispose();
@@ -46,14 +46,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (path != null) setState(() => _avatarPath = path);
   }
 
+  Future<void> _pickDateOfBirth() async {
+    final now = DateTime.now();
+    final initial = _dateOfBirth ?? DateTime(now.year - 25, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year - 100),
+      lastDate: DateTime(now.year - 10, now.month, now.day),
+      helpText: 'Data de nascimento',
+    );
+    if (picked != null) setState(() => _dateOfBirth = picked);
+  }
+
   Future<void> _save() async {
     final user = ref.read(authStateProvider).value;
     if (user == null) return;
 
-    final age = int.tryParse(_ageController.text);
+    if (_dateOfBirth == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe sua data de nascimento')),
+      );
+      return;
+    }
+    final age = ageFromDateOfBirth(_dateOfBirth);
     if (age == null || age < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Informe uma idade válida')),
+        const SnackBar(content: Text('Informe uma data de nascimento válida')),
       );
       return;
     }
@@ -73,7 +92,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       await ref.read(authStateProvider.notifier).updateProfile(
             user.copyWith(
-              age: age,
+              dateOfBirth: _dateOfBirth,
               ntrpRating: _ntrp,
               gender: _gender,
               profession: _professionController.text.trim(),
@@ -128,7 +147,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             },
           ),
           const SizedBox(height: 12),
-          TextField(controller: _ageController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Idade')),
+          InkWell(
+            onTap: _pickDateOfBirth,
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Data de nascimento',
+                suffixIcon: Icon(Icons.calendar_today),
+              ),
+              child: Text(
+                _dateOfBirth == null ? 'Selecionar' : formatDateOfBirth(_dateOfBirth),
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
           TextField(controller: _professionController, decoration: const InputDecoration(labelText: 'Profissão')),
           const SizedBox(height: 12),

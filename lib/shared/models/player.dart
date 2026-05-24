@@ -1,5 +1,6 @@
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/json_parsers.dart';
+import 'package:conectenis_app/shared/utils/date_of_birth.dart';
 
 class Player {
   const Player({
@@ -7,7 +8,7 @@ class Player {
     required this.name,
     required this.latitude,
     required this.longitude,
-    this.age,
+    this.dateOfBirth,
     this.ntrpRating = 3.0,
     this.gender,
     this.profession,
@@ -25,7 +26,7 @@ class Player {
 
   final int id;
   final String name;
-  final int? age;
+  final DateTime? dateOfBirth;
   final double ntrpRating;
   final Gender? gender;
   final String? profession;
@@ -42,16 +43,21 @@ class Player {
   final int? reviewsCount;
   final List<PlayerReview> recentReviews;
 
+  int? get age => ageFromDateOfBirth(dateOfBirth);
+
   String get locationLabel {
     if (city != null && state != null) return '$city, $state';
     return city ?? state ?? '';
   }
 
   factory Player.fromJson(Map<String, dynamic> json) {
+    final dob = parseDateOfBirth(json['date_of_birth']) ??
+        _dateOfBirthFromAge(json['age']);
+
     return Player(
       id: parseJsonInt(json['id']),
       name: json['name'] as String? ?? '',
-      age: json['age'] == null ? null : parseJsonInt(json['age']),
+      dateOfBirth: dob,
       ntrpRating: parseJsonDouble(json['ntrp_rating'] ?? json['skill_level']),
       gender: json['gender'] == null ? null : Gender.fromValue(json['gender'] as String?),
       profession: json['profession'] as String?,
@@ -75,6 +81,13 @@ class Player {
               .toList() ??
           const [],
     );
+  }
+
+  static DateTime? _dateOfBirthFromAge(dynamic ageValue) {
+    if (ageValue == null) return null;
+    final age = parseJsonInt(ageValue);
+    if (age <= 0) return null;
+    return DateTime(DateTime.now().year - age, 1, 1);
   }
 }
 
