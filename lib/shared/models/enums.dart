@@ -65,11 +65,12 @@ enum ChallengeFormat {
 }
 
 enum ChallengeStatus {
-  pendingAcceptance('pending_acceptance', 'Pendente aceite'),
+  pendingAcceptance('pending_acceptance', 'Pendente'),
   pendingCandidates('pending_candidates', 'Pendente candidatos'),
   candidatesAwaitingAccept('candidates_awaiting_accept', 'Candidatos aguardando'),
   accepted('accepted', 'Aceito'),
   pendingScore('pending_score', 'Pendente placar'),
+  pendingResultApproval('pending_result_approval', 'Aguardando aprovação'),
   completed('completed', 'Realizado'),
   declined('declined', 'Recusado'),
   cancelled('cancelled', 'Cancelado');

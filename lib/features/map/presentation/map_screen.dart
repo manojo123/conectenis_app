@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/features/chat/data/chat_repository.dart';
@@ -15,7 +16,6 @@ import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
-import 'package:conectenis_app/shared/widgets/place_picker_map.dart';
 
 bool _hasValidCoordinates(double lat, double lng) =>
     lat.abs() > 0.001 || lng.abs() > 0.001;
@@ -237,7 +237,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  bool get _mapsSupported => PlacePickerMap.isSupported;
+  bool get _mapsSupported => Env.isGoogleMapsSupported;
+
+  String get _mapUnavailableMessage {
+    if (!Env.isGoogleMapsNativePlatform) {
+      return 'O mapa interativo só funciona no Android e iOS. '
+          'No Windows, use a lista abaixo ou rode no emulador Pixel / no celular.';
+    }
+    if (!Env.hasGoogleMapsApiKeyInEnv) {
+      return 'Chave do Google Maps não encontrada no .env em tempo de execução. '
+          'Confira GOOGLE_MAPS_API_KEY, adicione também em android/local.properties '
+          'e faça flutter run (rebuild completo, não hot reload).';
+    }
+    return 'Mapa indisponível neste dispositivo.';
+  }
 
   int get _playerCount =>
       _players.where((p) => _hasValidCoordinates(p.latitude, p.longitude)).length;
@@ -293,9 +306,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             Padding(
               padding: const EdgeInsets.all(12),
               child: MaterialBanner(
-                content: const Text(
-                  'Google Maps nativo sem chave. Adicione GOOGLE_MAPS_API_KEY em .env e faça rebuild do app.',
-                ),
+                content: Text(_mapUnavailableMessage),
                 actions: [
                   TextButton(onPressed: _loadData, child: const Text('Atualizar')),
                 ],

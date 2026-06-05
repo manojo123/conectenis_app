@@ -14,7 +14,6 @@ import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/gender_selector.dart';
-import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/utils/debounce.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
@@ -29,31 +28,32 @@ class PlayersListScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
-  final _searchController = TextEditingController();
-  final _debouncer = Debouncer();
+  final _cityController = TextEditingController();
+  final _cityDebouncer = Debouncer();
   double _minNtrp = 1.0;
   double _maxNtrp = 5.0;
-  final int _minAge = 18;
-  final int _maxAge = 60;
+  double _minAge = 18;
+  double _maxAge = 60;
   Gender? _gender;
-  final String _sort = 'distance';
+  String _sort = 'distance';
   AsyncValue<List<Player>> _players = const AsyncLoading();
+  List<Player> _cachedPlayers = [];
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_onSearchChanged);
+    _cityController.addListener(_onCityChanged);
     _load();
   }
 
-  void _onSearchChanged() {
-    _debouncer.run(_load);
+  void _onCityChanged() {
+    _cityDebouncer.run(() => _load(initial: false));
   }
 
   @override
   void dispose() {
-    _debouncer.dispose();
-    _searchController.dispose();
+    _cityDebouncer.dispose();
+    _cityController.dispose();
     super.dispose();
   }
 
@@ -75,22 +75,27 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
     return (lat: lat, lng: lng);
   }
 
-  Future<void> _load() async {
-    setState(() => _players = const AsyncLoading());
+  Future<void> _load({bool initial = true}) async {
+    if (initial || _cachedPlayers.isEmpty) {
+      setState(() => _players = const AsyncLoading());
+    }
     try {
       final center = await _currentCenter();
       final list = await ref.read(playersRepositoryProvider).nearby(
             lat: center.lat,
             lng: center.lng,
-            name: _searchController.text.trim(),
+            city: _cityController.text.trim(),
             gender: _gender,
             minNtrp: _minNtrp,
             maxNtrp: _maxNtrp,
-            minAge: _minAge,
-            maxAge: _maxAge,
+            minAge: _minAge.round(),
+            maxAge: _maxAge.round(),
             sort: _sort,
           );
-      setState(() => _players = AsyncData(list));
+      setState(() {
+        _cachedPlayers = list;
+        _players = AsyncData(list);
+      });
     } catch (e, st) {
       setState(() => _players = AsyncError(e, st));
     }
@@ -98,6 +103,102 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
 
   void _selectPlayer(Player player) {
     context.pop(player);
+  }
+
+  Widget _buildPlayerList(List<Player> list) {
+    if (list.isEmpty) {
+      return EmptyState(
+        icon: Icons.people_outline,
+        title: 'Nenhum jogador encontrado',
+        subtitle: widget.selectMode
+            ? 'Amplie os filtros para ver mais jogadores.'
+            : 'Ajuste os filtros ou volte mais tarde.',
+      );
+    }
+    return ListView.builder(
+      padding: EdgeInsets.fromLTRB(
+        12,
+        12,
+        12,
+        MediaQuery.viewPaddingOf(context).bottom + 12,
+      ),
+      itemCount: list.length,
+      itemBuilder: (_, i) {
+        final p = list[i];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: InkWell(
+            onTap: widget.selectMode ? () => _selectPlayer(p) : null,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      UserAvatar(
+                        name: p.name,
+                        avatarUrl: p.avatarUrl,
+                        radius: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.name,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text('NTRP: ${p.ntrpRating.toStringAsFixed(1)}'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (p.city != null) Text('Cidade: ${p.city}'),
+                  if (p.profession != null) Text('Profissão: ${p.profession}'),
+                  if (p.distanceKm != null)
+                    Text('Distância: ${p.distanceKm!.toStringAsFixed(1)} km'),
+                  const SizedBox(height: 8),
+                  if (widget.selectMode)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _selectPlayer(p),
+                        child: const Text('Selecionar'),
+                      ),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _openChat(context, p),
+                            icon: const Icon(Icons.chat, size: 18),
+                            label: const Text('MENSAGEM'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => context.push(
+                              '/challenges/new/direct?playerId=${p.id}',
+                            ),
+                            icon: const Icon(Icons.sports_tennis, size: 18),
+                            label: const Text('DESAFIAR'),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _openChat(BuildContext context, Player player) async {
@@ -123,6 +224,91 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
     }
   }
 
+  Widget _buildFilterBar() {
+    return Material(
+      color: AppColors.card,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _cityController,
+              decoration: const InputDecoration(
+                labelText: 'Cidade',
+                prefixIcon: Icon(Icons.location_city),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('Idade: ${_minAge.round()} – ${_maxAge.round()}'),
+            RangeSlider(
+              min: 10,
+              max: 80,
+              divisions: 70,
+              values: RangeValues(_minAge, _maxAge),
+              onChanged: (v) => setState(() {
+                _minAge = v.start;
+                _maxAge = v.end;
+              }),
+              onChangeEnd: (_) => _load(initial: false),
+            ),
+            Text('NTRP: ${_minNtrp.toStringAsFixed(1)} – ${_maxNtrp.toStringAsFixed(1)}'),
+            RangeSlider(
+              min: 1,
+              max: 5,
+              divisions: 8,
+              values: RangeValues(_minNtrp, _maxNtrp),
+              onChanged: (v) => setState(() {
+                _minNtrp = v.start;
+                _maxNtrp = v.end;
+              }),
+              onChangeEnd: (_) => _load(initial: false),
+            ),
+            DropdownButtonFormField<Gender?>(
+              initialValue: _gender,
+              decoration: const InputDecoration(labelText: 'Sexo', isDense: true),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Todos')),
+                ...Gender.values.map(
+                  (g) => DropdownMenuItem(
+                    value: g,
+                    child: Row(
+                      children: [
+                        Icon(genderIcon(g), size: 22),
+                        const SizedBox(width: 8),
+                        Text(g.label),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: (v) {
+                setState(() => _gender = v);
+                _load(initial: false);
+              },
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _sort,
+              decoration: const InputDecoration(labelText: 'Ordenar por', isDense: true),
+              items: const [
+                DropdownMenuItem(value: 'distance', child: Text('Distância')),
+                DropdownMenuItem(value: 'ntrp_desc', child: Text('NTRP (maior primeiro)')),
+                DropdownMenuItem(value: 'age_asc', child: Text('Idade (mais jovem)')),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _sort = v);
+                _load(initial: false);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = widget.selectMode ? 'Escolher adversário' : 'Busca por Jogadores';
@@ -131,209 +317,34 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
       appBar: AppBar(title: Text(title)),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: widget.selectMode
-                          ? 'Buscar por nome...'
-                          : 'Digite o nome do jogador...',
-                      prefixIcon: const Icon(Icons.search),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: _showFilters,
-                  icon: const Icon(Icons.tune),
-                  label: const Text('FILTRAR'),
-                ),
-              ],
-            ),
-          ),
+          _buildFilterBar(),
           if (widget.selectMode)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Mostrando jogadores perto de você. Use a busca por nome para filtrar.',
+                  'Mostrando jogadores perto de você. Use os filtros para refinar.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _load,
+              onRefresh: () => _load(initial: _cachedPlayers.isEmpty),
               child: _players.when(
-                loading: () => const LoadingView(),
-                error: (e, _) => ErrorView(message: e.toString(), onRetry: _load),
-                data: (list) {
-                  if (list.isEmpty) {
-                    return EmptyState(
-                      icon: Icons.people_outline,
-                      title: 'Nenhum jogador encontrado',
-                      subtitle: widget.selectMode
-                          ? 'Amplie os filtros ou busque por outro nome.'
-                          : 'Ajuste os filtros ou volte mais tarde.',
-                    );
+                loading: () {
+                  if (_cachedPlayers.isNotEmpty) {
+                    return _buildPlayerList(_cachedPlayers);
                   }
-                  return ListView.builder(
-                    padding: EdgeInsets.fromLTRB(
-                      12,
-                      12,
-                      12,
-                      MediaQuery.viewPaddingOf(context).bottom + 12,
-                    ),
-                    itemCount: list.length,
-                    itemBuilder: (_, i) {
-                      final p = list[i];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: InkWell(
-                          onTap: widget.selectMode ? () => _selectPlayer(p) : null,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    UserAvatar(
-                                      name: p.name,
-                                      avatarUrl: p.avatarUrl,
-                                      radius: 22,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            p.name,
-                                            style: Theme.of(context).textTheme.titleMedium,
-                                          ),
-                                          Text('NTRP: ${p.ntrpRating.toStringAsFixed(1)}'),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (p.city != null) Text('Cidade: ${p.city}'),
-                                if (p.profession != null) Text('Profissão: ${p.profession}'),
-                                if (p.distanceKm != null)
-                                  Text('Distância: ${p.distanceKm!.toStringAsFixed(1)} km'),
-                                const SizedBox(height: 8),
-                                if (widget.selectMode)
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton(
-                                      onPressed: () => _selectPlayer(p),
-                                      child: const Text('Selecionar'),
-                                    ),
-                                  )
-                                else
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed: () => _openChat(context, p),
-                                          icon: const Icon(Icons.chat, size: 18),
-                                          label: const Text('MENSAGEM'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: ElevatedButton.icon(
-                                          onPressed: () => context.push(
-                                            '/challenges/new/direct?playerId=${p.id}',
-                                          ),
-                                          icon: const Icon(Icons.sports_tennis, size: 18),
-                                          label: const Text('DESAFIAR'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  );
+                  return const LoadingView();
                 },
+                error: (e, _) => ErrorView(message: e.toString(), onRetry: () => _load(initial: true)),
+                data: (list) => _buildPlayerList(list),
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Future<void> _showFilters() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.card,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              24,
-              24,
-              24,
-              MediaQuery.viewPaddingOf(ctx).bottom + 10,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              Text('NTRP $_minNtrp - $_maxNtrp'),
-              RangeSlider(
-                min: 1,
-                max: 5,
-                divisions: 8,
-                values: RangeValues(_minNtrp, _maxNtrp),
-                onChanged: (v) => setModalState(() {
-                  _minNtrp = v.start;
-                  _maxNtrp = v.end;
-                }),
-              ),
-              DropdownButtonFormField<Gender?>(
-                initialValue: _gender,
-                decoration: const InputDecoration(labelText: 'Sexo'),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Todos')),
-                  ...Gender.values.map(
-                    (g) => DropdownMenuItem(
-                      value: g,
-                      child: Row(
-                        children: [
-                          Icon(genderIcon(g), size: 22),
-                          const SizedBox(width: 8),
-                          Text(g.label),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-                onChanged: (v) => setModalState(() => _gender = v),
-              ),
-              const SizedBox(height: 20),
-              LimeButton(
-                label: 'Buscar jogadores',
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _load();
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
       ),
     );
   }

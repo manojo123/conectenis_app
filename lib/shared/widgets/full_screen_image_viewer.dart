@@ -1,12 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:conectenis_app/shared/utils/media_url.dart';
 
 void showFullScreenImage(BuildContext context, {String? imageUrl, String? heroTag}) {
-  if (imageUrl == null || imageUrl.trim().isEmpty) return;
+  final resolved = resolveMediaUrl(imageUrl);
+  if (resolved.isEmpty) return;
 
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       fullscreenDialog: true,
-      builder: (ctx) => _FullScreenImagePage(imageUrl: imageUrl, heroTag: heroTag),
+      builder: (ctx) => _FullScreenImagePage(imageUrl: resolved, heroTag: heroTag),
     ),
   );
 }
@@ -23,14 +26,11 @@ class _FullScreenImagePage extends StatelessWidget {
       minScale: 0.5,
       maxScale: 4,
       child: Center(
-        child: Image.network(
-          imageUrl,
+        child: CachedNetworkImage(
+          imageUrl: imageUrl,
           fit: BoxFit.contain,
-          loadingBuilder: (_, child, progress) {
-            if (progress == null) return child;
-            return const Center(child: CircularProgressIndicator());
-          },
-          errorBuilder: (context, error, stackTrace) =>
+          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+          errorWidget: (context, url, error) =>
               const Icon(Icons.broken_image, size: 64, color: Colors.white54),
         ),
       ),
@@ -38,14 +38,21 @@ class _FullScreenImagePage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Foto'),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          heroTag != null ? Hero(tag: heroTag!, child: image) : image,
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ),
+        ],
       ),
-      body: heroTag != null
-          ? Hero(tag: heroTag!, child: image)
-          : image,
     );
   }
 }

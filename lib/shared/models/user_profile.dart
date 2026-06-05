@@ -131,7 +131,9 @@ class UserProfile {
   }
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'name': name,
+        'email': email,
         if (dateOfBirth != null) 'date_of_birth': dateOfBirth!.toIso8601String().split('T').first,
         'ntrp_rating': ntrpRating,
         'gender': gender?.value,
@@ -142,6 +144,11 @@ class UserProfile {
         'country': country,
         'postal_code': postalCode,
         'play_style': playStyle.value,
+        if (avatarUrl != null && avatarUrl!.isNotEmpty) 'avatar_url': avatarUrl,
+        'profile_complete': profileComplete,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        'roles': roles,
       };
 
   factory UserProfile.fromLaravelUser(Map<String, dynamic> json) {

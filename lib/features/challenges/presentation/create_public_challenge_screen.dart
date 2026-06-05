@@ -5,7 +5,7 @@ import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
 import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
-import 'package:conectenis_app/shared/models/place.dart';
+import 'package:conectenis_app/shared/models/nearby_court.dart';
 import 'package:conectenis_app/shared/utils/date_time_format.dart';
 import 'package:conectenis_app/shared/widgets/gender_multi_selector.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
@@ -26,7 +26,7 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
   Set<Gender> _genderPrefs = {};
   DateTime _start = roundToFiveMinutes(DateTime.now().add(const Duration(days: 2)));
   bool _openLocation = false;
-  Place? _selectedPlace;
+  NearbyCourt? _selectedCourt;
   bool _submitting = false;
 
   void _toggleFormat(ChallengeFormat format) {
@@ -56,7 +56,7 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
       );
       return;
     }
-    if (!_openLocation && _selectedPlace == null) {
+    if (!_openLocation && _selectedCourt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione um local ou marque "local em aberto".')),
       );
@@ -71,7 +71,8 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
           format: format,
           scheduledStart: _start,
           openLocation: _openLocation,
-          placeId: _openLocation ? null : _selectedPlace?.id,
+          placeId: _openLocation ? null : _selectedCourt?.placeId,
+          googlePlaceId: _openLocation ? null : _selectedCourt?.googlePlaceId,
           minNtrp: _minNtrp,
           maxNtrp: _maxNtrp,
           genderPreference: genderPreferenceFromSet(_genderPrefs),
@@ -129,15 +130,15 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
             value: _openLocation,
             onChanged: (v) => setState(() {
               _openLocation = v ?? false;
-              if (_openLocation) _selectedPlace = null;
+              if (_openLocation) _selectedCourt = null;
             }),
             title: const Text('Local em aberto (qualquer local)'),
           ),
           if (!_openLocation) ...[
             const SizedBox(height: 8),
             PlaceSelectField(
-              selectedPlace: _selectedPlace,
-              onChanged: (place) => setState(() => _selectedPlace = place),
+              selectedCourt: _selectedCourt,
+              onChanged: (court) => setState(() => _selectedCourt = court),
             ),
           ],
           const SizedBox(height: 24),

@@ -1,18 +1,23 @@
 import 'package:conectenis_app/features/chat/data/delete_message_scope.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
+import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
+import 'package:conectenis_app/shared/models/challenge_result.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
+import 'package:conectenis_app/shared/models/nearby_court.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/models/play_invitation.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/match_record.dart';
 import 'package:conectenis_app/shared/models/message.dart';
 import 'package:conectenis_app/shared/models/player.dart';
+import 'package:conectenis_app/shared/models/chat_timeline_entry.dart';
 import 'package:conectenis_app/shared/models/user_profile.dart';
 
 class MockApiService {
   final Map<int, List<Message>> _messages = {};
+  final Map<int, List<ChatChallengeEvent>> _challengeEventsByConversation = {};
   final List<Conversation> _conversations = [];
   final Set<int> _hiddenConversationIds = {};
   final Set<int> _hiddenMessageIdsForMe = {};
@@ -29,17 +34,23 @@ class MockApiService {
     double? lat,
     double? lng,
     String? name,
+    String? city,
     Gender? gender,
     double? minNtrp,
     double? maxNtrp,
     int? minAge,
     int? maxAge,
+    String sort = 'distance',
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     var list = List<Player>.from(MockData.players);
     if (name != null && name.isNotEmpty) {
       final query = name.toLowerCase();
       list = list.where((p) => p.name.toLowerCase().contains(query)).toList();
+    }
+    if (city != null && city.isNotEmpty) {
+      final q = city.toLowerCase();
+      list = list.where((p) => (p.city ?? '').toLowerCase().contains(q)).toList();
     }
     if (gender != null) {
       list = list.where((p) => p.gender == gender).toList();
@@ -56,7 +67,41 @@ class MockApiService {
     if (maxAge != null) {
       list = list.where((p) => (p.age ?? 99) <= maxAge).toList();
     }
+    switch (sort) {
+      case 'ntrp_desc':
+        list.sort((a, b) => b.ntrpRating.compareTo(a.ntrpRating));
+      case 'age_asc':
+        list.sort((a, b) => (a.age ?? 99).compareTo(b.age ?? 99));
+      default:
+        list.sort((a, b) => (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999));
+    }
     return list;
+  }
+
+  Future<List<NearbyCourt>> nearbyCourts({double? lat, double? lng}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final appCourts = _places.map(
+      (p) => NearbyCourt(
+        name: p.name,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        distanceKm: p.distanceKm,
+        placeId: p.id,
+        source: 'app',
+      ),
+    );
+    const googleCourts = [
+      NearbyCourt(
+        name: 'Arena Tennis Google',
+        address: 'Av. Brasil, 1000 — Jundiaí',
+        latitude: -23.187,
+        longitude: -46.883,
+        distanceKm: 1.8,
+        googlePlaceId: 'ChIJ_mock_google_court_1',
+        source: 'google',
+      ),
+    ];
+    return [...appCourts, ...googleCourts];
   }
 
   Future<Player?> playerById(int id) async {
@@ -267,6 +312,13 @@ class MockApiService {
     return conv;
   }
 
+  Future<List<ChatChallengeEvent>> challengeEvents(int conversationId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    return List<ChatChallengeEvent>.from(
+      _challengeEventsByConversation[conversationId] ?? const [],
+    );
+  }
+
   Future<List<Message>> messages(int conversationId, {int? currentUserId}) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final list = _messages[conversationId] ?? [];
@@ -391,20 +443,74 @@ class MockApiService {
 
   Future<Challenge> challengeById(int id) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
-    return _challenges.firstWhere(
+    final challenge = _challenges.firstWhere(
       (c) => c.id == id,
       orElse: () => MockData.challenges().firstWhere((c) => c.id == id, orElse: () => MockData.challenges().first),
+    );
+    return _enrichChallengeForCurrentUser(challenge);
+  }
+
+  Challenge _enrichChallengeForCurrentUser(Challenge challenge) {
+    final userId = MockData.currentUserId;
+    final canSubmit = (challenge.status == ChallengeStatus.accepted ||
+            challenge.status == ChallengeStatus.pendingScore) &&
+        challenge.result == null;
+    final canApprove = challenge.status == ChallengeStatus.pendingResultApproval &&
+        challenge.result != null &&
+        !challenge.hasUserApprovedResult(userId);
+    return Challenge(
+      id: challenge.id,
+      type: challenge.type,
+      format: challenge.format,
+      status: challenge.status,
+      scheduledStart: challenge.scheduledStart,
+      scheduledEnd: challenge.scheduledEnd,
+      message: challenge.message,
+      openLocation: challenge.openLocation,
+      minNtrp: challenge.minNtrp,
+      maxNtrp: challenge.maxNtrp,
+      genderPreference: challenge.genderPreference,
+      slotsTotal: challenge.slotsTotal,
+      creator: challenge.creator,
+      place: challenge.place,
+      participants: challenge.participants,
+      candidatesCount: challenge.candidatesCount,
+      role: challenge.role,
+      hasSubmittedEvaluation: challenge.hasSubmittedEvaluation,
+      result: challenge.result,
+      canSubmitResult: canSubmit,
+      canApproveResult: canApprove,
     );
   }
 
   Future<Challenge> createDirectChallenge({
     required ChallengeFormat format,
     required List<int> participantIds,
-    required int placeId,
+    int? placeId,
+    String? googlePlaceId,
     required DateTime scheduledStart,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final me = Player(id: MockData.currentUserId, name: 'Você', latitude: MockData.centerLat, longitude: MockData.centerLng);
+    final opponents = participantIds.map((id) {
+      try {
+        return MockData.players.firstWhere((p) => p.id == id);
+      } catch (_) {
+        return Player(id: id, name: 'Jogador $id', latitude: MockData.centerLat, longitude: MockData.centerLng);
+      }
+    }).toList();
+    Place? place;
+    if (placeId != null) {
+      place = _places.firstWhere((p) => p.id == placeId, orElse: () => _places.first);
+    } else if (googlePlaceId != null) {
+      place = Place(
+        id: 0,
+        name: 'Quadra Google',
+        latitude: MockData.centerLat,
+        longitude: MockData.centerLng,
+        createdByUserId: 0,
+      );
+    }
     final challenge = Challenge(
       id: 200 + _challenges.length,
       type: ChallengeType.direct,
@@ -412,17 +518,56 @@ class MockApiService {
       status: ChallengeStatus.pendingAcceptance,
       scheduledStart: scheduledStart,
       creator: me,
-      place: _places.firstWhere((p) => p.id == placeId, orElse: () => _places.first),
+      creatorTeam: 1,
+      place: place,
+      participants: opponents
+          .map(
+            (p) => ChallengeParticipant(
+              id: p.id,
+              role: 'participant',
+              status: 'pending',
+              user: p,
+              team: 2,
+            ),
+          )
+          .toList(),
       role: 'created',
     );
     _challenges = [challenge, ..._challenges];
+    await _attachChallengeToConversations(challenge, participantIds);
     return challenge;
+  }
+
+  Future<void> _attachChallengeToConversations(
+    Challenge challenge,
+    List<int> participantIds,
+  ) async {
+    final event = ChatChallengeEvent(
+      challengeId: challenge.id,
+      status: challenge.status,
+      createdAt: DateTime.now(),
+      summary: 'Desafio de tênis · ${challenge.status.label}',
+    );
+    for (final pid in participantIds) {
+      String name;
+      try {
+        name = MockData.players.firstWhere((p) => p.id == pid).name;
+      } catch (_) {
+        name = 'Jogador';
+      }
+      final conv = await startConversation(pid, name);
+      final list = _challengeEventsByConversation.putIfAbsent(conv.id, () => []);
+      if (!list.any((e) => e.challengeId == challenge.id)) {
+        list.add(event);
+      }
+    }
   }
 
   Future<Challenge> createPublicChallenge({
     required ChallengeFormat format,
     required DateTime scheduledStart,
     int? placeId,
+    String? googlePlaceId,
     bool openLocation = false,
     double? minNtrp,
   }) async {
@@ -436,6 +581,14 @@ class MockApiService {
           break;
         }
       }
+    } else if (googlePlaceId != null) {
+      place = Place(
+        id: 0,
+        name: 'Quadra Google',
+        latitude: MockData.centerLat,
+        longitude: MockData.centerLng,
+        createdByUserId: 0,
+      );
     }
     final challenge = Challenge(
       id: 300 + _challenges.length,
@@ -451,6 +604,180 @@ class MockApiService {
     );
     _challenges = [challenge, ..._challenges];
     return challenge;
+  }
+
+  Future<Challenge> submitChallengeEvaluation(
+    int id, {
+    required ChallengeFormat format,
+    required bool skipScore,
+    int? myGamesWon,
+    int? opponentGamesWon,
+    int? winnerUserId,
+    List<int>? winnerTeam,
+    List<OpponentRatingPayload>? opponentRatings,
+    int? opponentPunctualityStars,
+    String? opponentComment,
+    int? placeQualityStars,
+    String? placeComment,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _challenges.indexWhere((c) => c.id == id);
+    if (idx < 0) return challengeById(id);
+    final old = _challenges[idx];
+    if (old.result != null) {
+      throw ApiException(
+        'O resultado já foi informado por outro participante.',
+        statusCode: 409,
+      );
+    }
+
+    final isDoubles = format == ChallengeFormat.doubles;
+    String? winnerName;
+    String? winnerTeamLabel;
+    if (!skipScore) {
+      if (isDoubles && winnerTeam != null && winnerTeam.length == 2) {
+        winnerTeamLabel = winnerTeam.map((uid) => old.participantName(uid)).whereType<String>().join(' / ');
+      } else {
+        winnerName = winnerUserId == null ? null : old.participantName(winnerUserId);
+      }
+    }
+    final scoreLabel = skipScore
+        ? null
+        : '${myGamesWon ?? 0} × ${opponentGamesWon ?? 0}';
+
+    final approvals = old.participantUserIds.map((uid) {
+      final approved = uid == MockData.currentUserId;
+      return ChallengeResultApproval(
+        userId: uid,
+        userName: old.participantName(uid) ?? 'Jogador',
+        approved: approved,
+        approvedAt: approved ? DateTime.now() : null,
+      );
+    }).toList();
+
+    final ratings = opponentRatings
+            ?.map(
+              (r) => OpponentResultRating(
+                userId: r.userId,
+                userName: old.participantName(r.userId) ?? 'Jogador',
+                punctualityStars: r.punctualityStars,
+                comment: r.comment,
+              ),
+            )
+            .toList() ??
+        const [];
+
+    final result = ChallengeResult(
+      skipScore: skipScore,
+      winnerUserId: isDoubles ? null : winnerUserId,
+      winnerTeamIds: winnerTeam ?? const [],
+      winnerName: winnerName,
+      winnerTeamLabel: winnerTeamLabel,
+      scoreLabel: scoreLabel,
+      submittedByUserId: MockData.currentUserId,
+      submittedByName: 'Você',
+      myGamesWon: myGamesWon,
+      opponentGamesWon: opponentGamesWon,
+      approvals: approvals,
+      opponentPunctualityStars: opponentPunctualityStars,
+      opponentComment: opponentComment,
+      opponentRatings: ratings,
+      placeQualityStars: placeQualityStars,
+      placeComment: placeComment,
+    );
+
+    final updated = Challenge(
+      id: old.id,
+      type: old.type,
+      format: old.format,
+      status: ChallengeStatus.pendingResultApproval,
+      scheduledStart: old.scheduledStart,
+      scheduledEnd: old.scheduledEnd,
+      message: old.message,
+      openLocation: old.openLocation,
+      minNtrp: old.minNtrp,
+      maxNtrp: old.maxNtrp,
+      genderPreference: old.genderPreference,
+      slotsTotal: old.slotsTotal,
+      creator: old.creator,
+      creatorTeam: old.creatorTeam,
+      place: old.place,
+      participants: old.participants,
+      candidatesCount: old.candidatesCount,
+      role: old.role,
+      hasSubmittedEvaluation: true,
+      result: result,
+    );
+    _challenges[idx] = updated;
+    return _enrichChallengeForCurrentUser(updated);
+  }
+
+  Future<Challenge> approveChallengeResult(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _challenges.indexWhere((c) => c.id == id);
+    if (idx < 0) return challengeById(id);
+    final old = _challenges[idx];
+    final result = old.result;
+    if (result == null || old.status != ChallengeStatus.pendingResultApproval) {
+      return _enrichChallengeForCurrentUser(old);
+    }
+
+    final userId = MockData.currentUserId;
+    final approvals = result.approvals.map((a) {
+      if (a.userId == userId) {
+        return ChallengeResultApproval(
+          userId: a.userId,
+          userName: a.userName,
+          approved: true,
+          approvedAt: DateTime.now(),
+        );
+      }
+      return a;
+    }).toList();
+
+    final allApproved = old.participantUserIds.every(
+      (uid) => approvals.any((a) => a.userId == uid && a.approved),
+    );
+
+    final newResult = ChallengeResult(
+      skipScore: result.skipScore,
+      winnerUserId: result.winnerUserId,
+      winnerName: result.winnerName,
+      scoreLabel: result.scoreLabel,
+      submittedByUserId: result.submittedByUserId,
+      submittedByName: result.submittedByName,
+      myGamesWon: result.myGamesWon,
+      opponentGamesWon: result.opponentGamesWon,
+      approvals: approvals,
+      opponentPunctualityStars: result.opponentPunctualityStars,
+      opponentComment: result.opponentComment,
+      placeQualityStars: result.placeQualityStars,
+      placeComment: result.placeComment,
+    );
+
+    final updated = Challenge(
+      id: old.id,
+      type: old.type,
+      format: old.format,
+      status: allApproved ? ChallengeStatus.completed : ChallengeStatus.pendingResultApproval,
+      scheduledStart: old.scheduledStart,
+      scheduledEnd: old.scheduledEnd,
+      message: old.message,
+      openLocation: old.openLocation,
+      minNtrp: old.minNtrp,
+      maxNtrp: old.maxNtrp,
+      genderPreference: old.genderPreference,
+      slotsTotal: old.slotsTotal,
+      creator: old.creator,
+      place: old.place,
+      participants: old.participants,
+      candidatesCount: old.candidatesCount,
+      role: old.role,
+      hasSubmittedEvaluation: true,
+      result: newResult,
+    );
+    _challenges[idx] = updated;
+    return _enrichChallengeForCurrentUser(updated);
   }
 
   Future<Challenge> cancelChallenge(int id) async {
@@ -477,6 +804,7 @@ class MockApiService {
       candidatesCount: old.candidatesCount,
       role: old.role,
       hasSubmittedEvaluation: old.hasSubmittedEvaluation,
+      result: old.result,
     );
     _challenges[idx] = updated;
     return updated;

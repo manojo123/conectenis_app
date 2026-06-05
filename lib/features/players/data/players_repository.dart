@@ -50,11 +50,13 @@ class PlayersRepository {
           lat: lat,
           lng: lng,
           name: name,
+          city: city,
           gender: gender,
           minNtrp: minNtrp,
           maxNtrp: maxNtrp,
           minAge: minAge,
           maxAge: maxAge,
+          sort: sort,
         );
       }
       final response = await _dio.get<List<dynamic>>(
@@ -73,9 +75,16 @@ class PlayersRepository {
           'sort': sort,
         },
       );
-      return (response.data ?? [])
+      var players = (response.data ?? [])
           .map((e) => Player.fromJson(e as Map<String, dynamic>))
           .toList();
+      if (name != null && name.trim().isNotEmpty) {
+        final q = name.trim().toLowerCase();
+        players = players
+            .where((p) => p.name.toLowerCase().contains(q))
+            .toList();
+      }
+      return players;
     });
   }
 

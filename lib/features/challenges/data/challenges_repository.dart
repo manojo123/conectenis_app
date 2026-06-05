@@ -46,7 +46,8 @@ class ChallengesRepository {
   Future<Challenge> createDirect({
     required ChallengeFormat format,
     required List<int> participantIds,
-    required int placeId,
+    int? placeId,
+    String? googlePlaceId,
     required DateTime scheduledStart,
     DateTime? scheduledEnd,
     String? message,
@@ -57,6 +58,7 @@ class ChallengesRepository {
           format: format,
           participantIds: participantIds,
           placeId: placeId,
+          googlePlaceId: googlePlaceId,
           scheduledStart: scheduledStart,
         );
       }
@@ -65,7 +67,8 @@ class ChallengesRepository {
         data: {
           'format': format.value,
           'participant_ids': participantIds,
-          'place_id': placeId,
+          if (placeId != null) 'place_id': placeId,
+          if (googlePlaceId != null) 'google_place_id': googlePlaceId,
           'scheduled_start': scheduledStart.toIso8601String(),
           if (scheduledEnd != null) 'scheduled_end': scheduledEnd.toIso8601String(),
           'message': ?message,
@@ -78,6 +81,7 @@ class ChallengesRepository {
   Future<Challenge> createPublic({
     required ChallengeFormat format,
     int? placeId,
+    String? googlePlaceId,
     bool openLocation = false,
     required DateTime scheduledStart,
     DateTime? scheduledEnd,
@@ -92,6 +96,7 @@ class ChallengesRepository {
           format: format,
           scheduledStart: scheduledStart,
           placeId: placeId,
+          googlePlaceId: googlePlaceId,
           openLocation: openLocation,
           minNtrp: minNtrp,
         );
@@ -100,7 +105,8 @@ class ChallengesRepository {
         '/challenges/public',
         data: {
           'format': format.value,
-          'place_id': placeId,
+          if (placeId != null) 'place_id': placeId,
+          if (googlePlaceId != null) 'google_place_id': googlePlaceId,
           'open_location': openLocation,
           'scheduled_start': scheduledStart.toIso8601String(),
           if (scheduledEnd != null) 'scheduled_end': scheduledEnd.toIso8601String(),
@@ -119,31 +125,93 @@ class ChallengesRepository {
   Future<Challenge> cancel(int id) => _action(id, 'cancel');
   Future<Challenge> apply(int id) => _action(id, 'apply');
 
-  Future<void> submitEvaluation(
+  /// Submits proposed result. Returns updated challenge, or throws [ApiException]
+  /// with status 409 when result was already submitted (caller should reload).
+  Future<Challenge> submitEvaluation(
     int id, {
+    required ChallengeFormat format,
     required bool skipScore,
     int? myGamesWon,
     int? opponentGamesWon,
     int? winnerUserId,
-    required int opponentPunctualityStars,
+    List<int>? winnerTeam,
+    List<OpponentRatingPayload>? opponentRatings,
+    int? opponentPunctualityStars,
     String? opponentComment,
     int? placeQualityStars,
     String? placeComment,
   }) {
     return _guard(() async {
-      if (Env.useMockApi) return;
-      await _dio.post('/challenges/$id/evaluation', data: {
-        'skip_score': skipScore,
-        if (!skipScore) ...{
-          'my_games_won': myGamesWon,
-          'opponent_games_won': opponentGamesWon,
-          'winner_user_id': winnerUserId,
-        },
-        'opponent_punctuality_stars': opponentPunctualityStars,
-        'opponent_comment': ?opponentComment,
-        'place_quality_stars': ?placeQualityStars,
-        'place_comment': ?placeComment,
-      });
+      if (Env.useMockApi) {
+        return _mock.submitChallengeEvaluation(
+          id,
+          format: format,
+          skipScore: skipScore,
+          myGamesWon: myGamesWon,
+          opponentGamesWon: opponentGamesWon,
+          winnerUserId: winnerUserId,
+          winnerTeam: winnerTeam,
+          opponentRatings: opponentRatings,
+          opponentPunctualityStars: opponentPunctualityStars,
+          opponentComment: opponentComment,
+          placeQualityStars: placeQualityStars,
+          placeComment: placeComment,
+        );
+      }
+      try {
+        final isDoubles = format == ChallengeFormat.doubles;
+        final response = await _dio.post<Map<String, dynamic>>(
+          '/challenges/$id/evaluation',
+          data: {
+            'skip_score': skipScore,
+            if (!skipScore) ...{
+              'my_games_won': myGamesWon,
+              'opponent_games_won': opponentGamesWon,
+              if (isDoubles && winnerTeam != null && winnerTeam.length == 2)
+                'winner_team': winnerTeam
+              else if (!isDoubles)
+                'winner_user_id': winnerUserId,
+            },
+            if (opponentRatings != null && opponentRatings.isNotEmpty)
+              'opponent_ratings': opponentRatings.map((e) => e.toJson()).toList()
+            else ...{
+              'opponent_punctuality_stars': opponentPunctualityStars,
+              if (opponentComment != null && opponentComment.isNotEmpty)
+                'opponent_comment': opponentComment,
+            },
+            if (placeQualityStars != null) 'place_quality_stars': placeQualityStars,
+            if (placeComment != null && placeComment.isNotEmpty) 'place_comment': placeComment,
+          },
+        );
+        final data = response.data;
+        if (data != null && data.containsKey('id')) {
+          return Challenge.fromJson(data);
+        }
+        return byId(id);
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 409) {
+          throw ApiException(
+            e.response?.data is Map
+                ? (e.response!.data['message'] as String? ??
+                    'O resultado já foi informado por outro participante.')
+                : 'O resultado já foi informado por outro participante.',
+            statusCode: 409,
+          );
+        }
+        rethrow;
+      }
+    });
+  }
+
+  Future<Challenge> approveResult(int id) {
+    return _guard(() async {
+      if (Env.useMockApi) return _mock.approveChallengeResult(id);
+      final response = await _dio.post<Map<String, dynamic>>('/challenges/$id/result/approve');
+      final data = response.data;
+      if (data != null && data.containsKey('id')) {
+        return Challenge.fromJson(data);
+      }
+      return byId(id);
     });
   }
 

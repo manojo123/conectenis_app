@@ -16,7 +16,12 @@ import 'package:conectenis_app/features/challenges/presentation/create_public_ch
 import 'package:conectenis_app/features/chat/presentation/chat_list_screen.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
+import 'package:conectenis_app/core/config/env.dart';
+import 'package:conectenis_app/features/achievements/presentation/achievements_screen.dart';
+import 'package:conectenis_app/features/home/presentation/home_dashboard_screen.dart';
+import 'package:conectenis_app/features/home/presentation/home_feed_screen.dart';
 import 'package:conectenis_app/features/map/presentation/map_screen.dart';
+import 'package:conectenis_app/features/places/presentation/court_picker_screen.dart';
 import 'package:conectenis_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:conectenis_app/features/places/presentation/create_place_screen.dart';
 import 'package:conectenis_app/features/places/presentation/places_list_screen.dart';
@@ -85,6 +90,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/courts-picker',
+        builder: (_, state) => CourtPickerScreen(
+          selectMode: state.uri.queryParameters['select'] == 'true',
+        ),
+      ),
+      GoRoute(
         path: '/places-search',
         builder: (_, state) => PlacesListScreen(
           selectMode: state.uri.queryParameters['select'] == 'true',
@@ -114,6 +125,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           challengeId: int.parse(state.pathParameters['id']!),
         ),
       ),
+      GoRoute(path: '/achievements', builder: (_, _) => const AchievementsScreen()),
       GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
       GoRoute(path: '/ranking', builder: (_, _) => const RankingScreen()),
       GoRoute(path: '/profile/edit', builder: (_, _) => const EditProfileScreen()),
@@ -123,7 +135,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen())],
           ),
-          StatefulShellBranch(routes: [GoRoute(path: '/', builder: (_, _) => const MapScreen())]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (_, _) {
+                  if (Env.useHomeDashboard) return const HomeDashboardScreen();
+                  if (Env.useHomeFeed) return const HomeFeedScreen();
+                  return const MapScreen();
+                },
+              ),
+            ],
+          ),
           StatefulShellBranch(
             routes: [
               GoRoute(

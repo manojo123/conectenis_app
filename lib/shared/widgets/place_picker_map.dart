@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -23,8 +21,7 @@ class PlacePickerMap extends StatefulWidget {
   final double height;
   final bool showZoomControls;
 
-  static bool get isSupported =>
-      !kIsWeb && (Platform.isAndroid || Platform.isIOS) && Env.googleMapsApiKey.isNotEmpty;
+  static bool get isSupported => Env.isGoogleMapsSupported;
 
   static final Set<Factory<OneSequenceGestureRecognizer>> _gestureRecognizers = {
     Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),

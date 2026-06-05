@@ -148,7 +148,12 @@ class AuthRepository {
     });
     final response = await _dio.post<Map<String, dynamic>>('/user/avatar', data: formData);
     final raw = response.data!['avatar_url'] as String;
-    return resolveMediaUrl(raw);
+    final resolved = resolveMediaUrl(raw);
+    final current = await _profileStorage.read();
+    if (current != null) {
+      await _profileStorage.write(current.copyWith(avatarUrl: resolved));
+    }
+    return resolved;
   }
 
   Future<UserProfile> socialLogin({
@@ -193,31 +198,39 @@ class AuthRepository {
   Future<UserProfile> _mergeWithLocalProfile(UserProfile profile) async {
     final local = await _profileStorage.read();
     if (local != null && local.id == profile.id) {
-      return profile.copyWith(
-        dateOfBirth: local.dateOfBirth ?? profile.dateOfBirth,
-        ntrpRating: local.ntrpRating,
-        gender: local.gender,
-        profession: local.profession,
-        city: local.city,
-        state: local.state,
-        addressLine: local.addressLine,
-        playStyle: local.playStyle,
-        avatarUrl: resolveMediaUrl(local.avatarUrl ?? profile.avatarUrl).isEmpty
-            ? (profile.avatarUrl != null ? resolveMediaUrl(profile.avatarUrl) : null)
-            : resolveMediaUrl(local.avatarUrl ?? profile.avatarUrl),
-        latitude: local.latitude,
-        longitude: local.longitude,
-        profileComplete: profile.profileComplete || local.profileComplete,
+      return _withResolvedAvatar(
+        profile.copyWith(
+          dateOfBirth: local.dateOfBirth ?? profile.dateOfBirth,
+          ntrpRating: local.ntrpRating,
+          gender: local.gender,
+          profession: local.profession,
+          city: local.city,
+          state: local.state,
+          addressLine: local.addressLine,
+          playStyle: local.playStyle,
+          avatarUrl: _mergeAvatarUrl(profile.avatarUrl, local.avatarUrl),
+          latitude: local.latitude ?? profile.latitude,
+          longitude: local.longitude ?? profile.longitude,
+          profileComplete: profile.profileComplete || local.profileComplete,
+        ),
       );
     }
     return _withResolvedAvatar(profile);
+  }
+
+  String? _mergeAvatarUrl(String? apiUrl, String? localUrl) {
+    final api = apiUrl?.trim();
+    if (api != null && api.isNotEmpty) return api;
+    final local = localUrl?.trim();
+    if (local != null && local.isNotEmpty) return local;
+    return null;
   }
 
   UserProfile _withResolvedAvatar(UserProfile profile) {
     final url = profile.avatarUrl;
     if (url == null || url.isEmpty) return profile;
     final resolved = resolveMediaUrl(url);
-    if (resolved == url || resolved.isEmpty) return profile;
+    if (resolved.isEmpty) return profile;
     return profile.copyWith(avatarUrl: resolved);
   }
 

@@ -5,9 +5,11 @@ String resolveMediaUrl(String? url) {
   if (url == null || url.trim().isEmpty) return '';
   final trimmed = url.trim();
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
+    return Env.resolveHostForPlatform(trimmed);
   }
-  final origin = Env.apiBaseUrl.replaceAll(RegExp(r'/api/?$'), '');
+  final origin = Env.resolveHostForPlatform(
+    Env.apiBaseUrl.replaceAll(RegExp(r'/api/?$'), ''),
+  );
   if (trimmed.startsWith('/')) return '$origin$trimmed';
   return '$origin/$trimmed';
 }

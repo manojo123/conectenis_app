@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
+import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
 import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
+import 'package:conectenis_app/shared/widgets/challenge_participants_versus.dart';
+import 'package:conectenis_app/shared/widgets/challenge_result_section.dart';
 import 'package:conectenis_app/shared/widgets/challenge_status_chip.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/static_place_map.dart';
-import 'package:conectenis_app/shared/utils/player_navigation.dart';
-import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 import 'package:intl/intl.dart';
 
 class ChallengeDetailScreen extends ConsumerStatefulWidget {
@@ -66,6 +68,22 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
     }
   }
 
+  Future<void> _approveResult() async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(challengesRepositoryProvider).approveResult(widget.challengeId);
+      bumpChallengesRefresh(ref);
+      await _load();
+      if (mounted) {
+        AppSnackBar.showSuccess(context, 'Aprovação registrada.');
+      }
+    } catch (e) {
+      if (mounted) AppSnackBar.showDanger(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _confirmCancel() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -97,6 +115,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
     final c = _challenge!;
     final df = DateFormat('dd/MM/yyyy HH:mm');
     final isCreator = c.role == 'created';
+    final currentUserId = ref.watch(authStateProvider).value?.id ?? 0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Desafio')),
@@ -114,30 +133,28 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
           const SizedBox(height: 8),
           Text('${c.format.label} · ${c.type.label}'),
           Text(df.format(c.scheduledStart)),
+          if (c.hasProposedResult) ...[
+            const SizedBox(height: 16),
+            ChallengeResultSection(challenge: c, currentUserId: currentUserId),
+          ],
           const SizedBox(height: 16),
           Text('Participantes', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
-          ...c.participants.map(
-            (p) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: UserAvatar(name: p.user.name, avatarUrl: p.user.avatarUrl),
-              title: Text(p.user.name),
-              subtitle: Text('NTRP ${p.user.ntrpRating.toStringAsFixed(1)} · ${p.status}'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => openPlayerProfile(context, ref, p.user.id),
+          ChallengeParticipantsVersus(challenge: c),
+          if (c.participants.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: c.participants.map((p) {
+                  return Chip(
+                    label: Text('${p.user.name.split(' ').first}: ${p.status}'),
+                    visualDensity: VisualDensity.compact,
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-          if (c.creator.id != 0 &&
-              !c.participants.any((p) => p.user.id == c.creator.id)) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: UserAvatar(name: c.creator.name, avatarUrl: c.creator.avatarUrl),
-              title: Text(c.creator.name),
-              subtitle: const Text('Criador'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => openPlayerProfile(context, ref, c.creator.id),
-            ),
-          ],
           if (c.place != null) ...[
             const Divider(height: 32),
             Text('Local', style: Theme.of(context).textTheme.titleSmall),
@@ -177,17 +194,34 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
           if (isCreator &&
               c.status != ChallengeStatus.cancelled &&
               c.status != ChallengeStatus.completed &&
-              c.status != ChallengeStatus.declined)
+              c.status != ChallengeStatus.declined &&
+              c.status != ChallengeStatus.pendingResultApproval)
             LimeButton(
               label: 'Cancelar desafio',
               outlined: true,
               danger: true,
               onPressed: _busy ? null : _confirmCancel,
             ),
-          if (c.status == ChallengeStatus.accepted || c.status == ChallengeStatus.pendingScore)
+          if (c.canSubmitResult)
             LimeButton(
-              label: 'Avaliar desafio',
-              onPressed: () => context.push('/challenges/${c.id}/evaluation'),
+              label: 'Informar resultado',
+              onPressed: _busy ? null : () => context.push('/challenges/${c.id}/evaluation'),
+            ),
+          if (c.canApproveResult) ...[
+            const SizedBox(height: 8),
+            LimeButton(
+              label: 'Aprovar resultado',
+              loading: _busy,
+              onPressed: _busy ? null : _approveResult,
+            ),
+          ],
+          if (c.status == ChallengeStatus.completed)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Resultado confirmado por todos. Não é possível alterar o placar.',
+                style: TextStyle(fontSize: 13),
+              ),
             ),
         ],
       ),

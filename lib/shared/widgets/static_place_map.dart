@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:conectenis_app/core/config/env.dart';
@@ -18,8 +15,7 @@ class StaticPlaceMap extends StatelessWidget {
   final double longitude;
   final double height;
 
-  static bool get isSupported =>
-      !kIsWeb && (Platform.isAndroid || Platform.isIOS) && Env.googleMapsApiKey.isNotEmpty;
+  static bool get isSupported => Env.isGoogleMapsSupported;
 
   @override
   Widget build(BuildContext context) {

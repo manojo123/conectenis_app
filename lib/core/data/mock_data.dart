@@ -143,10 +143,11 @@ abstract final class MockData {
       status: ChallengeStatus.pendingAcceptance,
       scheduledStart: DateTime.now().add(const Duration(days: 1)),
       creator: me,
+      creatorTeam: 1,
       place: place,
       participants: [
-        ChallengeParticipant(id: 1, role: 'creator', status: 'accepted', user: me),
-        ChallengeParticipant(id: 2, role: 'invitee', status: 'pending', user: opponent),
+        ChallengeParticipant(id: 1, role: 'creator', status: 'accepted', user: me, team: 1),
+        ChallengeParticipant(id: 2, role: 'invitee', status: 'pending', user: opponent, team: 2),
       ],
       role: 'created',
     );
@@ -158,12 +159,32 @@ abstract final class MockData {
       status: ChallengeStatus.pendingAcceptance,
       scheduledStart: DateTime.now().add(const Duration(days: 2)),
       creator: players[1],
+      creatorTeam: 1,
       place: places[1],
       participants: [
-        ChallengeParticipant(id: 3, role: 'creator', status: 'accepted', user: players[1]),
-        ChallengeParticipant(id: 4, role: 'invitee', status: 'pending', user: me),
+        ChallengeParticipant(id: 3, role: 'creator', status: 'accepted', user: players[1], team: 1),
+        ChallengeParticipant(id: 4, role: 'invitee', status: 'pending', user: me, team: 2),
       ],
       role: 'received',
+    );
+
+    final doublesDirect = Challenge(
+      id: 104,
+      type: ChallengeType.direct,
+      format: ChallengeFormat.doubles,
+      status: ChallengeStatus.accepted,
+      scheduledStart: DateTime.now().add(const Duration(days: 4)),
+      creator: me,
+      creatorTeam: 1,
+      place: place,
+      participants: [
+        ChallengeParticipant(id: 10, role: 'creator', status: 'accepted', user: me, team: 1),
+        ChallengeParticipant(id: 11, role: 'partner', status: 'accepted', user: players[2], team: 1),
+        ChallengeParticipant(id: 12, role: 'invitee', status: 'accepted', user: opponent, team: 2),
+        ChallengeParticipant(id: 13, role: 'invitee', status: 'accepted', user: players[1], team: 2),
+      ],
+      role: 'created',
+      canSubmitResult: true,
     );
 
     final publicChallenge = Challenge(
@@ -181,7 +202,7 @@ abstract final class MockData {
     );
 
     return switch (role) {
-      ChallengeListRole.created => [direct],
+      ChallengeListRole.created => [direct, doublesDirect],
       ChallengeListRole.received => [received],
       ChallengeListRole.publicNearby => [publicChallenge],
     };

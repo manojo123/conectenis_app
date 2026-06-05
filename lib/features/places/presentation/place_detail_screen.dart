@@ -10,6 +10,8 @@ import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/report_reason_sheet.dart';
 import 'package:conectenis_app/shared/widgets/star_rating_input.dart';
+import 'package:conectenis_app/shared/utils/plural_pt.dart';
+import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
 import 'package:conectenis_app/shared/widgets/static_place_map.dart';
 
 class PlaceDetailScreen extends ConsumerStatefulWidget {
@@ -111,9 +113,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
             details: result.details,
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Denúncia enviada com sucesso.')),
-        );
+        AppSnackBar.showSuccess(context, 'Denúncia enviada com sucesso.');
       }
     } catch (e) {
       if (mounted) {
@@ -136,9 +136,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
             comment: _commentController.text.trim(),
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Avaliação enviada com sucesso.')),
-        );
+        AppSnackBar.showSuccess(context, 'Avaliação enviada com sucesso.');
         _commentController.clear();
         _rateStars = 0;
         await _load();
@@ -215,7 +213,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 const SizedBox(width: 4),
                 Text(
                   place.averageRating != null
-                      ? '${place.averageRating!.toStringAsFixed(1)} · ${place.ratingsCount} avaliação(ões)'
+                      ? '${place.averageRating!.toStringAsFixed(1)} · ${formatAvaliacoesCount(place.ratingsCount)}'
                       : 'Sem avaliações ainda',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),

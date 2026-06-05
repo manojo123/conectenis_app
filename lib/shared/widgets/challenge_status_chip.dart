@@ -11,6 +11,7 @@ class ChallengeStatusChip extends StatelessWidget {
         ChallengeStatus.pendingScore ||
         ChallengeStatus.completed =>
           Colors.green,
+        ChallengeStatus.pendingResultApproval => Colors.orange,
         ChallengeStatus.cancelled || ChallengeStatus.declined => Colors.red,
         _ => Colors.blue,
       };

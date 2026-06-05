@@ -1,0 +1,127 @@
+import 'package:conectenis_app/shared/models/json_parsers.dart';
+
+class ChallengeResultApproval {
+  const ChallengeResultApproval({
+    required this.userId,
+    required this.userName,
+    required this.approved,
+    this.approvedAt,
+  });
+
+  final int userId;
+  final String userName;
+  final bool approved;
+  final DateTime? approvedAt;
+
+  factory ChallengeResultApproval.fromJson(Map<String, dynamic> json) {
+    return ChallengeResultApproval(
+      userId: parseJsonInt(json['user_id']),
+      userName: json['user_name'] as String? ?? json['name'] as String? ?? '',
+      approved: json['approved'] == true,
+      approvedAt: json['approved_at'] == null
+          ? null
+          : DateTime.tryParse(json['approved_at'] as String),
+    );
+  }
+}
+
+class OpponentResultRating {
+  const OpponentResultRating({
+    required this.userId,
+    required this.userName,
+    required this.punctualityStars,
+    this.comment,
+  });
+
+  final int userId;
+  final String userName;
+  final int punctualityStars;
+  final String? comment;
+
+  factory OpponentResultRating.fromJson(Map<String, dynamic> json) {
+    return OpponentResultRating(
+      userId: parseJsonInt(json['user_id']),
+      userName: json['user_name'] as String? ?? json['name'] as String? ?? '',
+      punctualityStars: parseJsonInt(json['punctuality_stars'] ?? json['stars']),
+      comment: json['comment'] as String?,
+    );
+  }
+}
+
+/// Proposed match result awaiting approval from all participants.
+class ChallengeResult {
+  const ChallengeResult({
+    required this.skipScore,
+    this.winnerUserId,
+    this.winnerTeamIds = const [],
+    this.winnerName,
+    this.winnerTeamLabel,
+    this.scoreLabel,
+    this.submittedByUserId,
+    this.submittedByName,
+    this.myGamesWon,
+    this.opponentGamesWon,
+    this.approvals = const [],
+    this.opponentPunctualityStars,
+    this.opponentComment,
+    this.opponentRatings = const [],
+    this.placeQualityStars,
+    this.placeComment,
+  });
+
+  final bool skipScore;
+  final int? winnerUserId;
+  final List<int> winnerTeamIds;
+  final String? winnerName;
+  final String? winnerTeamLabel;
+  final String? scoreLabel;
+  final int? submittedByUserId;
+  final String? submittedByName;
+  final int? myGamesWon;
+  final int? opponentGamesWon;
+  final List<ChallengeResultApproval> approvals;
+  final int? opponentPunctualityStars;
+  final String? opponentComment;
+  final List<OpponentResultRating> opponentRatings;
+  final int? placeQualityStars;
+  final String? placeComment;
+
+  bool hasUserApproved(int userId) =>
+      approvals.any((a) => a.userId == userId && a.approved);
+
+  int approvalCount(int totalParticipants) =>
+      approvals.where((a) => a.approved).length;
+
+  factory ChallengeResult.fromJson(Map<String, dynamic> json) {
+    final winnerTeamRaw = json['winner_team'];
+    List<int> winnerTeamIds = const [];
+    if (winnerTeamRaw is List) {
+      winnerTeamIds = winnerTeamRaw.map((e) => parseJsonInt(e)).toList();
+    }
+
+    return ChallengeResult(
+      skipScore: json['skip_score'] == true,
+      winnerUserId: json['winner_user_id'] as int?,
+      winnerTeamIds: winnerTeamIds,
+      winnerName: json['winner_name'] as String?,
+      winnerTeamLabel: json['winner_team_label'] as String?,
+      scoreLabel: json['score_label'] as String?,
+      submittedByUserId: json['submitted_by_user_id'] as int?,
+      submittedByName: json['submitted_by_name'] as String?,
+      myGamesWon: json['my_games_won'] as int?,
+      opponentGamesWon: json['opponent_games_won'] as int?,
+      approvals: (json['approvals'] as List<dynamic>?)
+              ?.map((e) => ChallengeResultApproval.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      opponentPunctualityStars: json['opponent_punctuality_stars'] as int?,
+      opponentComment: json['opponent_comment'] as String?,
+      opponentRatings: (json['opponent_ratings'] as List<dynamic>?)
+              ?.map((e) => OpponentResultRating.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      placeQualityStars: json['place_quality_stars'] as int?,
+      placeComment: json['place_comment'] as String?,
+    );
+  }
+}

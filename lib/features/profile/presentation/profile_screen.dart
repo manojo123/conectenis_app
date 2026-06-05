@@ -1,6 +1,7 @@
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/profile/providers/profile_feedback_provider.dart';
-import 'package:conectenis_app/shared/utils/date_of_birth.dart';
+import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
+import 'package:conectenis_app/shared/widgets/full_screen_image_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,13 +21,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ref.listen<bool>(profileUpdatedNoticeProvider, (previous, next) {
       if (next && mounted) {
         ref.read(profileUpdatedNoticeProvider.notifier).state = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil atualizado com sucesso.')),
-        );
+        AppSnackBar.showSuccess(context, 'Perfil atualizado com sucesso.');
       }
     });
 
     final user = ref.watch(authStateProvider).value;
+    final heroTag = user != null ? 'profile-avatar-${user.id}' : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Menu')),
@@ -34,10 +34,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
           Center(
-            child: UserAvatar(
-              name: user?.name ?? '',
-              avatarUrl: user?.avatarUrl,
-              radius: 40,
+            child: GestureDetector(
+              onTap: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
+                  ? () => showFullScreenImage(
+                        context,
+                        imageUrl: user.avatarUrl,
+                        heroTag: heroTag,
+                      )
+                  : null,
+              child: Hero(
+                tag: heroTag ?? 'profile-avatar',
+                child: UserAvatar(
+                  name: user?.name ?? '',
+                  avatarUrl: user?.avatarUrl,
+                  radius: 40,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -46,11 +58,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           if (user != null) ...[
             const SizedBox(height: 8),
             Text(
-              'NTRP ${user.ntrpRating.toStringAsFixed(1)} · ${formatDateOfBirth(user.dateOfBirth)}',
+              'NTRP ${user.ntrpRating.toStringAsFixed(1)}${user.age != null ? ' · ${user.age} anos' : ''}',
               textAlign: TextAlign.center,
             ),
-            if (user.age != null)
-              Text('${user.age} anos', textAlign: TextAlign.center),
             if (user.gender != null) Text(user.gender!.label, textAlign: TextAlign.center),
             if (user.city != null) Text('${user.city}, ${user.state}', textAlign: TextAlign.center),
             if (user.profession != null && user.profession!.isNotEmpty)

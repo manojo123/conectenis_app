@@ -17,39 +17,66 @@ class UserAvatar extends StatelessWidget {
   final String? avatarUrl;
   final double radius;
 
-  ImageProvider? _imageProvider(String? url) {
-    if (url == null || url.trim().isEmpty) return null;
-    final trimmed = url.trim();
+  String get _initial => name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+  String? get _networkUrl {
+    if (avatarUrl == null || avatarUrl!.trim().isEmpty) return null;
+    final trimmed = avatarUrl!.trim();
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return CachedNetworkImageProvider(trimmed);
+      return resolveMediaUrl(trimmed);
     }
     final file = File(trimmed);
-    if (file.existsSync()) {
-      return FileImage(file);
-    }
+    if (file.existsSync()) return null;
     final resolved = resolveMediaUrl(trimmed);
-    if (resolved.isNotEmpty) {
-      return CachedNetworkImageProvider(resolved);
-    }
-    return null;
+    return resolved.isNotEmpty ? resolved : null;
+  }
+
+  File? get _localFile {
+    if (avatarUrl == null || avatarUrl!.trim().isEmpty) return null;
+    final trimmed = avatarUrl!.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return null;
+    final file = File(trimmed);
+    return file.existsSync() ? file : null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-    final provider = _imageProvider(avatarUrl);
-
-    if (provider != null) {
+    final local = _localFile;
+    if (local != null) {
       return CircleAvatar(
         radius: radius,
         backgroundColor: AppColors.navy,
-        backgroundImage: provider,
+        backgroundImage: FileImage(local),
       );
     }
+
+    final url = _networkUrl;
+    if (url != null) {
+      return ClipOval(
+        child: SizedBox(
+          width: radius * 2,
+          height: radius * 2,
+          child: CachedNetworkImage(
+            imageUrl: url,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => _fallback(),
+            errorWidget: (context, url, error) => _fallback(),
+          ),
+        ),
+      );
+    }
+
+    return _fallback();
+  }
+
+  Widget _fallback() {
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.navy,
-      child: Text(initial, style: TextStyle(color: Colors.white, fontSize: radius * 0.9)),
+      child: Text(
+        _initial,
+        style: TextStyle(color: Colors.white, fontSize: radius * 0.9),
+      ),
     );
   }
 }

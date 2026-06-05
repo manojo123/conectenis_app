@@ -33,7 +33,28 @@ class Env {
   static bool get useMockApi =>
       (dotenv.env['USE_MOCK_API'] ?? 'true').toLowerCase() == 'true';
 
-  static String get googleMapsApiKey => dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+  static String get googleMapsApiKey {
+    var raw = (dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '').trim();
+    if (raw.length >= 2) {
+      if (raw.startsWith('"') && raw.endsWith('"')) {
+        raw = raw.substring(1, raw.length - 1);
+      } else if (raw.startsWith("'") && raw.endsWith("'")) {
+        raw = raw.substring(1, raw.length - 1);
+      }
+    }
+    return raw;
+  }
+
+  /// Google Maps Flutter only supports Android and iOS (not Windows/macOS/Linux).
+  static bool get isGoogleMapsNativePlatform =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+  /// Whether to render [GoogleMap]. On mobile, the key is injected at build time
+  /// (Android: `android/local.properties` or `.env` via Gradle). Do not require
+  /// [googleMapsApiKey] from Dart dotenv — that only gates Dart-side checks.
+  static bool get isGoogleMapsSupported => isGoogleMapsNativePlatform;
+
+  static bool get hasGoogleMapsApiKeyInEnv => googleMapsApiKey.isNotEmpty;
 
   /// OAuth 2.0 **Web application** client ID (same value as Laravel `GOOGLE_CLIENT_ID`).
   static String get googleOAuthWebClientId =>
@@ -52,4 +73,24 @@ class Env {
   static String get reverbScheme => dotenv.env['REVERB_SCHEME'] ?? 'http';
 
   static bool get reverbEnabled => reverbAppKey.isNotEmpty;
+
+  /// Home shell tab: `map` (default), `dashboard`, or `feed`.
+  static String get homeVariant => (dotenv.env['HOME_VARIANT'] ?? 'map').toLowerCase();
+
+  static bool get useHomeDashboard => homeVariant == 'dashboard';
+  static bool get useHomeFeed => homeVariant == 'feed';
+  static bool get useHomeMap => !useHomeDashboard && !useHomeFeed;
+
+  /// Rewrites localhost in any URL (e.g. avatar links from Laravel).
+  static String resolveHostForPlatform(String url) {
+    if (kIsWeb) return url;
+    var resolved = url;
+    if (Platform.isAndroid) {
+      resolved = resolved
+          .replaceAll('localhost', '10.0.2.2')
+          .replaceAll('127.0.0.1', '10.0.2.2');
+      resolved = resolved.replaceAll(':8000', '');
+    }
+    return resolved;
+  }
 }

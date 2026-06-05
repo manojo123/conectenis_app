@@ -5,6 +5,7 @@ import 'package:conectenis_app/core/data/mock_api_service.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
 import 'package:conectenis_app/features/chat/data/delete_message_scope.dart';
+import 'package:conectenis_app/shared/models/chat_timeline_entry.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
 import 'package:conectenis_app/shared/models/json_parsers.dart';
 import 'package:conectenis_app/shared/models/message.dart';
@@ -64,9 +65,36 @@ class ChatRepository {
     try {
       final response =
           await _dio.get<dynamic>('/conversations/$conversationId/messages');
-      return parseJsonList(response.data)
-          .map((json) => Message.fromJson(json, currentUserId: currentUserId))
-          .toList();
+      final items = <Message>[];
+      for (final json in parseJsonList(response.data)) {
+        if (json['type'] == 'challenge') continue;
+        items.add(Message.fromJson(json, currentUserId: currentUserId));
+      }
+      return items;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<List<ChatTimelineEntry>> timeline(int conversationId, {int? currentUserId}) async {
+    if (Env.useMockApi) {
+      final messages = await _mock.messages(conversationId, currentUserId: currentUserId);
+      final challenges = await _mock.challengeEvents(conversationId);
+      return mergeChatTimeline(messages: messages, challenges: challenges);
+    }
+    try {
+      final response =
+          await _dio.get<dynamic>('/conversations/$conversationId/messages');
+      final messages = <Message>[];
+      final challenges = <ChatChallengeEvent>[];
+      for (final json in parseJsonList(response.data)) {
+        if (json['type'] == 'challenge') {
+          challenges.add(ChatChallengeEvent.fromJson(json));
+        } else {
+          messages.add(Message.fromJson(json, currentUserId: currentUserId));
+        }
+      }
+      return mergeChatTimeline(messages: messages, challenges: challenges);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

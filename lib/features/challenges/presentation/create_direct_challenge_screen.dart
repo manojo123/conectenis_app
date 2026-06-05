@@ -5,7 +5,7 @@ import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
 import 'package:conectenis_app/features/players/data/players_repository.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
-import 'package:conectenis_app/shared/models/place.dart';
+import 'package:conectenis_app/shared/models/nearby_court.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/utils/date_time_format.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
@@ -25,7 +25,7 @@ class CreateDirectChallengeScreen extends ConsumerStatefulWidget {
 class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChallengeScreen> {
   ChallengeFormat _format = ChallengeFormat.singles;
   final Map<int, Player> _opponents = {};
-  Place? _place;
+  NearbyCourt? _court;
   DateTime _start = roundToFiveMinutes(DateTime.now().add(const Duration(days: 1)));
   bool _submitting = false;
 
@@ -75,7 +75,7 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
   }
 
   Future<void> _submit() async {
-    if (_opponents.isEmpty || _place == null) {
+    if (_opponents.isEmpty || _court == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione adversário(s) e local')),
       );
@@ -86,7 +86,8 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
       await ref.read(challengesRepositoryProvider).createDirect(
             format: _format,
             participantIds: _opponents.keys.toList(),
-            placeId: _place!.id,
+            placeId: _court!.placeId,
+            googlePlaceId: _court!.googlePlaceId,
             scheduledStart: _start,
           );
       bumpChallengesRefresh(ref);
@@ -169,8 +170,8 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
           const Text('Local'),
           const SizedBox(height: 8),
           PlaceSelectField(
-            selectedPlace: _place,
-            onChanged: (place) => setState(() => _place = place),
+            selectedCourt: _court,
+            onChanged: (court) => setState(() => _court = court),
           ),
           const SizedBox(height: 24),
           LimeButton(label: 'Confirmar envio', loading: _submitting, onPressed: _submit),

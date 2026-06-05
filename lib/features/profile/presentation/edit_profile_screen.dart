@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/data/auth_repository.dart';
 import 'package:conectenis_app/features/profile/providers/profile_feedback_provider.dart';
+import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
 import 'package:conectenis_app/shared/utils/avatar_picker.dart';
 import 'package:conectenis_app/shared/utils/date_of_birth.dart';
 import 'package:flutter/material.dart';
@@ -67,10 +68,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       var avatarUrl = user.avatarUrl;
       if (_localAvatarPath != null) {
         avatarUrl = await ref.read(authRepositoryProvider).uploadAvatar(_localAvatarPath!);
+        await ref.read(authStateProvider.notifier).updateProfile(
+              user.copyWith(avatarUrl: avatarUrl),
+            );
       }
 
+      final latest = ref.read(authStateProvider).value ?? user;
       await ref.read(authStateProvider.notifier).updateProfile(
-            user.copyWith(
+            latest.copyWith(
               profession: _professionController.text.trim(),
               addressLine: _addressController.text.trim(),
               city: _cityController.text.trim(),
@@ -87,7 +92,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        AppSnackBar.showDanger(context, e.toString());
       }
     } finally {
       if (mounted) setState(() => _saving = false);

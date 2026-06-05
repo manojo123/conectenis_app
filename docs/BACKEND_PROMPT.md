@@ -50,11 +50,105 @@ Add policy tests for creator, admin, and other users.
 
 `POST /api/places/{id}/reports` — return Portuguese message in JSON: `"message": "Denúncia enviada com sucesso."` (app already shows a fixed PT string).
 
-## 8. Run migrations & tests
+## 8. Chat — challenge timeline entries
+
+When a direct challenge is created between two users who have a conversation, both should see a **non-deletable** timeline item in `GET /api/conversations/{id}/messages` (merged chronologically with normal messages).
+
+Return items with `"type": "challenge"`:
+
+```json
+{
+  "type": "challenge",
+  "challenge_id": 42,
+  "challenge_status": "pending_acceptance",
+  "summary": "Desafio de tênis · Pendente",
+  "created_at": "2026-05-23T14:00:00Z"
+}
+```
+
+- Create these when `POST /api/challenges/direct` succeeds (for creator + each participant conversation).
+- Do not allow `DELETE /messages/{id}` on challenge items.
+- Update status text when challenge status changes (optional v2).
+
+## 9. Case-insensitive search
+
+- `GET /api/players/nearby?name=` — filter with `LOWER(name) LIKE %term%` (or equivalent).
+- `GET /api/places/nearby?name=` — same.
+
+## Run migrations & tests
 
 - `php artisan migrate`
-- Run Pest tests for places (nearby name filter, rate policy, update policy) and user profile `date_of_birth`.
+- Run Pest tests for profile, places, players, and challenges.
 
 ---
 
-**Flutter already handles (no API required for mock):** client-side place name filter when API ignores `name`; self player via auth profile; relative avatar URL resolution via `API_BASE_URL` origin.
+## Product meeting — additional API (Flutter ready)
+
+See also `docs/BACKEND_PROMPT_CHALLENGE_RESULT.md` for approval workflow extensions below.
+
+### A. Doubles evaluation — `winner_team`
+
+When `format=doubles` and `skip_score=false`:
+
+- Accept `winner_team` as array of **exactly 2** user ids (both must be challenge participants on the same side).
+- **Reject** `winner_user_id` for doubles (422).
+- Singles: keep `winner_user_id` (required unless `skip_score`).
+
+### B. Per-opponent ratings — `opponent_ratings[]`
+
+For doubles evaluation, accept:
+
+```json
+"opponent_ratings": [
+  { "user_id": 3, "punctuality_stars": 5, "comment": "Ótimo jogo" },
+  { "user_id": 4, "punctuality_stars": 4 }
+]
+```
+
+- Validate each `user_id` is on the **opponent team** (2 users for doubles).
+- Singles may continue using `opponent_punctuality_stars` + `opponent_comment`, or accept a single-element `opponent_ratings[]`.
+- Include `opponent_ratings` in `ChallengeResource.result` when present.
+
+### C. Participant teams — `team` field
+
+Each participant in `ChallengeResource` (including creator) should expose `team: 1|2`:
+
+- Team 1 vs team 2 for versus UI (singles: one player per team; doubles: two per team).
+- Assign teams at accept/fill time.
+
+### D. Hybrid nearby places + challenge create
+
+`GET /api/places/nearby` (no `name` required for court picker) returns unified rows:
+
+```json
+{
+  "source": "app",
+  "id": 12,
+  "name": "Clube Esportivo",
+  "address": "Rua X",
+  "latitude": -23.18,
+  "longitude": -46.88,
+  "distance_km": 0.5
+}
+```
+
+```json
+{
+  "source": "google",
+  "google_place_id": "ChIJ...",
+  "name": "Arena Tennis",
+  "address": "Av. Brasil",
+  "latitude": -23.19,
+  "longitude": -46.88,
+  "distance_km": 1.2
+}
+```
+
+Challenge create (`POST /challenges/direct`, `POST /challenges/public`):
+
+- Accept **`place_id`** (int, app DB) **OR** **`google_place_id`** (string).
+- Require one when location is not open; reject both missing when `open_location=false`.
+
+---
+
+**Flutter already handles (no API required for mock):** client-side name filter when API ignores `name`; self player via auth profile; relative avatar URL resolution (including rewriting `localhost` → `10.0.2.2` on Android).

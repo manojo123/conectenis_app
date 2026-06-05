@@ -5,6 +5,7 @@ import 'package:conectenis_app/core/data/mock_api_service.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/models/nearby_court.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 
 final placesRepositoryProvider = Provider<PlacesRepository>((ref) {
@@ -21,6 +22,27 @@ class PlacesRepository {
 
   final Dio _dio;
   final MockApiService _mock;
+
+  Future<List<NearbyCourt>> nearbyCourts({
+    required double lat,
+    required double lng,
+    double radiusKm = 50,
+  }) {
+    return _guard(() async {
+      if (Env.useMockApi) return _mock.nearbyCourts(lat: lat, lng: lng);
+      final response = await _dio.get<List<dynamic>>(
+        '/places/nearby',
+        queryParameters: {
+          'lat': lat,
+          'lng': lng,
+          'radius': radiusKm,
+        },
+      );
+      return (response.data ?? [])
+          .map((e) => NearbyCourt.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
+  }
 
   Future<List<Place>> nearby({
     required double lat,

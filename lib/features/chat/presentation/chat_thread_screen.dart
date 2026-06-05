@@ -11,7 +11,11 @@ import 'package:conectenis_app/features/chat/data/chat_repository.dart';
 import 'package:conectenis_app/features/chat/data/delete_message_scope.dart';
 import 'package:conectenis_app/features/chat/services/reverb_service.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
+import 'package:conectenis_app/shared/models/chat_timeline_entry.dart';
 import 'package:conectenis_app/shared/models/message.dart';
+import 'package:conectenis_app/shared/utils/player_navigation.dart';
+import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
+import 'package:conectenis_app/shared/widgets/chat_challenge_panel.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
@@ -36,16 +40,20 @@ class ChatThreadScreen extends ConsumerStatefulWidget {
 class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  List<Message> _messages = [];
+  List<ChatTimelineEntry> _timeline = [];
   bool _loading = true;
   String? _error;
   String? _peerName;
   String? _peerAvatarUrl;
   int? _peerUserId;
+  late final ChatRepository _chatRepository;
+  late final ReverbService _reverbService;
 
   @override
   void initState() {
     super.initState();
+    _chatRepository = ref.read(chatRepositoryProvider);
+    _reverbService = ref.read(reverbServiceProvider);
     _peerName = widget.otherUserName;
     _peerAvatarUrl = widget.otherAvatarUrl;
     _peerUserId = widget.otherUserId;
@@ -55,16 +63,19 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
   Future<void> _subscribeReverb() async {
     if (!Env.reverbEnabled) return;
-    await ref.read(reverbServiceProvider).subscribeToConversation(
-          conversationId: widget.conversationId,
-          onMessage: (_) => _load(),
-        );
+    await _reverbService.subscribeToConversation(
+      conversationId: widget.conversationId,
+      onMessage: (_) {
+        if (!mounted) return;
+        _load();
+      },
+    );
   }
 
   Future<void> _loadPeerInfo() async {
     if (_peerName != null && _peerName!.isNotEmpty && _peerUserId != null) return;
     final conversation =
-        await ref.read(chatRepositoryProvider).conversationById(widget.conversationId);
+        await _chatRepository.conversationById(widget.conversationId);
     if (!mounted || conversation == null) return;
     setState(() {
       _peerName = conversation.otherUserName;
@@ -74,30 +85,29 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       final userId = ref.read(authStateProvider).value?.id;
-      final list = await ref.read(chatRepositoryProvider).messages(
-            widget.conversationId,
-            currentUserId: userId,
-          );
-      if (mounted) {
-        setState(() {
-          _messages = list;
-          _loading = false;
-        });
-      }
+      final list = await _chatRepository.timeline(
+        widget.conversationId,
+        currentUserId: userId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _timeline = list;
+        _loading = false;
+      });
       await _loadPeerInfo();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = e is ApiException ? e.message : e.toString();
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e is ApiException ? e.message : e.toString();
+      });
     }
   }
 
@@ -109,12 +119,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
     _controller.clear();
     try {
-      final msg = await ref.read(chatRepositoryProvider).send(
-            conversationId: widget.conversationId,
-            userId: userId,
-            body: body,
-          );
-      setState(() => _messages = [..._messages, msg]);
+      final msg = await _chatRepository.send(
+        conversationId: widget.conversationId,
+        userId: userId,
+        body: body,
+      );
+      if (!mounted) return;
+      setState(() => _timeline = [..._timeline, ChatMessageTimelineEntry(msg)]);
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent + 80,
@@ -124,9 +135,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e is ApiException ? e.message : e.toString())),
-        );
+        AppSnackBar.showDanger(context, e is ApiException ? e.message : e.toString());
       }
     }
   }
@@ -134,7 +143,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   void _openProfile() {
     final id = _peerUserId;
     if (id == null) return;
-    context.push('/players/$id');
+    openPlayerProfile(context, ref, id);
   }
 
   Future<void> _confirmDeleteMessage(Message message) async {
@@ -162,8 +171,16 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     if (scope == null || !mounted) return;
 
     try {
-      await ref.read(chatRepositoryProvider).deleteMessage(message.id, scope: scope);
-      setState(() => _messages = _messages.where((m) => m.id != message.id).toList());
+      await _chatRepository.deleteMessage(message.id, scope: scope);
+      if (!mounted) return;
+      setState(() {
+        _timeline = _timeline.where((entry) {
+          if (entry is ChatMessageTimelineEntry) {
+            return entry.message.id != message.id;
+          }
+          return true;
+        }).toList();
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -177,7 +194,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
-    ref.read(reverbServiceProvider).disconnect();
+    _reverbService.disconnect();
     super.dispose();
   }
 
@@ -219,7 +236,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
                     ? ErrorView(message: _error!, onRetry: _load)
-                    : _messages.isEmpty
+                    : _timeline.isEmpty
                         ? Center(
                             child: Text(
                               'Nenhuma mensagem ainda.\nDiga olá para $title.',
@@ -232,9 +249,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                         : ListView.builder(
                             controller: _scrollController,
                             padding: EdgeInsets.fromLTRB(12, 12, 12, screenBottomInset(context)),
-                            itemCount: _messages.length,
+                            itemCount: _timeline.length,
                             itemBuilder: (_, i) {
-                              final m = _messages[i];
+                              final entry = _timeline[i];
+                              if (entry is ChatChallengeTimelineEntry) {
+                                return ChatChallengePanel(event: entry.event);
+                              }
+                              final m = (entry as ChatMessageTimelineEntry).message;
                               return GestureDetector(
                                 onLongPress: () => _confirmDeleteMessage(m),
                                 child: Align(
