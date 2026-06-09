@@ -118,10 +118,20 @@ If build fails on **native assets** / `objective_c`, see **[WINDOWS_BUILD.md](WI
 | `POST` | `/api/challenges/{id}/candidates/{userId}/accept` | |
 | `POST` | `/api/challenges/{id}/evaluation` | `{ skip_score?, my_games_won?, opponent_games_won?, winner_user_id?, opponent_punctuality_stars, place_quality_stars?, ... }` |
 
-## Profile fields (`PUT /api/user/profile`)
+## Profile & avatar
 
-`ntrp_rating` (1.0–5.0, step 0.5), `gender`, `profession`, `address_line`, `city`, `state`, `country`, `play_style`.  
-`profile_complete` requires avatar (`POST /api/user/avatar`), age, NTRP, gender, city, state.
+| Method | Path | Notes |
+|--------|------|-------|
+| `PUT` | `/api/user/profile` | Profile fields (see below) |
+| `POST` | `/api/user/avatar` | multipart `avatar` → `{ avatar_url, has_custom_avatar, user? }` |
+| `DELETE` | `/api/user/avatar` | Removes custom photo; reverts to Gravatar |
+
+`avatar_url` is always returned (Gravatar from e-mail when no custom upload). See [BACKEND_PROMPT_AVATAR_GRAVATAR.md](BACKEND_PROMPT_AVATAR_GRAVATAR.md).
+
+### Profile fields (`PUT /api/user/profile`)
+
+`ntrp_rating` (1.0–5.0, step 0.5), `gender`, `profession`, address fields, `play_style`.  
+`profile_complete` requires age, NTRP, gender, city, state (avatar via Gravatar or custom upload).
 
 ## Players (`GET /api/players/nearby`)
 

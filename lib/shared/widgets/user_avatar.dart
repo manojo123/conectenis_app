@@ -3,32 +3,33 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
-import 'package:conectenis_app/shared/utils/media_url.dart';
+import 'package:conectenis_app/shared/utils/gravatar.dart';
 
 class UserAvatar extends StatelessWidget {
   const UserAvatar({
     super.key,
     required this.name,
     this.avatarUrl,
+    this.email,
+    this.hasCustomAvatar = false,
     this.radius = 20,
   });
 
   final String name;
   final String? avatarUrl;
+  final String? email;
+  final bool hasCustomAvatar;
   final double radius;
 
   String get _initial => name.isNotEmpty ? name[0].toUpperCase() : '?';
 
   String? get _networkUrl {
-    if (avatarUrl == null || avatarUrl!.trim().isEmpty) return null;
-    final trimmed = avatarUrl!.trim();
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return resolveMediaUrl(trimmed);
-    }
-    final file = File(trimmed);
-    if (file.existsSync()) return null;
-    final resolved = resolveMediaUrl(trimmed);
-    return resolved.isNotEmpty ? resolved : null;
+    final resolved = resolveAvatarUrl(
+      avatarUrl: avatarUrl,
+      email: email,
+      hasCustomAvatar: hasCustomAvatar,
+    );
+    return resolved.isEmpty ? null : resolved;
   }
 
   File? get _localFile {

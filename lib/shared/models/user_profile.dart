@@ -1,3 +1,4 @@
+import 'package:conectenis_app/shared/utils/gravatar.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/json_parsers.dart';
 import 'package:conectenis_app/shared/utils/date_of_birth.dart';
@@ -22,6 +23,7 @@ class UserProfile {
     this.addressComplement,
     this.playStyle = PlayStyle.both,
     this.avatarUrl,
+    this.hasCustomAvatar = false,
     this.latitude,
     this.longitude,
     this.profileComplete = false,
@@ -51,6 +53,7 @@ class UserProfile {
   final String? addressComplement;
   final PlayStyle playStyle;
   final String? avatarUrl;
+  final bool hasCustomAvatar;
   final double? latitude;
   final double? longitude;
   final bool profileComplete;
@@ -65,6 +68,13 @@ class UserProfile {
 
   bool get hasAcceptedLegal =>
       termsAcceptedAt != null && privacyAcceptedAt != null;
+
+  /// Display URL: custom upload or Gravatar fallback.
+  String get displayAvatarUrl => resolveAvatarUrl(
+        avatarUrl: avatarUrl,
+        email: email,
+        hasCustomAvatar: hasCustomAvatar,
+      );
 
   bool get isAdmin => roles.any((r) => r.toLowerCase() == 'admin');
 
@@ -87,6 +97,7 @@ class UserProfile {
     String? addressComplement,
     PlayStyle? playStyle,
     String? avatarUrl,
+    bool? hasCustomAvatar,
     double? latitude,
     double? longitude,
     bool? profileComplete,
@@ -116,6 +127,7 @@ class UserProfile {
       addressComplement: addressComplement ?? this.addressComplement,
       playStyle: playStyle ?? this.playStyle,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      hasCustomAvatar: hasCustomAvatar ?? this.hasCustomAvatar,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       profileComplete: profileComplete ?? this.profileComplete,
@@ -151,6 +163,7 @@ class UserProfile {
       addressComplement: json['address_complement'] as String?,
       playStyle: PlayStyle.fromValue(json['play_style'] as String?),
       avatarUrl: json['avatar_url'] as String?,
+      hasCustomAvatar: json['has_custom_avatar'] as bool? ?? false,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       profileComplete: json['profile_complete'] as bool? ?? false,

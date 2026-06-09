@@ -35,10 +35,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           Center(
             child: GestureDetector(
-              onTap: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
+              onTap: user != null && user.displayAvatarUrl.isNotEmpty
                   ? () => showFullScreenImage(
                         context,
-                        imageUrl: user.avatarUrl,
+                        imageUrl: user.displayAvatarUrl,
                         heroTag: heroTag,
                       )
                   : null,
@@ -46,7 +46,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 tag: heroTag ?? 'profile-avatar',
                 child: UserAvatar(
                   name: user?.name ?? '',
+                  email: user?.email,
                   avatarUrl: user?.avatarUrl,
+                  hasCustomAvatar: user?.hasCustomAvatar ?? false,
                   radius: 40,
                 ),
               ),

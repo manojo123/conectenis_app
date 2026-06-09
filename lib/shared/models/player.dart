@@ -16,6 +16,7 @@ class Player {
     this.state,
     this.playStyle = PlayStyle.both,
     this.avatarUrl,
+    this.hasCustomAvatar = false,
     this.distanceKm,
     this.matchesPlayed,
     this.challengesWon,
@@ -34,6 +35,7 @@ class Player {
   final String? state;
   final PlayStyle playStyle;
   final String? avatarUrl;
+  final bool hasCustomAvatar;
   final double latitude;
   final double longitude;
   final double? distanceKm;
@@ -65,6 +67,7 @@ class Player {
       state: json['state'] as String?,
       playStyle: PlayStyle.fromValue(json['play_style'] as String?),
       avatarUrl: json['avatar_url'] as String?,
+      hasCustomAvatar: json['has_custom_avatar'] as bool? ?? false,
       latitude: parseJsonDouble(json['latitude']),
       longitude: parseJsonDouble(json['longitude']),
       distanceKm: json['distance_km'] == null

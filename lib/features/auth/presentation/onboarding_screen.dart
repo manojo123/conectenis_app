@@ -1,19 +1,18 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/shared/utils/avatar_picker.dart';
 import 'package:conectenis_app/shared/utils/date_of_birth.dart';
-import 'package:conectenis_app/shared/utils/media_url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:conectenis_app/features/auth/data/auth_repository.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/models/user_profile.dart';
 import 'package:conectenis_app/shared/models/address_form_data.dart';
 import 'package:conectenis_app/shared/widgets/address_form_fields.dart';
+import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 import 'package:conectenis_app/shared/widgets/gender_selector.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/ntrp_rating_picker.dart';
@@ -127,24 +126,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
       return;
     }
-    final existingAvatar = _resolvedAvatarUrl(user.avatarUrl);
-    if (_avatarPath == null && existingAvatar == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inclua uma foto obrigatória')),
-      );
-      return;
-    }
-
     setState(() => _saving = true);
     try {
-      var avatarUrl = user.avatarUrl;
       if (_avatarPath != null) {
-        avatarUrl = await ref.read(authRepositoryProvider).uploadAvatar(_avatarPath!);
+        await ref.read(authStateProvider.notifier).uploadAvatar(_avatarPath!);
       }
+
+      final currentUser = ref.read(authStateProvider).value ?? user;
 
       await ref.read(authStateProvider.notifier).updateProfile(
             _addressData.applyTo(
-              user.copyWith(
+              currentUser.copyWith(
                 name: name,
                 email: email,
                 dateOfBirth: _dateOfBirth,
@@ -152,7 +144,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 gender: _gender,
                 profession: _professionController.text.trim(),
                 playStyle: _style,
-                avatarUrl: avatarUrl,
                 profileComplete: true,
               ),
             ),
@@ -169,29 +160,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  String? _resolvedAvatarUrl(String? url) {
-    if (url == null || url.isEmpty) return null;
-    final resolved = resolveMediaUrl(url);
-    return resolved.isEmpty ? url : resolved;
-  }
-
-  Widget _buildAvatar(String? avatarUrl) {
+  Widget _buildAvatar(UserProfile? user) {
     if (_avatarPath != null) {
       return CircleAvatar(
         radius: 52,
         backgroundImage: FileImage(File(_avatarPath!)),
       );
     }
-    final resolved = _resolvedAvatarUrl(avatarUrl);
-    if (resolved != null) {
-      return CircleAvatar(
-        radius: 52,
-        backgroundImage: CachedNetworkImageProvider(resolved),
-      );
-    }
-    return const CircleAvatar(
+    return UserAvatar(
+      name: user?.name ?? _nameController.text,
+      email: user?.email ?? _emailController.text,
+      avatarUrl: user?.avatarUrl,
+      hasCustomAvatar: user?.hasCustomAvatar ?? false,
       radius: 52,
-      child: Icon(Icons.add_a_photo, size: 36),
     );
   }
 
@@ -210,13 +191,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           Center(
             child: GestureDetector(
               onTap: _pickAvatar,
-              child: _buildAvatar(user?.avatarUrl),
+              child: _buildAvatar(user),
             ),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Incluir Foto Obrigatória',
+            'Foto de perfil (opcional)',
             textAlign: TextAlign.center,
+          ),
+          const Text(
+            'Sem foto, usamos seu Gravatar pelo e-mail.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13),
           ),
           TextButton(onPressed: _pickAvatar, child: const Text('Tirar foto ou escolher da galeria')),
           if (greetingName.isNotEmpty) ...[

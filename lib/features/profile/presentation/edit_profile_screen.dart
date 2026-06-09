@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:conectenis_app/core/theme/layout.dart';
-import 'package:conectenis_app/features/auth/data/auth_repository.dart';
 import 'package:conectenis_app/features/profile/providers/profile_feedback_provider.dart';
 import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
 import 'package:conectenis_app/shared/utils/avatar_picker.dart';
@@ -66,12 +65,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     setState(() => _saving = true);
     try {
-      var avatarUrl = user.avatarUrl;
       if (_localAvatarPath != null) {
-        avatarUrl = await ref.read(authRepositoryProvider).uploadAvatar(_localAvatarPath!);
-        await ref.read(authStateProvider.notifier).updateProfile(
-              user.copyWith(avatarUrl: avatarUrl),
-            );
+        await ref.read(authStateProvider.notifier).uploadAvatar(_localAvatarPath!);
       }
 
       final latest = ref.read(authStateProvider).value ?? user;
@@ -81,7 +76,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 profession: _professionController.text.trim(),
                 ntrpRating: _ntrp,
                 playStyle: _style,
-                avatarUrl: avatarUrl,
                 profileComplete: true,
               ),
             ),
@@ -99,6 +93,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  Future<void> _removeCustomAvatar() async {
+    final user = ref.read(authStateProvider).value;
+    if (user == null || !user.hasCustomAvatar) return;
+
+    setState(() => _saving = true);
+    try {
+      await ref.read(authStateProvider.notifier).removeCustomAvatar();
+      if (mounted) {
+        setState(() => _localAvatarPath = null);
+        AppSnackBar.showSuccess(context, 'Voltando a usar Gravatar.');
+      }
+    } catch (e) {
+      if (mounted) AppSnackBar.showDanger(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).value;
@@ -106,8 +118,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     _initFromUser(user);
-
-    final displayAvatar = _localAvatarPath ?? user.avatarUrl;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Editar perfil')),
@@ -122,14 +132,34 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       radius: 52,
                       backgroundImage: FileImage(File(_localAvatarPath!)),
                     )
-                  : UserAvatar(name: user.name, avatarUrl: displayAvatar, radius: 52),
+                  : UserAvatar(
+                      name: user.name,
+                      email: user.email,
+                      avatarUrl: user.avatarUrl,
+                      hasCustomAvatar: user.hasCustomAvatar,
+                      radius: 52,
+                    ),
             ),
           ),
           const SizedBox(height: 8),
           Center(
-            child: TextButton(onPressed: _pickAvatar, child: const Text('Trocar foto')),
+            child: TextButton(onPressed: _saving ? null : _pickAvatar, child: const Text('Enviar foto personalizada')),
           ),
-          const SizedBox(height: 12),
+          if (user.hasCustomAvatar && _localAvatarPath == null)
+            Center(
+              child: TextButton(
+                onPressed: _saving ? null : _removeCustomAvatar,
+                child: const Text('Remover foto e usar Gravatar'),
+              ),
+            ),
+          const SizedBox(height: 4),
+          const Center(
+            child: Text(
+              'Sem foto personalizada, exibimos seu Gravatar pelo e-mail.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13),
+            ),
+          ),
           InputDecorator(
             decoration: InputDecoration(
               labelText: 'Sexo',

@@ -109,6 +109,17 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
     state = AsyncData(updated);
   }
 
+  Future<UserProfile> uploadAvatar(String filePath) async {
+    final updated = await ref.read(authRepositoryProvider).uploadAvatar(filePath);
+    state = AsyncData(updated);
+    return updated;
+  }
+
+  Future<void> removeCustomAvatar() async {
+    final updated = await ref.read(authRepositoryProvider).removeCustomAvatar();
+    state = AsyncData(updated);
+  }
+
   Future<void> acceptLegalTerms() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(

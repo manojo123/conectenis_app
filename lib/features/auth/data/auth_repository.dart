@@ -140,22 +140,69 @@ class AuthRepository {
     final complete = profile.name.isNotEmpty &&
         profile.dateOfBirth != null &&
         ageFromDateOfBirth(profile.dateOfBirth)! >= 10 &&
-        (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty);
+        profile.email.trim().isNotEmpty;
     return profile.copyWith(profileComplete: wasComplete || complete);
   }
 
-  Future<String> uploadAvatar(String filePath) async {
+  Future<UserProfile> uploadAvatar(String filePath) async {
     final formData = FormData.fromMap({
       'avatar': await MultipartFile.fromFile(filePath),
     });
     final response = await _dio.post<Map<String, dynamic>>('/user/avatar', data: formData);
-    final raw = response.data!['avatar_url'] as String;
-    final resolved = resolveMediaUrl(raw);
+    final data = response.data!;
+    final userJson = data['user'];
+    if (userJson is Map<String, dynamic>) {
+      final profile = _withResolvedAvatar(
+        await _mergeWithLocalProfile(UserProfile.fromLaravelUser(userJson)),
+      );
+      await _profileStorage.write(profile);
+      return profile;
+    }
+
+    final raw = data['avatar_url'] as String?;
+    final hasCustom = data['has_custom_avatar'] as bool? ?? true;
+    final resolved = raw != null ? resolveMediaUrl(raw) : '';
     final current = await _profileStorage.read();
     if (current != null) {
-      await _profileStorage.write(current.copyWith(avatarUrl: resolved));
+      final updated = current.copyWith(
+        avatarUrl: resolved.isEmpty ? raw : resolved,
+        hasCustomAvatar: hasCustom,
+      );
+      await _profileStorage.write(updated);
+      return updated;
     }
-    return resolved;
+    throw ApiException('Resposta inválida ao enviar avatar.');
+  }
+
+  Future<UserProfile> removeCustomAvatar() async {
+    if (Env.useMockApi) {
+      final current = await _profileStorage.read();
+      if (current == null) throw ApiException('Usuário não autenticado.');
+      final updated = current.copyWith(
+        hasCustomAvatar: false,
+        avatarUrl: null,
+      );
+      await _profileStorage.write(updated);
+      return updated;
+    }
+
+    return _guard(() async {
+      final response = await _dio.delete<Map<String, dynamic>>('/user/avatar');
+      final data = response.data!;
+      final userJson = data['user'];
+      if (userJson is Map<String, dynamic>) {
+        final profile = _withResolvedAvatar(
+          await _mergeWithLocalProfile(UserProfile.fromLaravelUser(userJson)),
+        );
+        await _profileStorage.write(profile);
+        return profile;
+      }
+      final current = await _profileStorage.read();
+      if (current == null) throw ApiException('Usuário não autenticado.');
+      final updated = current.copyWith(hasCustomAvatar: false, avatarUrl: null);
+      await _profileStorage.write(updated);
+      return updated;
+    });
   }
 
   Future<UserProfile> socialLogin({
@@ -244,6 +291,7 @@ class AuthRepository {
           addressLine: local.addressLine,
           playStyle: local.playStyle,
           avatarUrl: _mergeAvatarUrl(profile.avatarUrl, local.avatarUrl),
+          hasCustomAvatar: profile.hasCustomAvatar || local.hasCustomAvatar,
           latitude: local.latitude ?? profile.latitude,
           longitude: local.longitude ?? profile.longitude,
           profileComplete: profile.profileComplete || local.profileComplete,
