@@ -53,9 +53,38 @@ Copy `.env.example` to `.env`:
 ```env
 API_BASE_URL=http://localhost/api
 USE_MOCK_API=true
+HOME_VARIANT=dashboard
+APP_SHARE_URL=https://conectenis.com.br
 ```
 
 Set `API_BASE_URL` per platform (see table above). Auth works with Sail running; other features can stay on mock until API routes exist.
+
+### Home variant (`HOME_VARIANT`)
+
+| Value | Home tab content |
+|-------|------------------|
+| `dashboard` (default) | Engagement dashboard — stats panel + local matchmaking card |
+| `map` | Map with nearby players and places |
+| `feed` | Public nearby challenges feed |
+
+When `USE_MOCK_API=true`, dashboard endpoints are served by in-app mock data. Set `USE_MOCK_API=false` after implementing the backend endpoints below.
+
+## Dashboard (`/api/dashboard/*`)
+
+Requires Sanctum bearer token. See [BACKEND_PROMPT_DASHBOARD_RN03.md](BACKEND_PROMPT_DASHBOARD_RN03.md) for full Laravel implementation prompt.
+
+| Method | Path | Query / notes |
+|--------|------|---------------|
+| `GET` | `/api/dashboard/matchmaking` | `radius_km` = `5` \| `10` \| `25` — count of players at same NTRP in radius |
+| `GET` | `/api/dashboard/stats` | Consolidated NTRP, W/L record, local + state rank |
+
+**Matchmaking response:**
+```json
+{ "count": 3, "radius_km": 10, "ntrp_rating": 3.5, "has_matches": true }
+```
+
+**Stats response:** `tennis_level`, `record` (wins, losses, matches_played, win_rate), `ranking.local`, `ranking.general`.
+
 
 Global user session: `authStateProvider` (Riverpod) — `ref.watch(authStateProvider).value` gives `UserProfile?` (`id`, `name`, `email`, `roles`, `hasAcceptedLegal`, `profileComplete`, plus onboarding fields).
 

@@ -1,3 +1,5 @@
+import 'package:conectenis_app/features/home/models/dashboard_matchmaking.dart';
+import 'package:conectenis_app/features/home/models/dashboard_stats.dart';
 import 'package:conectenis_app/features/chat/data/delete_message_scope.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
@@ -821,6 +823,63 @@ class MockApiService {
       email: email,
       profileComplete: false,
     );
+  }
+
+  /// Mock matchmaking count: same NTRP as current user (3.5), filtered by radius.
+  /// Radius 5 km returns zero matches to demo the viral share state.
+  Future<DashboardMatchmaking> dashboardMatchmaking({required int radiusKm}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    const userNtrp = 3.5;
+    if (radiusKm <= 5) {
+      return DashboardMatchmaking(
+        count: 0,
+        radiusKm: radiusKm,
+        ntrpRating: userNtrp,
+        hasMatches: false,
+      );
+    }
+    final count = MockData.players
+        .where((p) =>
+            p.ntrpRating == userNtrp &&
+            (p.distanceKm ?? double.infinity) <= radiusKm)
+        .length;
+    return DashboardMatchmaking(
+      count: count,
+      radiusKm: radiusKm,
+      ntrpRating: userNtrp,
+      hasMatches: count > 0,
+    );
+  }
+
+  Future<DashboardStats> dashboardStats() async {
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    return DashboardStats.fromJson(const {
+      'tennis_level': {'ntrp_rating': 3.5},
+      'record': {
+        'wins': 8,
+        'losses': 3,
+        'matches_played': 11,
+        'win_rate': 0.727,
+      },
+      'ranking': {
+        'local': {
+          'scope': 'home',
+          'city_id': 1,
+          'city_name': 'Jundiaí',
+          'state': 'SP',
+          'rank': 12,
+          'total_players': 85,
+          'points': 80,
+        },
+        'general': {
+          'scope': 'played',
+          'state': 'SP',
+          'rank': 45,
+          'total_players': 500,
+          'points': 80,
+        },
+      },
+    });
   }
 }
 

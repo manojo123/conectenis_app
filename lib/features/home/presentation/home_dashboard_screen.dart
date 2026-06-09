@@ -1,57 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:conectenis_app/features/home/presentation/widgets/matchmaking_card.dart';
+import 'package:conectenis_app/features/home/presentation/widgets/stats_panel.dart';
+import 'package:conectenis_app/features/home/providers/dashboard_providers.dart';
 
-class HomeDashboardScreen extends StatelessWidget {
+class HomeDashboardScreen extends ConsumerWidget {
   const HomeDashboardScreen({super.key});
 
+  Future<void> _refresh(WidgetRef ref) async {
+    ref.invalidate(dashboardStatsProvider);
+    ref.invalidate(dashboardMatchmakingProvider);
+    await Future.wait([
+      ref.read(dashboardStatsProvider.future),
+      ref.read(dashboardMatchmakingProvider.future),
+    ]);
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('Início')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _PlaceholderCard(
-            icon: Icons.sports_tennis,
-            title: 'Desafios ativos',
-            subtitle: 'Em breve: resumo dos seus desafios em andamento.',
-          ),
-          _PlaceholderCard(
-            icon: Icons.leaderboard,
-            title: 'Ranking',
-            subtitle: 'Em breve: sua posição e destaques da semana.',
-          ),
-          _PlaceholderCard(
-            icon: Icons.history,
-            title: 'Últimas partidas',
-            subtitle: 'Em breve: histórico recente de jogos.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlaceholderCard extends StatelessWidget {
-  const _PlaceholderCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: AppColors.card,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.lime),
-        title: Text(title),
-        subtitle: Text(subtitle),
+      body: RefreshIndicator(
+        onRefresh: () => _refresh(ref),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            StatsPanel(),
+            SizedBox(height: 16),
+            MatchmakingCard(),
+          ],
+        ),
       ),
     );
   }
