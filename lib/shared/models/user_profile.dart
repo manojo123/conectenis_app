@@ -193,7 +193,6 @@ class UserProfile {
         if (addressNumber != null && addressNumber!.isNotEmpty) 'address_number': addressNumber,
         if (addressComplement != null && addressComplement!.isNotEmpty) 'address_complement': addressComplement,
         'play_style': playStyle.value,
-        if (avatarUrl != null && avatarUrl!.isNotEmpty) 'avatar_url': avatarUrl,
         'profile_complete': profileComplete,
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
