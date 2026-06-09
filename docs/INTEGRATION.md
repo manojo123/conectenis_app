@@ -32,9 +32,12 @@ Seeded admin (after `sail artisan db:seed`): `admin@conec.com.br` / `12345678`. 
 
 | Method | Path | Body | Response |
 |--------|------|------|----------|
-| `POST` | `/api/auth/register` | `name`, `email`, `password`, `password_confirmation`, `device_name` | `201` — `{ token, token_type, user }` |
+| `POST` | `/api/auth/register` | `name`, `email`, `password`, `password_confirmation`, `device_name`, `terms_accepted` (required) | `201` — `{ token, token_type, user }` |
 | `POST` | `/api/auth/login` | `email`, `password`, `device_name` | `200` — `{ token, token_type, user }` |
-| `GET` | `/api/auth/user` | Bearer token | `200` — `{ id, name, email, email_verified_at, roles }` |
+| `POST` | `/api/auth/social/{provider}` | `token`, `device_name` | `200` — always creates/links user (Google) |
+| `GET` | `/api/legal` | (public) | `{ terms_url, privacy_url, version }` |
+| `POST` | `/api/user/accept-terms` | Bearer — `terms_accepted`, `privacy_accepted` | `{ message, user }` |
+| `GET` | `/api/auth/user` | Bearer token | `200` — user incl. `terms_accepted_at`, `privacy_accepted_at`, `profile_complete` |
 | `POST` | `/api/auth/logout` | Bearer token | `200` — `{ message }` |
 | `POST` | `/api/auth/forgot-password` | `email` | `200` — `{ message }` |
 | `POST` | `/api/auth/reset-password` | `token`, `email`, `password`, `password_confirmation` | `200` — `{ message }` |
@@ -54,7 +57,26 @@ USE_MOCK_API=true
 
 Set `API_BASE_URL` per platform (see table above). Auth works with Sail running; other features can stay on mock until API routes exist.
 
-Global user session: `authStateProvider` (Riverpod) — `ref.watch(authStateProvider).value` gives `UserProfile?` (`id`, `name`, `email`, `roles`, plus local onboarding fields).
+Global user session: `authStateProvider` (Riverpod) — `ref.watch(authStateProvider).value` gives `UserProfile?` (`id`, `name`, `email`, `roles`, `hasAcceptedLegal`, `profileComplete`, plus onboarding fields).
+
+### RN01 gates (Flutter router)
+
+1. Not logged in → `/login`
+2. Logged in without legal acceptance → `/legal-acceptance` (links from `GET /api/legal` or `.env` fallback)
+3. Profile incomplete → `/onboarding`
+4. Home/Map tab (branch `/`) → location permission gate (`LocationGatedHome`)
+
+Legal URLs in `.env`: `LEGAL_TERMS_URL`, `LEGAL_PRIVACY_URL`, `LEGAL_VERSION`.
+
+## Address / CEP (ViaCEP via backend)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| `GET` | `/api/address/postal-code/{cep}` | Public — returns normalized address (backend calls ViaCEP) |
+
+Profile fields: `postal_code`, `address_line` (logradouro), `address_number`, `address_complement`, `neighborhood`, `city`, `state`, `country`.
+
+See [BACKEND_PROMPT_ADDRESS_VIACEP.md](BACKEND_PROMPT_ADDRESS_VIACEP.md) if the endpoint is not implemented yet. With `USE_MOCK_API=true`, the app uses a mock CEP response for UI development.
 
 ## Windows build (NuGet / geolocator)
 

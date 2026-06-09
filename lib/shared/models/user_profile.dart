@@ -17,6 +17,9 @@ class UserProfile {
     this.country = 'BR',
     this.postalCode,
     this.homeCityId,
+    this.neighborhood,
+    this.addressNumber,
+    this.addressComplement,
     this.playStyle = PlayStyle.both,
     this.avatarUrl,
     this.latitude,
@@ -24,6 +27,9 @@ class UserProfile {
     this.profileComplete = false,
     this.roles = const [],
     this.emailVerifiedAt,
+    this.termsAcceptedAt,
+    this.privacyAcceptedAt,
+    this.legalVersion,
     this.unreadNotificationsCount = 0,
   });
 
@@ -40,6 +46,9 @@ class UserProfile {
   final String? country;
   final String? postalCode;
   final int? homeCityId;
+  final String? neighborhood;
+  final String? addressNumber;
+  final String? addressComplement;
   final PlayStyle playStyle;
   final String? avatarUrl;
   final double? latitude;
@@ -47,9 +56,15 @@ class UserProfile {
   final bool profileComplete;
   final List<String> roles;
   final DateTime? emailVerifiedAt;
+  final DateTime? termsAcceptedAt;
+  final DateTime? privacyAcceptedAt;
+  final String? legalVersion;
   final int unreadNotificationsCount;
 
   int? get age => ageFromDateOfBirth(dateOfBirth);
+
+  bool get hasAcceptedLegal =>
+      termsAcceptedAt != null && privacyAcceptedAt != null;
 
   bool get isAdmin => roles.any((r) => r.toLowerCase() == 'admin');
 
@@ -67,6 +82,9 @@ class UserProfile {
     String? country,
     String? postalCode,
     int? homeCityId,
+    String? neighborhood,
+    String? addressNumber,
+    String? addressComplement,
     PlayStyle? playStyle,
     String? avatarUrl,
     double? latitude,
@@ -74,6 +92,9 @@ class UserProfile {
     bool? profileComplete,
     List<String>? roles,
     DateTime? emailVerifiedAt,
+    DateTime? termsAcceptedAt,
+    DateTime? privacyAcceptedAt,
+    String? legalVersion,
     int? unreadNotificationsCount,
   }) {
     return UserProfile(
@@ -90,6 +111,9 @@ class UserProfile {
       country: country ?? this.country,
       postalCode: postalCode ?? this.postalCode,
       homeCityId: homeCityId ?? this.homeCityId,
+      neighborhood: neighborhood ?? this.neighborhood,
+      addressNumber: addressNumber ?? this.addressNumber,
+      addressComplement: addressComplement ?? this.addressComplement,
       playStyle: playStyle ?? this.playStyle,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       latitude: latitude ?? this.latitude,
@@ -97,6 +121,9 @@ class UserProfile {
       profileComplete: profileComplete ?? this.profileComplete,
       roles: roles ?? this.roles,
       emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
+      termsAcceptedAt: termsAcceptedAt ?? this.termsAcceptedAt,
+      privacyAcceptedAt: privacyAcceptedAt ?? this.privacyAcceptedAt,
+      legalVersion: legalVersion ?? this.legalVersion,
       unreadNotificationsCount: unreadNotificationsCount ?? this.unreadNotificationsCount,
     );
   }
@@ -119,6 +146,9 @@ class UserProfile {
       country: json['country'] as String? ?? 'BR',
       postalCode: json['postal_code'] as String?,
       homeCityId: json['home_city_id'] as int?,
+      neighborhood: json['neighborhood'] as String?,
+      addressNumber: json['address_number'] as String?,
+      addressComplement: json['address_complement'] as String?,
       playStyle: PlayStyle.fromValue(json['play_style'] as String?),
       avatarUrl: json['avatar_url'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
@@ -126,6 +156,9 @@ class UserProfile {
       profileComplete: json['profile_complete'] as bool? ?? false,
       roles: _parseRoles(json['roles']),
       emailVerifiedAt: _parseDateTime(json['email_verified_at']),
+      termsAcceptedAt: _parseDateTime(json['terms_accepted_at']),
+      privacyAcceptedAt: _parseDateTime(json['privacy_accepted_at']),
+      legalVersion: json['legal_version'] as String?,
       unreadNotificationsCount: parseJsonInt(json['unread_notifications_count'] ?? 0),
     );
   }
@@ -143,6 +176,9 @@ class UserProfile {
         'state': state,
         'country': country,
         'postal_code': postalCode,
+        if (neighborhood != null && neighborhood!.isNotEmpty) 'neighborhood': neighborhood,
+        if (addressNumber != null && addressNumber!.isNotEmpty) 'address_number': addressNumber,
+        if (addressComplement != null && addressComplement!.isNotEmpty) 'address_complement': addressComplement,
         'play_style': playStyle.value,
         if (avatarUrl != null && avatarUrl!.isNotEmpty) 'avatar_url': avatarUrl,
         'profile_complete': profileComplete,

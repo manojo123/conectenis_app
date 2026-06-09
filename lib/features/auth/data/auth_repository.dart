@@ -59,6 +59,7 @@ class AuthRepository {
     required String email,
     required String password,
     required String passwordConfirmation,
+    required bool termsAccepted,
   }) {
     return _guard(() async {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -69,6 +70,7 @@ class AuthRepository {
           'password': password,
           'password_confirmation': passwordConfirmation,
           'device_name': _deviceName,
+          'terms_accepted': termsAccepted,
         },
       );
       return _saveTokenAndProfile(response.data!);
@@ -159,13 +161,46 @@ class AuthRepository {
   Future<UserProfile> socialLogin({
     required String provider,
     required String token,
-  }) async {
+  }) {
     return _guard(() async {
       final response = await _dio.post<Map<String, dynamic>>(
         '/auth/social/$provider',
         data: {'token': token, 'device_name': _deviceName},
       );
       return _saveTokenAndProfile(response.data!);
+    });
+  }
+
+  Future<UserProfile> acceptTerms() async {
+    if (Env.useMockApi) {
+      final current = await _profileStorage.read();
+      if (current == null) {
+        throw ApiException('Usuário não autenticado.');
+      }
+      final now = DateTime.now();
+      final updated = current.copyWith(
+        termsAcceptedAt: now,
+        privacyAcceptedAt: now,
+        legalVersion: Env.legalVersion,
+      );
+      await _profileStorage.write(updated);
+      return updated;
+    }
+
+    return _guard(() async {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/user/accept-terms',
+        data: {
+          'terms_accepted': true,
+          'privacy_accepted': true,
+        },
+      );
+      final userJson = response.data!['user'] as Map<String, dynamic>;
+      final profile = _withResolvedAvatar(
+        await _mergeWithLocalProfile(UserProfile.fromLaravelUser(userJson)),
+      );
+      await _profileStorage.write(profile);
+      return profile;
     });
   }
 

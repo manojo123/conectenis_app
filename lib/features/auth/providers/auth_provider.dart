@@ -14,7 +14,6 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
       ref.read(onUnauthorizedProvider.notifier).state = null;
     });
 
-    // Register after build — Riverpod forbids modifying other providers during build().
     Future.microtask(() {
       ref.read(onUnauthorizedProvider.notifier).state = () {
         state = const AsyncData(null);
@@ -31,22 +30,25 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
     }
   }
 
-  Future<void> loginWithGoogle() async {
+  /// Returns `true` when the user must complete onboarding.
+  Future<bool> loginWithGoogle() async {
     final previous = state.valueOrNull;
     state = const AsyncLoading();
     try {
       final idToken = await ref.read(googleAuthServiceProvider).signInForIdToken();
       if (idToken == null) {
         state = AsyncData(previous);
-        return;
+        return false;
       }
       final user = await ref.read(authRepositoryProvider).socialLogin(
             provider: 'google',
             token: idToken,
           );
       state = AsyncData(user);
+      return !user.profileComplete;
     } catch (e, st) {
       state = AsyncError(e, st);
+      return false;
     }
   }
 
@@ -64,8 +66,9 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
     String name,
     String email,
     String password,
-    String passwordConfirmation,
-  ) async {
+    String passwordConfirmation, {
+    required bool termsAccepted,
+  }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => ref.read(authRepositoryProvider).register(
@@ -73,6 +76,7 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
             email: email,
             password: password,
             passwordConfirmation: passwordConfirmation,
+            termsAccepted: termsAccepted,
           ),
     );
   }
@@ -103,6 +107,13 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
   Future<void> updateProfile(UserProfile profile) async {
     final updated = await ref.read(authRepositoryProvider).saveProfile(profile);
     state = AsyncData(updated);
+  }
+
+  Future<void> acceptLegalTerms() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(authRepositoryProvider).acceptTerms(),
+    );
   }
 
   Future<void> logout() async {

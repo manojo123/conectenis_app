@@ -81,6 +81,15 @@ class Env {
   static bool get useHomeFeed => homeVariant == 'feed';
   static bool get useHomeMap => !useHomeDashboard && !useHomeFeed;
 
+  static String get legalTermsUrl =>
+      dotenv.env['LEGAL_TERMS_URL'] ?? 'https://conectenis.com.br/termos';
+
+  static String get legalPrivacyUrl =>
+      dotenv.env['LEGAL_PRIVACY_URL'] ?? 'https://conectenis.com.br/privacidade';
+
+  static String get legalVersion =>
+      dotenv.env['LEGAL_VERSION'] ?? '2026-05-23';
+
   /// Rewrites localhost in any URL (e.g. avatar links from Laravel).
   static String resolveHostForPlatform(String url) {
     if (kIsWeb) return url;

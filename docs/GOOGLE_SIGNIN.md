@@ -123,7 +123,10 @@ flutter pub get
 flutter run
 ```
 
-3. On login, tap **Conectar com Google** → pick account → app should enter the main flow (or onboarding if new user).
+3. On login, tap **Conectar com Google** → pick account → app receives token immediately (RN01.1). Router then shows:
+   - `/legal-acceptance` if terms not accepted
+   - `/onboarding` if profile incomplete
+   - main shell otherwise
 
 ---
 

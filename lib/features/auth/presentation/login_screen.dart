@@ -130,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   controller: _password,
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'Senha', prefixIcon: Icon(Icons.lock_outline)),
-                  validator: (v) => v != null && v.length >= 6 ? null : 'Mínimo 6 caracteres',
+                  validator: (v) => v != null && v.length >= 8 ? null : 'Mínimo 8 caracteres',
                 ),
                 Row(
                   children: [

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/app/shell_scaffold.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
+import 'package:conectenis_app/features/auth/presentation/legal_acceptance_screen.dart';
 import 'package:conectenis_app/features/auth/presentation/login_screen.dart';
 import 'package:conectenis_app/features/auth/presentation/onboarding_screen.dart';
 import 'package:conectenis_app/features/auth/presentation/register_screen.dart';
@@ -20,6 +21,7 @@ import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/features/achievements/presentation/achievements_screen.dart';
 import 'package:conectenis_app/features/home/presentation/home_dashboard_screen.dart';
 import 'package:conectenis_app/features/home/presentation/home_feed_screen.dart';
+import 'package:conectenis_app/features/location/presentation/location_gated_home.dart';
 import 'package:conectenis_app/features/map/presentation/map_screen.dart';
 import 'package:conectenis_app/features/places/presentation/court_picker_screen.dart';
 import 'package:conectenis_app/features/notifications/presentation/notifications_screen.dart';
@@ -41,6 +43,18 @@ const _publicAuthPaths = {
   '/reset-password',
 };
 
+Widget _buildHomeTab() {
+  Widget child;
+  if (Env.useHomeDashboard) {
+    child = const HomeDashboardScreen();
+  } else if (Env.useHomeFeed) {
+    child = const HomeFeedScreen();
+  } else {
+    child = const MapScreen();
+  }
+  return LocationGatedHome(child: child);
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authStateProvider);
 
@@ -53,17 +67,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loggedIn = user != null;
       final isPublicAuth = _publicAuthPaths.contains(state.matchedLocation);
       final onOnboarding = state.matchedLocation == '/onboarding';
+      final onLegalAcceptance = state.matchedLocation == '/legal-acceptance';
 
       if (isLoading) return null;
 
-      if (!loggedIn && !isPublicAuth) return '/login';
+      if (!loggedIn && !isPublicAuth && !onOnboarding && !onLegalAcceptance) {
+        return '/login';
+      }
       if (loggedIn && isPublicAuth) {
+        if (!user.hasAcceptedLegal) return '/legal-acceptance';
         return user.profileComplete ? '/' : '/onboarding';
       }
-      if (loggedIn && !user.profileComplete && !onOnboarding && state.matchedLocation != '/profile/edit') {
+      if (loggedIn && !user.hasAcceptedLegal && !onLegalAcceptance) {
+        return '/legal-acceptance';
+      }
+      if (loggedIn &&
+          user.hasAcceptedLegal &&
+          !user.profileComplete &&
+          !onOnboarding &&
+          state.matchedLocation != '/profile/edit') {
         return '/onboarding';
       }
       if (loggedIn && user.profileComplete && onOnboarding) return '/';
+      if (loggedIn && user.hasAcceptedLegal && onLegalAcceptance) {
+        return user.profileComplete ? '/' : '/onboarding';
+      }
       return null;
     },
     routes: [
@@ -78,6 +106,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ResetPasswordScreen(token: token, email: email);
         },
       ),
+      GoRoute(path: '/legal-acceptance', builder: (_, _) => const LegalAcceptanceScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
       GoRoute(
         path: '/players/:id',
@@ -139,11 +168,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/',
-                builder: (_, _) {
-                  if (Env.useHomeDashboard) return const HomeDashboardScreen();
-                  if (Env.useHomeFeed) return const HomeFeedScreen();
-                  return const MapScreen();
-                },
+                builder: (_, _) => _buildHomeTab(),
               ),
             ],
           ),

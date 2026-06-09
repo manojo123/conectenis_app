@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
+import 'package:conectenis_app/features/auth/presentation/widgets/legal_links_text.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
+import 'package:conectenis_app/features/auth/providers/legal_info_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -17,6 +19,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _passwordConfirmation = TextEditingController();
+  bool _termsAccepted = false;
 
   @override
   void dispose() {
@@ -28,12 +31,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _submit() async {
+    if (!_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aceite os Termos e a Política de Privacidade')),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     await ref.read(authStateProvider.notifier).register(
           _name.text.trim(),
           _email.text.trim(),
           _password.text,
           _passwordConfirmation.text,
+          termsAccepted: true,
         );
     if (!mounted) return;
     final state = ref.read(authStateProvider);
@@ -49,6 +59,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authStateProvider);
+    final legalAsync = ref.watch(legalInfoProvider);
+    final legal = legalAsync.value ?? LegalInfo.fromEnv();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Criar conta')),
@@ -93,6 +105,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     if (v != _password.text) return 'As senhas não coincidem';
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _termsAccepted,
+                      onChanged: auth.isLoading
+                          ? null
+                          : (v) => setState(() => _termsAccepted = v ?? false),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: LegalLinksText(
+                          termsUrl: legal.termsUrl,
+                          privacyUrl: legal.privacyUrl,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 SizedBox(

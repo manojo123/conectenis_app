@@ -12,6 +12,8 @@ import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/user_profile.dart';
+import 'package:conectenis_app/shared/models/address_form_data.dart';
+import 'package:conectenis_app/shared/widgets/address_form_fields.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/ntrp_rating_picker.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
@@ -25,9 +27,7 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _professionController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _stateController = TextEditingController();
+  AddressFormData _addressData = const AddressFormData();
   double _ntrp = 3.0;
   PlayStyle _style = PlayStyle.both;
   bool _saving = false;
@@ -37,18 +37,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   void dispose() {
     _professionController.dispose();
-    _addressController.dispose();
-    _cityController.dispose();
-    _stateController.dispose();
     super.dispose();
   }
 
   void _initFromUser(UserProfile user) {
     if (_initialized) return;
     _professionController.text = user.profession ?? '';
-    _addressController.text = user.addressLine ?? '';
-    _cityController.text = user.city ?? '';
-    _stateController.text = user.state ?? '';
+    _addressData = initialAddressFormData(user);
     _ntrp = user.ntrpRating;
     _style = user.playStyle;
     _initialized = true;
@@ -63,6 +58,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final user = ref.read(authStateProvider).value;
     if (user == null) return;
 
+    final addressError = _addressData.validate();
+    if (addressError != null) {
+      AppSnackBar.showDanger(context, addressError);
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       var avatarUrl = user.avatarUrl;
@@ -75,15 +76,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
       final latest = ref.read(authStateProvider).value ?? user;
       await ref.read(authStateProvider.notifier).updateProfile(
-            latest.copyWith(
-              profession: _professionController.text.trim(),
-              addressLine: _addressController.text.trim(),
-              city: _cityController.text.trim(),
-              state: _stateController.text.trim(),
-              ntrpRating: _ntrp,
-              playStyle: _style,
-              avatarUrl: avatarUrl,
-              profileComplete: true,
+            _addressData.applyTo(
+              latest.copyWith(
+                profession: _professionController.text.trim(),
+                ntrpRating: _ntrp,
+                playStyle: _style,
+                avatarUrl: avatarUrl,
+                profileComplete: true,
+              ),
             ),
           );
       if (mounted) {
@@ -155,19 +155,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             decoration: const InputDecoration(labelText: 'Profissão'),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _addressController,
-            decoration: const InputDecoration(labelText: 'Endereço'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _cityController,
-            decoration: const InputDecoration(labelText: 'Cidade'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _stateController,
-            decoration: const InputDecoration(labelText: 'Estado (UF)'),
+          AddressFormFields(
+            data: _addressData,
+            onChanged: (data) => setState(() => _addressData = data),
           ),
           const SizedBox(height: 16),
           const Text('Nível de Jogo (NTRP)'),
