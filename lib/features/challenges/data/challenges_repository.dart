@@ -4,6 +4,7 @@ import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/data/mock_api_service.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
+import 'package:conectenis_app/features/challenges/models/public_challenge_filters.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 
@@ -22,12 +23,21 @@ class ChallengesRepository {
   final Dio _dio;
   final MockApiService _mock;
 
-  Future<List<Challenge>> list(ChallengeListRole role) {
+  Future<List<Challenge>> list(
+    ChallengeListRole role, {
+    PublicChallengeFilters? filters,
+  }) {
     return _guard(() async {
-      if (Env.useMockApi) return _mock.challenges(role: role);
+      if (Env.useMockApi) {
+        return _mock.challenges(role: role, filters: filters);
+      }
+      final queryParameters = <String, dynamic>{'role': role.value};
+      if (role == ChallengeListRole.publicNearby && filters != null) {
+        queryParameters.addAll(filters.toQueryParameters());
+      }
       final response = await _dio.get<List<dynamic>>(
         '/challenges',
-        queryParameters: {'role': role.value},
+        queryParameters: queryParameters,
       );
       return (response.data ?? [])
           .map((e) => Challenge.fromJson(e as Map<String, dynamic>))
@@ -67,8 +77,8 @@ class ChallengesRepository {
         data: {
           'format': format.value,
           'participant_ids': participantIds,
-          if (placeId != null) 'place_id': placeId,
-          if (googlePlaceId != null) 'google_place_id': googlePlaceId,
+          'place_id': ?placeId,
+          'google_place_id': ?googlePlaceId,
           'scheduled_start': scheduledStart.toIso8601String(),
           if (scheduledEnd != null) 'scheduled_end': scheduledEnd.toIso8601String(),
           'message': ?message,
@@ -99,14 +109,15 @@ class ChallengesRepository {
           googlePlaceId: googlePlaceId,
           openLocation: openLocation,
           minNtrp: minNtrp,
+          maxNtrp: maxNtrp,
         );
       }
       final response = await _dio.post<Map<String, dynamic>>(
         '/challenges/public',
         data: {
           'format': format.value,
-          if (placeId != null) 'place_id': placeId,
-          if (googlePlaceId != null) 'google_place_id': googlePlaceId,
+          'place_id': ?placeId,
+          'google_place_id': ?googlePlaceId,
           'open_location': openLocation,
           'scheduled_start': scheduledStart.toIso8601String(),
           if (scheduledEnd != null) 'scheduled_end': scheduledEnd.toIso8601String(),
@@ -179,7 +190,7 @@ class ChallengesRepository {
               if (opponentComment != null && opponentComment.isNotEmpty)
                 'opponent_comment': opponentComment,
             },
-            if (placeQualityStars != null) 'place_quality_stars': placeQualityStars,
+            'place_quality_stars': ?placeQualityStars,
             if (placeComment != null && placeComment.isNotEmpty) 'place_comment': placeComment,
           },
         );

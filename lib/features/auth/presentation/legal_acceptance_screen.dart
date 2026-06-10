@@ -131,6 +131,7 @@ class _Body extends StatelessWidget {
         LimeButton(
           label: 'Continuar',
           loading: submitting,
+          glow: true,
           onPressed: submitting ? null : onSubmit,
         ),
       ],

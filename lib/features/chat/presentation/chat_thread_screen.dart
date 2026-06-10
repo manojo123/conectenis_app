@@ -268,8 +268,15 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                       vertical: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: m.isMine ? AppColors.navy : Colors.grey.shade200,
+                                      color: m.isMine
+                                          ? AppColors.navy
+                                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(16),
+                                      border: m.isMine
+                                          ? null
+                                          : Border.all(
+                                              color: Theme.of(context).colorScheme.outline,
+                                            ),
                                     ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,14 +284,21 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                         Text(
                                           m.body,
                                           style: TextStyle(
-                                            color: m.isMine ? Colors.white : Colors.black87,
+                                            color: m.isMine
+                                                ? AppColors.white
+                                                : Theme.of(context).colorScheme.onSurface,
                                           ),
                                         ),
                                         Text(
                                           DateFormat.Hm().format(m.createdAt),
                                           style: TextStyle(
                                             fontSize: 10,
-                                            color: m.isMine ? Colors.white70 : Colors.grey,
+                                            color: m.isMine
+                                                ? AppColors.white.withValues(alpha: 0.7)
+                                                : Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.6),
                                           ),
                                         ),
                                       ],

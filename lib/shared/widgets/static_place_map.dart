@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:conectenis_app/core/config/env.dart';
+import 'package:conectenis_app/core/theme/app_radii.dart';
 
 /// Read-only map preview with a single pin (no pan/zoom controls).
 class StaticPlaceMap extends StatelessWidget {
@@ -24,8 +25,8 @@ class StaticPlaceMap extends StatelessWidget {
         height: height,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(12),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(AppRadii.md),
         ),
         child: const Text('Mapa indisponível'),
       );
@@ -33,7 +34,7 @@ class StaticPlaceMap extends StatelessWidget {
 
     final position = LatLng(latitude, longitude);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadii.md),
       child: SizedBox(
         height: height,
         child: GoogleMap(

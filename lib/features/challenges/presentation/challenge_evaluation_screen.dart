@@ -423,7 +423,12 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
             ),
           ],
           const SizedBox(height: 32),
-          LimeButton(label: 'Enviar avaliação', loading: _submitting, onPressed: _submit),
+          LimeButton(
+            label: 'Enviar avaliação',
+            loading: _submitting,
+            glow: true,
+            onPressed: _submit,
+          ),
         ],
       ),
     );

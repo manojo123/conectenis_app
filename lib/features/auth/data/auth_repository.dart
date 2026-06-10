@@ -218,6 +218,26 @@ class AuthRepository {
     });
   }
 
+  Future<UserProfile> updateLocation({
+    required double latitude,
+    required double longitude,
+  }) {
+    return _guard(() async {
+      final response = await _dio.put<Map<String, dynamic>>(
+        '/user/location',
+        data: {
+          'latitude': latitude,
+          'longitude': longitude,
+        },
+      );
+      final profile = _withResolvedAvatar(
+        await _mergeWithLocalProfile(UserProfile.fromLaravelUser(response.data!)),
+      );
+      await _profileStorage.write(profile);
+      return profile;
+    });
+  }
+
   Future<UserProfile> acceptTerms() async {
     if (Env.useMockApi) {
       final current = await _profileStorage.read();

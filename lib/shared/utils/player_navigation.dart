@@ -6,7 +6,7 @@ import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 void openPlayerProfile(BuildContext context, WidgetRef ref, int playerId) {
   final currentUserId = ref.read(authStateProvider).value?.id;
   if (currentUserId != null && currentUserId == playerId) {
-    context.go('/profile');
+    context.push('/profile');
     return;
   }
   context.push('/players/$playerId');

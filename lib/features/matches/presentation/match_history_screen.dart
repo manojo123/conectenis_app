@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'package:conectenis_app/features/matches/data/matches_repository.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
@@ -98,7 +99,7 @@ class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
                         trailing: Text(
                           '${m.playerScore} - ${m.opponentScore}',
                           style: TextStyle(
-                            color: m.won ? Colors.green : Colors.red,
+                            color: m.won ? AppColors.success : AppColors.error,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

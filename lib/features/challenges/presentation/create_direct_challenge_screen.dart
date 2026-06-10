@@ -174,7 +174,12 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
             onChanged: (court) => setState(() => _court = court),
           ),
           const SizedBox(height: 24),
-          LimeButton(label: 'Confirmar envio', loading: _submitting, onPressed: _submit),
+          LimeButton(
+            label: 'Confirmar envio',
+            loading: _submitting,
+            glow: true,
+            onPressed: _submit,
+          ),
         ],
       ),
     );

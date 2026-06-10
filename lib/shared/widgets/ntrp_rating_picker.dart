@@ -40,7 +40,7 @@ class NtrpRatingPicker extends StatelessWidget {
                         : half
                             ? Icons.star_half
                             : Icons.star_border,
-                    color: AppColors.lime,
+                    color: AppColors.warning,
                     size: size,
                   ),
                   Row(
@@ -76,7 +76,7 @@ class NtrpRatingPicker extends StatelessWidget {
             ),
             Text(
               'NTRP ${value.toStringAsFixed(1)}',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(color: AppColors.lime),
+              style: Theme.of(context).textTheme.titleSmall,
             ),
             Expanded(
               child: Text(

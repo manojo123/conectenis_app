@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/shared/utils/media_url.dart';
 
 void showFullScreenImage(BuildContext context, {String? imageUrl, String? heroTag}) {
@@ -31,13 +32,13 @@ class _FullScreenImagePage extends StatelessWidget {
           fit: BoxFit.contain,
           placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
           errorWidget: (context, url, error) =>
-              const Icon(Icons.broken_image, size: 64, color: Colors.white54),
+              Icon(Icons.broken_image, size: 64, color: AppColors.white.withValues(alpha: 0.54)),
         ),
       ),
     );
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.navyDeep,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -46,7 +47,7 @@ class _FullScreenImagePage extends StatelessWidget {
             child: Align(
               alignment: Alignment.topRight,
               child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                icon: const Icon(Icons.close, color: AppColors.white, size: 28),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),

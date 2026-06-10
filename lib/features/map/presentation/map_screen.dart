@@ -8,6 +8,7 @@ import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/features/chat/data/chat_repository.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
+import 'package:conectenis_app/features/location/location_sync_controller.dart';
 import 'package:conectenis_app/features/places/data/places_repository.dart';
 import 'package:conectenis_app/features/players/data/players_repository.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
@@ -63,8 +64,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         });
         return;
       }
-      final pos = await Geolocator.getCurrentPosition();
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
+      );
       _center = LatLng(pos.latitude, pos.longitude);
+      await ref.read(locationSyncControllerProvider).syncCoordinates(
+            latitude: pos.latitude,
+            longitude: pos.longitude,
+          );
       await _loadData();
       await _moveCamera(_center);
     } catch (e) {

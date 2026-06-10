@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:conectenis_app/core/config/env.dart';
+import 'package:conectenis_app/core/theme/app_radii.dart';
 
 /// Interactive map to pick latitude/longitude by tapping or dragging the pin.
 class PlacePickerMap extends StatefulWidget {
@@ -82,8 +83,8 @@ class _PlacePickerMapState extends State<PlacePickerMap> {
         height: widget.height,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(12),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(AppRadii.md),
         ),
         child: const Padding(
           padding: EdgeInsets.all(16),
@@ -96,7 +97,7 @@ class _PlacePickerMapState extends State<PlacePickerMap> {
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadii.md),
       child: SizedBox(
         height: widget.height,
         child: Stack(
@@ -146,7 +147,7 @@ class _ZoomButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       elevation: 2,
       shape: const CircleBorder(),
       child: InkWell(

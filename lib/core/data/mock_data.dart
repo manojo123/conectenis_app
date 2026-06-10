@@ -199,12 +199,41 @@ abstract final class MockData {
       maxNtrp: 4.0,
       candidatesCount: 2,
       role: 'public_nearby',
+      message: 'Duplas no clube central',
+    );
+
+    final publicSingles = Challenge(
+      id: 105,
+      type: ChallengeType.public,
+      format: ChallengeFormat.singles,
+      status: ChallengeStatus.pendingCandidates,
+      scheduledStart: DateTime.now().add(const Duration(days: 5)),
+      creator: players[1],
+      place: places[1],
+      minNtrp: 3.5,
+      maxNtrp: 4.5,
+      candidatesCount: 0,
+      role: 'public_nearby',
+      message: 'Simples à tarde',
+    );
+
+    final publicOpen = Challenge(
+      id: 106,
+      type: ChallengeType.public,
+      format: ChallengeFormat.singles,
+      status: ChallengeStatus.candidatesAwaitingAccept,
+      scheduledStart: DateTime.now().add(const Duration(days: 7)),
+      creator: opponent,
+      place: places[2],
+      candidatesCount: 1,
+      role: 'public_nearby',
+      message: 'Aberto para todos os níveis',
     );
 
     return switch (role) {
       ChallengeListRole.created => [direct, doublesDirect],
       ChallengeListRole.received => [received],
-      ChallengeListRole.publicNearby => [publicChallenge],
+      ChallengeListRole.publicNearby => [publicChallenge, publicSingles, publicOpen],
     };
   }
 }

@@ -1,7 +1,7 @@
-import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/location/location_permission_provider.dart';
 import 'package:conectenis_app/features/location/location_permission_service.dart';
+import 'package:conectenis_app/shared/widgets/brand_wordmark.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,7 +52,11 @@ class LocationGateScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.location_on, size: 72, color: AppColors.lime),
+              Icon(
+                Icons.location_on,
+                size: 72,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(height: 24),
               Text(
                 _title,
@@ -60,19 +64,45 @@ class LocationGateScreen extends ConsumerWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              Text(
-                _message,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                textAlign: TextAlign.center,
-              ),
+              if (status == LocationAccessStatus.denied ||
+                  status == LocationAccessStatus.unknown)
+                Text.rich(
+                  TextSpan(
+                    text: 'O ',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                    children: [
+                      brandTextSpan(
+                        context,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      TextSpan(
+                        text: ' usa sua localização para matchmaking regional, mapa e jogadores próximos. '
+                            'Permita o acesso para usar a Página Inicial e o Mapa.',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                            ),
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                )
+              else
+                Text(
+                  _message,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                  textAlign: TextAlign.center,
+                ),
               const Spacer(),
               if (status == LocationAccessStatus.denied ||
                   status == LocationAccessStatus.unknown)
                 LimeButton(
                   label: 'Permitir localização',
                   loading: requesting,
+                  glow: true,
                   onPressed: requesting
                       ? null
                       : () => ref

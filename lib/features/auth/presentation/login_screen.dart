@@ -5,6 +5,7 @@ import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
+import 'package:conectenis_app/shared/widgets/brand_wordmark.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -64,6 +65,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authStateProvider);
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? AppColors.linkAccentDark : AppColors.linkAccentLight;
 
     return Scaffold(
       body: SafeArea(
@@ -75,25 +79,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 24),
-                Text(
-                  'ConecTenis',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: AppColors.lime,
-                        fontWeight: FontWeight.bold,
-                      ),
+                Center(
+                  child: BrandWordmark(
+                    showLogo: true,
+                    logoHeight: 64,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  'Bem-vindo ao ConecTenis!',
+                Text.rich(
+                  TextSpan(
+                    text: 'Bem-vindo ao ',
+                    style: Theme.of(context).textTheme.titleLarge,
+                    children: [brandTextSpan(context, style: Theme.of(context).textTheme.titleLarge)],
+                  ),
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'CONECTE-SE OU CADASTRE-SE',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.lime),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(color: accent),
                 ),
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
@@ -101,8 +107,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   icon: const Icon(Icons.g_mobiledata, size: 28),
                   label: const Text('Conectar com Google'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.white.withValues(alpha: 0.1),
+                    foregroundColor: scheme.onSurface,
+                    backgroundColor: scheme.surfaceContainerHighest,
+                    side: BorderSide(color: scheme.outline),
                   ),
                 ),
                 if (Env.googleOAuthWebClientId.isEmpty)
@@ -137,7 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Checkbox(
                       value: _remember,
                       onChanged: (v) => setState(() => _remember = v ?? true),
-                      activeColor: AppColors.lime,
+                      activeColor: scheme.primary,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       visualDensity: VisualDensity.compact,
                     ),
@@ -164,6 +171,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 LimeButton(
                   label: 'Entrar',
                   loading: auth.isLoading,
+                  glow: true,
                   onPressed: auth.isLoading ? null : _submit,
                 ),
                 TextButton(onPressed: () => context.push('/register'), child: const Text('CADASTRE-SE')),

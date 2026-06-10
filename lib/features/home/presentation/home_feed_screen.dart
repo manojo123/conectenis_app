@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
@@ -30,12 +29,14 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
             children: [
               Text('Atividade recente', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
-              const Card(
-                color: AppColors.card,
+              Card(
                 child: ListTile(
-                  leading: Icon(Icons.notifications_outlined, color: AppColors.lime),
-                  title: Text('Em breve'),
-                  subtitle: Text('Novidades dos jogadores que você segue.'),
+                  leading: Icon(
+                    Icons.notifications_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: const Text('Em breve'),
+                  subtitle: const Text('Novidades dos jogadores que você segue.'),
                 ),
               ),
               const SizedBox(height: 24),
@@ -50,10 +51,12 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
               else
                 ...challenges.map(
                   (c) => Card(
-                    color: AppColors.card,
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      leading: const Icon(Icons.sports_tennis, color: AppColors.lime),
+                      leading: Icon(
+                        Icons.sports_tennis,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                       title: Text('${c.format.label} · ${c.type.label}'),
                       subtitle: Text(c.creator.name),
                     ),

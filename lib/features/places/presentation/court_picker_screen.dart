@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -101,7 +102,7 @@ class _CourtPickerScreenState extends ConsumerState<CourtPickerScreen> {
                   child: ListTile(
                     leading: Icon(
                       court.isGooglePlace ? Icons.map : Icons.place,
-                      color: court.isGooglePlace ? Colors.blueAccent : null,
+                      color: court.isGooglePlace ? AppColors.info : null,
                     ),
                     title: Text(court.name),
                     subtitle: Text(court.subtitle),

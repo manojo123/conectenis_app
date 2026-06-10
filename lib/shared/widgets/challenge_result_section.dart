@@ -108,7 +108,7 @@ class ChallengeResultSection extends StatelessWidget {
                 dense: true,
                 leading: Icon(
                   ok ? Icons.check_circle : Icons.hourglass_empty,
-                  color: ok ? Colors.green : Colors.orange,
+                  color: ok ? AppColors.success : AppColors.warning,
                   size: 20,
                 ),
                 title: Text(isMe ? '$name (você)' : name),

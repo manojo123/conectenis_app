@@ -93,7 +93,7 @@ class _InvitationsListScreenState extends ConsumerState<InvitationsListScreen> {
                       final opponent = inv.role == 'sent' ? inv.invitee : inv.inviter;
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: AppColors.lime.withValues(alpha: 0.3),
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.3),
                           child: Text(opponent.name[0]),
                         ),
                         title: Text(opponent.name),

@@ -262,6 +262,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           LimeButton(
             label: 'Salvar perfil',
             loading: _saving,
+            glow: true,
             onPressed: _save,
           ),
         ],

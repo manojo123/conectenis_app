@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/network/session_provider.dart';
 import 'package:conectenis_app/features/auth/data/auth_repository.dart';
 import 'package:conectenis_app/features/auth/data/google_auth_service.dart';
+import 'package:conectenis_app/features/location/location_sync_controller.dart';
 import 'package:conectenis_app/shared/models/user_profile.dart';
 
 final authStateProvider =
@@ -45,6 +46,7 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
             token: idToken,
           );
       state = AsyncData(user);
+      await _syncLocationAfterAuth();
       return !user.profileComplete;
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -60,6 +62,9 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
             password: password,
           ),
     );
+    if (!state.hasError && state.valueOrNull != null) {
+      await _syncLocationAfterAuth();
+    }
   }
 
   Future<void> register(
@@ -79,6 +84,9 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
             termsAccepted: termsAccepted,
           ),
     );
+    if (!state.hasError && state.valueOrNull != null) {
+      await _syncLocationAfterAuth();
+    }
   }
 
   Future<String> forgotPassword(String email) async {
@@ -131,5 +139,17 @@ class AuthNotifier extends AsyncNotifier<UserProfile?> {
     await ref.read(googleAuthServiceProvider).signOut();
     await ref.read(authRepositoryProvider).logout();
     state = const AsyncData(null);
+  }
+
+  void applyProfileFromLocation(UserProfile profile) {
+    state = AsyncData(profile);
+  }
+
+  Future<void> syncLocation({bool force = false}) async {
+    await ref.read(locationSyncControllerProvider).sync(force: force);
+  }
+
+  Future<void> _syncLocationAfterAuth() async {
+    await syncLocation(force: true);
   }
 }

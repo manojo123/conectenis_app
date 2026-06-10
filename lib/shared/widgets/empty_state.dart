@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:conectenis_app/core/theme/app_colors.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -17,19 +16,19 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: AppColors.navy.withValues(alpha: 0.4)),
+            Icon(icon, size: 64, color: scheme.outline.withValues(alpha: 0.6)),
             const SizedBox(height: 16),
             Text(
               title,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.navy,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -39,7 +38,7 @@ class EmptyState extends StatelessWidget {
                 subtitle!,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
+                      color: scheme.onSurface.withValues(alpha: 0.7),
                     ),
               ),
             ],

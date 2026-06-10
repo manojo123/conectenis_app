@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:conectenis_app/core/theme/app_radii.dart';
+import 'package:conectenis_app/core/theme/semantic_colors.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 
 class ChallengeStatusChip extends StatelessWidget {
@@ -6,28 +8,19 @@ class ChallengeStatusChip extends StatelessWidget {
 
   final ChallengeStatus status;
 
-  Color get _color => switch (status) {
-        ChallengeStatus.accepted ||
-        ChallengeStatus.pendingScore ||
-        ChallengeStatus.completed =>
-          Colors.green,
-        ChallengeStatus.pendingResultApproval => Colors.orange,
-        ChallengeStatus.cancelled || ChallengeStatus.declined => Colors.red,
-        _ => Colors.blue,
-      };
-
   @override
   Widget build(BuildContext context) {
+    final color = SemanticColors.forChallengeStatus(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: _color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _color),
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        border: Border.all(color: color),
       ),
       child: Text(
         status.label.toUpperCase(),
-        style: TextStyle(fontSize: 10, color: _color, fontWeight: FontWeight.bold),
+        style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold),
       ),
     );
   }

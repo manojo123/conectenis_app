@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:conectenis_app/core/theme/app_radii.dart';
+import 'package:conectenis_app/core/theme/app_shadows.dart';
 
 enum AppSnackType { success, warning, danger, info }
 
@@ -14,7 +16,7 @@ class AppSnackBar {
     messenger.showSnackBar(
       SnackBar(
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.navyDeep.withValues(alpha: 0),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         behavior: SnackBarBehavior.floating,
         content: _SnackContent(message: message, type: type),
@@ -39,10 +41,10 @@ class _SnackContent extends StatelessWidget {
   final AppSnackType type;
 
   Color get _accent => switch (type) {
-        AppSnackType.success => const Color(0xFF4ADE80),
-        AppSnackType.warning => const Color(0xFFFACC15),
+        AppSnackType.success => AppColors.success,
+        AppSnackType.warning => AppColors.warning,
         AppSnackType.danger => AppColors.error,
-        AppSnackType.info => AppColors.lime,
+        AppSnackType.info => AppColors.info,
       };
 
   IconData get _icon => switch (type) {
@@ -54,6 +56,7 @@ class _SnackContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final width = MediaQuery.sizeOf(context).width * 0.9;
     return Align(
       alignment: Alignment.bottomCenter,
@@ -61,16 +64,10 @@ class _SnackContent extends StatelessWidget {
         width: width,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A2332),
-          borderRadius: BorderRadius.circular(14),
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(AppRadii.md),
           border: Border.all(color: _accent, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          boxShadow: AppShadows.depth,
         ),
         child: Row(
           children: [
@@ -79,7 +76,10 @@ class _SnackContent extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: TextStyle(color: _accent, fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ),
           ],

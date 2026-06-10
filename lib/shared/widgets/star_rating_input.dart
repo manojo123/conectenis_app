@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:conectenis_app/core/theme/app_colors.dart';
 
 class StarRatingInput extends StatelessWidget {
   const StarRatingInput({
@@ -21,7 +22,7 @@ class StarRatingInput extends StatelessWidget {
         return IconButton(
           icon: Icon(
             star <= value ? Icons.star : Icons.star_border,
-            color: Colors.amber.shade700,
+            color: AppColors.warning,
             size: size,
           ),
           onPressed: () => onChanged(star),

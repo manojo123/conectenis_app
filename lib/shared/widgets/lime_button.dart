@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:conectenis_app/core/theme/app_shadows.dart';
 
 class LimeButton extends StatelessWidget {
   const LimeButton({
@@ -10,6 +11,7 @@ class LimeButton extends StatelessWidget {
     this.loading = false,
     this.outlined = false,
     this.danger = false,
+    this.glow = false,
   });
 
   final String label;
@@ -19,6 +21,8 @@ class LimeButton extends StatelessWidget {
   final bool outlined;
   /// Red outline/text for destructive actions (e.g. cancel challenge).
   final bool danger;
+  /// Lime glow shadow — use on the single primary CTA per screen.
+  final bool glow;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +32,9 @@ class LimeButton extends StatelessWidget {
             width: 22,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: outlined ? (danger ? AppColors.error : null) : AppColors.background,
+              color: outlined
+                  ? (danger ? AppColors.error : AppColors.primary)
+                  : AppColors.onPrimary,
             ),
           )
         : Row(
@@ -53,6 +59,20 @@ class LimeButton extends StatelessWidget {
         child: child,
       );
     }
-    return ElevatedButton(onPressed: loading ? null : onPressed, child: child);
+
+    final button = ElevatedButton(
+      onPressed: loading ? null : onPressed,
+      child: child,
+    );
+
+    if (!glow) return button;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: onPressed != null && !loading ? AppShadows.limeGlow : null,
+      ),
+      child: button,
+    );
   }
 }

@@ -76,7 +76,7 @@ class UserAvatar extends StatelessWidget {
       backgroundColor: AppColors.navy,
       child: Text(
         _initial,
-        style: TextStyle(color: Colors.white, fontSize: radius * 0.9),
+        style: TextStyle(color: AppColors.white, fontSize: radius * 0.9),
       ),
     );
   }

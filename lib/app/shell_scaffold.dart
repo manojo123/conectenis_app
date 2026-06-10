@@ -7,6 +7,8 @@ class ShellScaffold extends StatelessWidget {
 
   final StatefulNavigationShell navigationShell;
 
+  static const _challengesTabIndex = 2;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,19 +24,14 @@ class ShellScaffold extends StatelessWidget {
           onDestinationSelected: navigationShell.goBranch,
           destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.menu),
-              selectedIcon: Icon(Icons.menu_open),
-              label: 'Menu',
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Início',
             ),
             NavigationDestination(
               icon: Icon(Icons.map_outlined),
               selectedIcon: Icon(Icons.map),
               label: 'Mapa',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.chat_bubble_outline),
-              selectedIcon: Icon(Icons.chat_bubble),
-              label: 'Mensagens',
             ),
             NavigationDestination(
               icon: Icon(Icons.sports_tennis_outlined),
@@ -46,17 +43,22 @@ class ShellScaffold extends StatelessWidget {
               selectedIcon: Icon(Icons.leaderboard),
               label: 'Ranking',
             ),
+            NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline),
+              selectedIcon: Icon(Icons.chat_bubble),
+              label: 'Mensagens',
+            ),
           ],
         ),
       ),
-      floatingActionButton: navigationShell.currentIndex == 3
+      floatingActionButton: navigationShell.currentIndex == _challengesTabIndex
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: FloatingActionButton.extended(
                   onPressed: () => _showCreateChallengeMenu(context),
-                  backgroundColor: AppColors.lime,
-                  foregroundColor: AppColors.background,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
                   icon: const Icon(Icons.add),
                   label: const Text('Desafio'),
                 ),
@@ -69,13 +71,13 @@ class ShellScaffold extends StatelessWidget {
   void _showCreateChallengeMenu(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.card,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.person, color: AppColors.lime),
+              leading: Icon(Icons.person, color: Theme.of(ctx).colorScheme.primary),
               title: const Text('Desafio direto'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -83,7 +85,7 @@ class ShellScaffold extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.public, color: AppColors.lime),
+              leading: Icon(Icons.public, color: Theme.of(ctx).colorScheme.primary),
               title: const Text('Desafio público'),
               onTap: () {
                 Navigator.pop(ctx);

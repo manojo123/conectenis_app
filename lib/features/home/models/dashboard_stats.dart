@@ -5,13 +5,16 @@ class DashboardStats {
     required this.tennisLevel,
     required this.record,
     required this.ranking,
+    this.ratingHistory = const [],
   });
 
   final DashboardTennisLevel tennisLevel;
   final DashboardMatchRecord record;
   final DashboardRankingSnapshot ranking;
+  final List<RatingHistoryPoint> ratingHistory;
 
   factory DashboardStats.fromJson(Map<String, dynamic> json) {
+    final historyJson = json['rating_history'] as List<dynamic>? ?? [];
     return DashboardStats(
       tennisLevel: DashboardTennisLevel.fromJson(
         json['tennis_level'] as Map<String, dynamic>? ?? const {},
@@ -22,6 +25,38 @@ class DashboardStats {
       ranking: DashboardRankingSnapshot.fromJson(
         json['ranking'] as Map<String, dynamic>? ?? const {},
       ),
+      ratingHistory: historyJson
+          .map((e) => RatingHistoryPoint.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  /// Placeholder curve until backend provides rating history.
+  List<RatingHistoryPoint> get effectiveRatingHistory {
+    if (ratingHistory.isNotEmpty) return ratingHistory;
+    final current = tennisLevel.ntrpRating;
+    const labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
+    return List.generate(labels.length, (index) {
+      final progress = index / (labels.length - 1);
+      final rating = (current - 0.5 + progress * 0.5).clamp(1.0, 5.0);
+      return RatingHistoryPoint(label: labels[index], rating: rating);
+    });
+  }
+}
+
+class RatingHistoryPoint {
+  const RatingHistoryPoint({
+    required this.label,
+    required this.rating,
+  });
+
+  final String label;
+  final double rating;
+
+  factory RatingHistoryPoint.fromJson(Map<String, dynamic> json) {
+    return RatingHistoryPoint(
+      label: json['label'] as String? ?? '',
+      rating: parseJsonDouble(json['rating'], fallback: 3.0),
     );
   }
 }
@@ -63,6 +98,11 @@ class DashboardMatchRecord {
   String get winRatePercent {
     if (matchesPlayed == 0) return '0%';
     return '${(winRate * 100).toStringAsFixed(1)}%';
+  }
+
+  String get lossRatePercent {
+    if (matchesPlayed == 0) return '0%';
+    return '${((losses / matchesPlayed) * 100).toStringAsFixed(1)}%';
   }
 }
 

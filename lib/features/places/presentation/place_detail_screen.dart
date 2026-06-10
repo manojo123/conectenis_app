@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
@@ -209,7 +210,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
           ] else ...[
             Row(
               children: [
-                const Icon(Icons.star, color: Colors.amber),
+                const Icon(Icons.star, color: AppColors.warning),
                 const SizedBox(width: 4),
                 Text(
                   place.averageRating != null

@@ -82,7 +82,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           );
       if (mounted) {
         ref.read(profileUpdatedNoticeProvider.notifier).state = true;
-        context.go('/profile');
+        context.push('/profile');
       }
     } catch (e) {
       if (mounted) {
@@ -200,7 +200,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             onChanged: (v) => setState(() => _style = v!),
           ),
           const SizedBox(height: 32),
-          LimeButton(label: 'Salvar alterações', loading: _saving, onPressed: _save),
+          LimeButton(
+            label: 'Salvar alterações',
+            loading: _saving,
+            glow: true,
+            onPressed: _save,
+          ),
         ],
       ),
     );

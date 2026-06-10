@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:conectenis_app/app/router_refresh_notifier.dart';
 import 'package:conectenis_app/app/shell_scaffold.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/presentation/legal_acceptance_screen.dart';
@@ -44,24 +45,21 @@ const _publicAuthPaths = {
 };
 
 Widget _buildHomeTab() {
-  Widget child;
-  if (Env.useHomeDashboard) {
-    child = const HomeDashboardScreen();
-  } else if (Env.useHomeFeed) {
-    child = const HomeFeedScreen();
-  } else {
-    child = const MapScreen();
+  if (Env.useHomeFeed) {
+    return LocationGatedHome(child: const HomeFeedScreen());
   }
-  return LocationGatedHome(child: child);
+  return LocationGatedHome(child: const HomeDashboardScreen());
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authStateProvider);
+  final refresh = ref.read(routerRefreshListenableProvider);
 
-  return GoRouter(
+  final router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/login',
+    refreshListenable: refresh,
     redirect: (context, state) {
+      final auth = ref.read(authStateProvider);
       final isLoading = auth.isLoading;
       final user = auth.valueOrNull;
       final loggedIn = user != null;
@@ -158,12 +156,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
       GoRoute(path: '/ranking', builder: (_, _) => const RankingScreen()),
       GoRoute(path: '/profile/edit', builder: (_, _) => const EditProfileScreen()),
+      GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, navigationShell) => ShellScaffold(navigationShell: navigationShell),
         branches: [
-          StatefulShellBranch(
-            routes: [GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen())],
-          ),
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -171,6 +167,20 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (_, _) => _buildHomeTab(),
               ),
             ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/map',
+                builder: (_, _) => LocationGatedHome(child: const MapScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/challenges', builder: (_, _) => const ChallengesWallScreen())],
+          ),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/ranking-tab', builder: (_, _) => const RankingScreen())],
           ),
           StatefulShellBranch(
             routes: [
@@ -195,14 +205,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [GoRoute(path: '/challenges', builder: (_, _) => const ChallengesWallScreen())],
-          ),
-          StatefulShellBranch(
-            routes: [GoRoute(path: '/ranking-tab', builder: (_, _) => const RankingScreen())],
-          ),
         ],
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });

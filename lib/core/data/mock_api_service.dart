@@ -1,3 +1,4 @@
+import 'package:conectenis_app/features/challenges/models/public_challenge_filters.dart';
 import 'package:conectenis_app/features/home/models/dashboard_matchmaking.dart';
 import 'package:conectenis_app/features/home/models/dashboard_stats.dart';
 import 'package:conectenis_app/features/chat/data/delete_message_scope.dart';
@@ -427,20 +428,65 @@ class MockApiService {
 
   List<Challenge> _challenges = MockData.challenges();
 
-  Future<List<Challenge>> challenges({required ChallengeListRole role}) async {
+  Future<List<Challenge>> challenges({
+    required ChallengeListRole role,
+    PublicChallengeFilters? filters,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final seed = MockData.challenges(role: role);
     final extra = _challenges.where((c) {
       if (role == ChallengeListRole.created) return c.role == 'created';
       if (role == ChallengeListRole.received) return c.role == 'received';
-      return true;
+      return c.type == ChallengeType.public;
     });
     final ids = <int>{};
-    final merged = <Challenge>[];
+    var merged = <Challenge>[];
     for (final c in [...extra, ...seed]) {
       if (ids.add(c.id)) merged.add(c);
     }
+    if (role == ChallengeListRole.publicNearby && filters != null) {
+      merged = _applyPublicFilters(merged, filters);
+    }
     return merged;
+  }
+
+  List<Challenge> _applyPublicFilters(
+    List<Challenge> items,
+    PublicChallengeFilters filters,
+  ) {
+    return items.where((challenge) {
+      if (filters.format != null && challenge.format != filters.format) {
+        return false;
+      }
+      if (filters.minNtrp != null &&
+          challenge.maxNtrp != null &&
+          challenge.maxNtrp! < filters.minNtrp!) {
+        return false;
+      }
+      if (filters.maxNtrp != null &&
+          challenge.minNtrp != null &&
+          challenge.minNtrp! > filters.maxNtrp!) {
+        return false;
+      }
+      if (filters.scheduledFrom != null &&
+          challenge.scheduledStart.isBefore(filters.scheduledFrom!)) {
+        return false;
+      }
+      if (filters.scheduledTo != null &&
+          challenge.scheduledStart.isAfter(filters.scheduledTo!)) {
+        return false;
+      }
+      final query = filters.search.trim().toLowerCase();
+      if (query.isNotEmpty) {
+        final haystack = [
+          challenge.creator.name,
+          challenge.place?.name,
+          challenge.message,
+        ].whereType<String>().join(' ').toLowerCase();
+        if (!haystack.contains(query)) return false;
+      }
+      return true;
+    }).toList();
   }
 
   Future<Challenge> challengeById(int id) async {
@@ -572,6 +618,7 @@ class MockApiService {
     String? googlePlaceId,
     bool openLocation = false,
     double? minNtrp,
+    double? maxNtrp,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final me = Player(id: MockData.currentUserId, name: 'Você', latitude: MockData.centerLat, longitude: MockData.centerLng);
@@ -602,6 +649,7 @@ class MockApiService {
       place: place,
       openLocation: openLocation,
       minNtrp: minNtrp,
+      maxNtrp: maxNtrp,
       role: 'created',
     );
     _challenges = [challenge, ..._challenges];
@@ -879,6 +927,14 @@ class MockApiService {
           'points': 80,
         },
       },
+      'rating_history': [
+        {'label': 'Jan', 'rating': 3.0},
+        {'label': 'Fev', 'rating': 3.0},
+        {'label': 'Mar', 'rating': 3.5},
+        {'label': 'Abr', 'rating': 3.5},
+        {'label': 'Mai', 'rating': 4.0},
+        {'label': 'Jun', 'rating': 4.0},
+      ],
     });
   }
 }

@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
+import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
 import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/nearby_court.dart';
+import 'package:conectenis_app/shared/utils/challenge_ntrp_bounds.dart';
 import 'package:conectenis_app/shared/utils/date_time_format.dart';
+import 'package:conectenis_app/shared/widgets/challenge_ntrp_range_picker.dart';
 import 'package:conectenis_app/shared/widgets/gender_multi_selector.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
-import 'package:conectenis_app/shared/widgets/ntrp_rating_picker.dart';
 import 'package:conectenis_app/shared/widgets/place_select_field.dart';
 
 class CreatePublicChallengeScreen extends ConsumerStatefulWidget {
@@ -22,12 +24,23 @@ class CreatePublicChallengeScreen extends ConsumerStatefulWidget {
 class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChallengeScreen> {
   final Set<ChallengeFormat> _formats = {ChallengeFormat.singles};
   double _minNtrp = 3.0;
-  final double _maxNtrp = 4.0;
+  double _maxNtrp = 3.0;
+  bool _ntrpInitialized = false;
   Set<Gender> _genderPrefs = {};
   DateTime _start = roundToFiveMinutes(DateTime.now().add(const Duration(days: 2)));
   bool _openLocation = false;
   NearbyCourt? _selectedCourt;
   bool _submitting = false;
+
+  void _ensureNtrpDefaults(double userNtrp) {
+    if (_ntrpInitialized) return;
+    _ntrpInitialized = true;
+    final lo = ChallengeNtrpBounds.allowedMin(userNtrp);
+    final hi = ChallengeNtrpBounds.allowedMax(userNtrp);
+    final target = userNtrp.clamp(lo, hi);
+    _minNtrp = target;
+    _maxNtrp = target;
+  }
 
   void _toggleFormat(ChallengeFormat format) {
     setState(() {
@@ -49,7 +62,7 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
     if (picked != null) setState(() => _start = picked);
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit(double userNtrp) async {
     if (_formats.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione simples e/ou duplas.')),
@@ -59,6 +72,22 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
     if (!_openLocation && _selectedCourt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione um local ou marque "local em aberto".')),
+      );
+      return;
+    }
+    if (!ChallengeNtrpBounds.isValidRange(
+      userNtrp: userNtrp,
+      minNtrp: _minNtrp,
+      maxNtrp: _maxNtrp,
+    )) {
+      final lo = ChallengeNtrpBounds.allowedMin(userNtrp);
+      final hi = ChallengeNtrpBounds.allowedMax(userNtrp);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'O nível do desafio deve ficar entre ${lo.toStringAsFixed(1)} e ${hi.toStringAsFixed(1)}.',
+          ),
+        ),
       );
       return;
     }
@@ -90,14 +119,26 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
 
   @override
   Widget build(BuildContext context) {
+    final userNtrp = ref.watch(authStateProvider).value?.ntrpRating ?? 3.0;
+    _ensureNtrpDefaults(userNtrp);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Criar Desafio Público')),
       body: ListView(
         padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
           const Text('Nível procurado'),
-          NtrpRatingPicker(value: _minNtrp, onChanged: (v) => setState(() => _minNtrp = v)),
           const SizedBox(height: 8),
+          ChallengeNtrpRangePicker(
+            userNtrp: userNtrp,
+            minNtrp: _minNtrp,
+            maxNtrp: _maxNtrp,
+            onChanged: (values) => setState(() {
+              _minNtrp = values.start;
+              _maxNtrp = values.end;
+            }),
+          ),
+          const SizedBox(height: 16),
           GenderMultiSelector(
             selected: _genderPrefs,
             onChanged: (g) => setState(() => _genderPrefs = g),
@@ -142,7 +183,12 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
             ),
           ],
           const SizedBox(height: 24),
-          LimeButton(label: 'Confirmar envio', loading: _submitting, onPressed: _submit),
+          LimeButton(
+            label: 'Confirmar envio',
+            loading: _submitting,
+            glow: true,
+            onPressed: () => _submit(userNtrp),
+          ),
         ],
       ),
     );

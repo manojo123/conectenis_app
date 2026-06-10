@@ -79,8 +79,8 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                           final e = _entries[i];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: AppColors.lime,
-                              foregroundColor: AppColors.background,
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.onPrimary,
                               child: Text('${e.rank}'),
                             ),
                             title: Text(e.player.name),

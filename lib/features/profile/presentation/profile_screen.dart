@@ -1,3 +1,4 @@
+import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/profile/providers/profile_feedback_provider.dart';
 import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
@@ -29,7 +30,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final heroTag = user != null ? 'profile-avatar-${user.id}' : null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Menu')),
+      appBar: AppBar(title: const Text('Perfil')),
       body: ListView(
         padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
@@ -89,8 +90,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const Divider(height: 32),
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Sair', style: TextStyle(color: Colors.red)),
+            leading: const Icon(Icons.logout, color: AppColors.error),
+            title: const Text('Sair', style: TextStyle(color: AppColors.error)),
             onTap: () async {
               await ref.read(authStateProvider.notifier).logout();
               if (context.mounted) context.go('/login');

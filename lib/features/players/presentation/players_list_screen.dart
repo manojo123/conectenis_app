@@ -4,7 +4,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
-import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/features/chat/data/chat_repository.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/features/players/data/players_repository.dart';
@@ -226,7 +225,7 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
 
   Widget _buildFilterBar() {
     return Material(
-      color: AppColors.card,
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
         child: Column(

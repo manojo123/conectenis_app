@@ -34,18 +34,17 @@ class ChallengeParticipantsVersus extends ConsumerWidget {
             ),
           ),
         Card(
-          color: AppColors.card,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
             child: Row(
               children: [
                 Expanded(child: _TeamSide(players: teams[0], ref: ref, context: context)),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Text(
                     'X',
                     style: TextStyle(
-                      color: AppColors.lime,
+                      color: Theme.of(context).colorScheme.primary,
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                     ),
