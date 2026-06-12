@@ -4,7 +4,6 @@ import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/data/mock_api_service.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
-import 'package:conectenis_app/features/challenges/models/public_challenge_filters.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 
@@ -23,21 +22,14 @@ class ChallengesRepository {
   final Dio _dio;
   final MockApiService _mock;
 
-  Future<List<Challenge>> list(
-    ChallengeListRole role, {
-    PublicChallengeFilters? filters,
-  }) {
+  Future<List<Challenge>> list(ChallengeListRole role) {
     return _guard(() async {
       if (Env.useMockApi) {
-        return _mock.challenges(role: role, filters: filters);
-      }
-      final queryParameters = <String, dynamic>{'role': role.value};
-      if (role == ChallengeListRole.publicNearby && filters != null) {
-        queryParameters.addAll(filters.toQueryParameters());
+        return _mock.challenges(role: role);
       }
       final response = await _dio.get<List<dynamic>>(
         '/challenges',
-        queryParameters: queryParameters,
+        queryParameters: {'role': role.value},
       );
       return (response.data ?? [])
           .map((e) => Challenge.fromJson(e as Map<String, dynamic>))

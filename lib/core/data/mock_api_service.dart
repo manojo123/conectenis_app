@@ -1,4 +1,3 @@
-import 'package:conectenis_app/features/challenges/models/public_challenge_filters.dart';
 import 'package:conectenis_app/features/home/models/dashboard_matchmaking.dart';
 import 'package:conectenis_app/features/home/models/dashboard_stats.dart';
 import 'package:conectenis_app/features/chat/data/delete_message_scope.dart';
@@ -430,7 +429,6 @@ class MockApiService {
 
   Future<List<Challenge>> challenges({
     required ChallengeListRole role,
-    PublicChallengeFilters? filters,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final seed = MockData.challenges(role: role);
@@ -444,47 +442,27 @@ class MockApiService {
     for (final c in [...extra, ...seed]) {
       if (ids.add(c.id)) merged.add(c);
     }
-    if (role == ChallengeListRole.publicNearby && filters != null) {
-      merged = _applyPublicFilters(merged, filters);
+    if (role == ChallengeListRole.publicNearby) {
+      merged = _availablePublicChallengesForUser(merged);
     }
     return merged;
   }
 
-  List<Challenge> _applyPublicFilters(
-    List<Challenge> items,
-    PublicChallengeFilters filters,
-  ) {
+  List<Challenge> _availablePublicChallengesForUser(List<Challenge> items) {
+    const userId = MockData.currentUserId;
+    const userNtrp = 3.5;
+
     return items.where((challenge) {
-      if (filters.format != null && challenge.format != filters.format) {
-        return false;
-      }
-      if (filters.minNtrp != null &&
-          challenge.maxNtrp != null &&
-          challenge.maxNtrp! < filters.minNtrp!) {
-        return false;
-      }
-      if (filters.maxNtrp != null &&
-          challenge.minNtrp != null &&
-          challenge.minNtrp! > filters.maxNtrp!) {
-        return false;
-      }
-      if (filters.scheduledFrom != null &&
-          challenge.scheduledStart.isBefore(filters.scheduledFrom!)) {
-        return false;
-      }
-      if (filters.scheduledTo != null &&
-          challenge.scheduledStart.isAfter(filters.scheduledTo!)) {
-        return false;
-      }
-      final query = filters.search.trim().toLowerCase();
-      if (query.isNotEmpty) {
-        final haystack = [
-          challenge.creator.name,
-          challenge.place?.name,
-          challenge.message,
-        ].whereType<String>().join(' ').toLowerCase();
-        if (!haystack.contains(query)) return false;
-      }
+      if (challenge.type != ChallengeType.public) return false;
+      if (challenge.creator.id == userId) return false;
+      if (challenge.status != ChallengeStatus.pendingCandidates) return false;
+      if (challenge.participants.any((p) => p.user.id == userId)) return false;
+
+      final min = challenge.minNtrp;
+      final max = challenge.maxNtrp;
+      if (min != null && userNtrp < min) return false;
+      if (max != null && userNtrp > max) return false;
+
       return true;
     }).toList();
   }

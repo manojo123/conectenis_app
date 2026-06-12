@@ -7,7 +7,6 @@ import 'package:conectenis_app/core/theme/app_radii.dart';
 import 'package:conectenis_app/core/theme/app_shadows.dart';
 import 'package:conectenis_app/features/home/data/dashboard_repository.dart';
 import 'package:conectenis_app/features/home/models/dashboard_matchmaking.dart';
-import 'package:conectenis_app/features/challenges/models/public_challenge_filters.dart';
 import 'package:conectenis_app/features/home/providers/dashboard_providers.dart';
 import 'package:conectenis_app/shared/utils/app_share.dart';
 import 'package:conectenis_app/shared/utils/ntrp_labels.dart';
@@ -258,15 +257,13 @@ class _MatchmakingHero extends ConsumerWidget {
             glow: true,
             onPressed: () {
               ref.read(matchmakingRadiusProvider.notifier).state = radiusKm;
-              ref.read(publicChallengesFilterProvider.notifier).state =
-                  ref.read(publicChallengesFilterProvider).copyWith(radiusKm: radiusKm);
-              context.go('/challenges?tab=public&radius_km=$radiusKm');
+              context.go('/map');
             },
           ),
           if (!data.hasMatches) ...[
             const SizedBox(height: 14),
             Text(
-              'Nenhum jogador do seu nível neste raio. Explore desafios públicos ou convide amigos.',
+              'Nenhum jogador do seu nível neste raio. Veja o mapa ou convide amigos.',
               textAlign: TextAlign.center,
               style: textTheme.bodySmall?.copyWith(
                 color: AppColors.textOnLime.withValues(alpha: 0.85),
