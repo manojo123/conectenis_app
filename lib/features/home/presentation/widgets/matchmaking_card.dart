@@ -252,7 +252,7 @@ class _MatchmakingHero extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           _HeroButton(
-            label: 'Buscar Partida',
+            label: 'Buscar no Mapa',
             icon: Icons.sports_tennis,
             glow: true,
             onPressed: () {
