@@ -1,10 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/challenge_result.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 
-class ChallengeResultSection extends StatelessWidget {
+class ChallengeResultSection extends StatefulWidget {
   const ChallengeResultSection({
     super.key,
     required this.challenge,
@@ -15,12 +17,50 @@ class ChallengeResultSection extends StatelessWidget {
   final int currentUserId;
 
   @override
+  State<ChallengeResultSection> createState() => _ChallengeResultSectionState();
+}
+
+class _ChallengeResultSectionState extends State<ChallengeResultSection> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String? _autoAcceptLabel(ChallengeResult result) {
+    final remaining = result.timeUntilAutoAccept(DateTime.now());
+    if (remaining == null) return null;
+    if (remaining == Duration.zero) {
+      return 'Aceite automático em breve se ninguém responder.';
+    }
+    final hours = remaining.inHours;
+    final minutes = remaining.inMinutes.remainder(60);
+    if (hours > 0) {
+      return 'Aceite automático em ${hours}h ${minutes}min se houver inércia.';
+    }
+    return 'Aceite automático em ${minutes}min se houver inércia.';
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final challenge = widget.challenge;
+    final currentUserId = widget.currentUserId;
     final result = challenge.result;
     if (result == null) return const SizedBox.shrink();
 
     final approved = result.approvalCount(challenge.requiredApprovalCount);
     final total = challenge.requiredApprovalCount;
+    final autoAcceptLabel = _autoAcceptLabel(result);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -121,6 +161,13 @@ class ChallengeResultSection extends StatelessWidget {
                 'Todos os participantes precisam aprovar antes do desafio ser marcado como Realizado.',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
+              if (autoAcceptLabel != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  autoAcceptLabel,
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                ),
+              ],
             ],
           ],
         ),

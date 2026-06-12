@@ -37,4 +37,9 @@ flutter:
   uses-material-design: true
   assets:
     - .env
-    - assets/images/logo_conectenis.png
+    - assets/images/logo_square_light_text.png
+    - assets/images/logo_square_dark_text.png
+    - assets/images/logo_square_light.png
+    - assets/images/logo_square_dark.png
+    - assets/images/logo_horizontal_light.png
+    - assets/images/logo_horizontal_dark.png

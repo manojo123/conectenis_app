@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/theme/theme_mode_provider.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
-import 'package:conectenis_app/shared/widgets/brand_wordmark.dart';
+import 'package:conectenis_app/shared/widgets/brand_logo.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class AppTopBar extends ConsumerWidget {
@@ -20,7 +20,7 @@ class AppTopBar extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
       child: Row(
         children: [
-          const BrandWordmark(showLogo: true, logoHeight: 32),
+          const BrandLogo(variant: BrandLogoVariant.horizontal, height: 36),
           const Spacer(),
           IconButton(
             tooltip: isDark ? 'Tema claro' : 'Tema escuro',

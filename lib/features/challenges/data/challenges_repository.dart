@@ -70,6 +70,7 @@ class ChallengesRepository {
           placeId: placeId,
           googlePlaceId: googlePlaceId,
           scheduledStart: scheduledStart,
+          scheduledEnd: scheduledEnd,
         );
       }
       final response = await _dio.post<Map<String, dynamic>>(
@@ -99,17 +100,21 @@ class ChallengesRepository {
     double? minNtrp,
     double? maxNtrp,
     Gender? genderPreference,
+    String? professionPreference,
   }) {
     return _guard(() async {
       if (Env.useMockApi) {
         return _mock.createPublicChallenge(
           format: format,
           scheduledStart: scheduledStart,
+          scheduledEnd: scheduledEnd,
           placeId: placeId,
           googlePlaceId: googlePlaceId,
           openLocation: openLocation,
           minNtrp: minNtrp,
           maxNtrp: maxNtrp,
+          genderPreference: genderPreference?.value,
+          professionPreference: professionPreference,
         );
       }
       final response = await _dio.post<Map<String, dynamic>>(
@@ -125,7 +130,77 @@ class ChallengesRepository {
           'min_ntrp': ?minNtrp,
           'max_ntrp': ?maxNtrp,
           if (genderPreference != null) 'gender_preference': genderPreference.value,
+          if (professionPreference != null && professionPreference.isNotEmpty)
+            'profession_preference': professionPreference,
         },
+      );
+      return Challenge.fromJson(response.data!);
+    });
+  }
+
+  Future<Challenge> updatePublic({
+    required int id,
+    String? message,
+    int? placeId,
+    String? googlePlaceId,
+    bool? openLocation,
+    DateTime? scheduledStart,
+    DateTime? scheduledEnd,
+    double? minNtrp,
+    double? maxNtrp,
+    Gender? genderPreference,
+    String? professionPreference,
+  }) {
+    return _guard(() async {
+      if (Env.useMockApi) {
+        return _mock.updatePublicChallenge(
+          id,
+          message: message,
+          placeId: placeId,
+          googlePlaceId: googlePlaceId,
+          openLocation: openLocation,
+          scheduledStart: scheduledStart,
+          scheduledEnd: scheduledEnd,
+          minNtrp: minNtrp,
+          maxNtrp: maxNtrp,
+          genderPreference: genderPreference?.value,
+          professionPreference: professionPreference,
+        );
+      }
+      final response = await _dio.put<Map<String, dynamic>>(
+        '/challenges/$id',
+        data: {
+          if (message != null) 'message': message,
+          if (placeId != null) 'place_id': placeId,
+          if (googlePlaceId != null) 'google_place_id': googlePlaceId,
+          if (openLocation != null) 'open_location': openLocation,
+          if (scheduledStart != null) 'scheduled_start': scheduledStart.toIso8601String(),
+          if (scheduledEnd != null) 'scheduled_end': scheduledEnd.toIso8601String(),
+          if (minNtrp != null) 'min_ntrp': minNtrp,
+          if (maxNtrp != null) 'max_ntrp': maxNtrp,
+          if (genderPreference != null) 'gender_preference': genderPreference.value,
+          if (professionPreference != null) 'profession_preference': professionPreference,
+        },
+      );
+      return Challenge.fromJson(response.data!);
+    });
+  }
+
+  Future<List<ChallengeParticipant>> listCandidates(int id) {
+    return _guard(() async {
+      if (Env.useMockApi) return _mock.listChallengeCandidates(id);
+      final response = await _dio.get<List<dynamic>>('/challenges/$id/candidates');
+      return (response.data ?? [])
+          .map((e) => ChallengeParticipant.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
+  }
+
+  Future<Challenge> acceptCandidate(int challengeId, int userId) {
+    return _guard(() async {
+      if (Env.useMockApi) return _mock.acceptChallengeCandidate(challengeId, userId);
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/challenges/$challengeId/candidates/$userId/accept',
       );
       return Challenge.fromJson(response.data!);
     });
@@ -214,6 +289,18 @@ class ChallengesRepository {
     });
   }
 
+  Future<Challenge> rejectResult(int id) {
+    return _guard(() async {
+      if (Env.useMockApi) return _mock.rejectChallengeResult(id);
+      final response = await _dio.post<Map<String, dynamic>>('/challenges/$id/result/reject');
+      final data = response.data;
+      if (data != null && data.containsKey('id')) {
+        return Challenge.fromJson(data);
+      }
+      return byId(id);
+    });
+  }
+
   Future<Challenge> approveResult(int id) {
     return _guard(() async {
       if (Env.useMockApi) return _mock.approveChallengeResult(id);
@@ -229,8 +316,13 @@ class ChallengesRepository {
   Future<Challenge> _action(int id, String action) {
     return _guard(() async {
       if (Env.useMockApi) {
-        if (action == 'cancel') return _mock.cancelChallenge(id);
-        return _mock.challengeById(id);
+        return switch (action) {
+          'accept' => _mock.acceptChallenge(id),
+          'decline' => _mock.declineChallenge(id),
+          'apply' => _mock.applyToChallenge(id),
+          'cancel' => _mock.cancelChallenge(id),
+          _ => _mock.challengeById(id),
+        };
       }
       final response = await _dio.post<Map<String, dynamic>>('/challenges/$id/$action');
       return Challenge.fromJson(response.data!);

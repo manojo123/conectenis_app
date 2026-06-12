@@ -5,7 +5,7 @@ import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
-import 'package:conectenis_app/shared/widgets/brand_wordmark.dart';
+import 'package:conectenis_app/shared/widgets/brand_logo.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -80,22 +80,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 const SizedBox(height: 24),
                 Center(
-                  child: BrandWordmark(
-                    showLogo: true,
-                    logoHeight: 64,
-                    style: Theme.of(context).textTheme.headlineMedium,
+                  child: BrandLogo(
+                    variant: BrandLogoVariant.squareWithText,
+                    height: 160,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text.rich(
-                  TextSpan(
-                    text: 'Bem-vindo ao ',
-                    style: Theme.of(context).textTheme.titleLarge,
-                    children: [brandTextSpan(context, style: Theme.of(context).textTheme.titleLarge)],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 24),
                 Text(
                   'CONECTE-SE OU CADASTRE-SE',
                   textAlign: TextAlign.center,

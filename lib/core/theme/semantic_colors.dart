@@ -10,7 +10,10 @@ abstract final class SemanticColors {
         ChallengeStatus.completed =>
           AppColors.success,
         ChallengeStatus.pendingResultApproval => AppColors.warning,
-        ChallengeStatus.cancelled || ChallengeStatus.declined => AppColors.error,
+        ChallengeStatus.cancelled ||
+        ChallengeStatus.declined ||
+        ChallengeStatus.expired =>
+          AppColors.error,
         _ => AppColors.info,
       };
 

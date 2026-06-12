@@ -500,34 +500,219 @@ class MockApiService {
 
   Challenge _enrichChallengeForCurrentUser(Challenge challenge) {
     final userId = MockData.currentUserId;
+    final role = challenge.creator.id == userId
+        ? 'created'
+        : challenge.participants.any((p) => p.user.id == userId && p.role != 'candidate')
+            ? 'received'
+            : challenge.role;
     final canSubmit = (challenge.status == ChallengeStatus.accepted ||
             challenge.status == ChallengeStatus.pendingScore) &&
-        challenge.result == null;
+        challenge.result == null &&
+        challenge.participantUserIds.contains(userId);
     final canApprove = challenge.status == ChallengeStatus.pendingResultApproval &&
         challenge.result != null &&
         !challenge.hasUserApprovedResult(userId);
-    return Challenge(
-      id: challenge.id,
-      type: challenge.type,
-      format: challenge.format,
-      status: challenge.status,
-      scheduledStart: challenge.scheduledStart,
-      scheduledEnd: challenge.scheduledEnd,
-      message: challenge.message,
-      openLocation: challenge.openLocation,
-      minNtrp: challenge.minNtrp,
-      maxNtrp: challenge.maxNtrp,
-      genderPreference: challenge.genderPreference,
-      slotsTotal: challenge.slotsTotal,
-      creator: challenge.creator,
-      place: challenge.place,
-      participants: challenge.participants,
-      candidatesCount: challenge.candidatesCount,
-      role: challenge.role,
-      hasSubmittedEvaluation: challenge.hasSubmittedEvaluation,
-      result: challenge.result,
+    return challenge.copyWith(
+      role: role,
       canSubmitResult: canSubmit,
       canApproveResult: canApprove,
+      canRejectResult: canApprove,
+    );
+  }
+
+  int? _challengeIndex(int id) {
+    final idx = _challenges.indexWhere((c) => c.id == id);
+    return idx >= 0 ? idx : null;
+  }
+
+  Challenge _storeChallenge(int idx, Challenge challenge) {
+    _challenges[idx] = challenge;
+    return _enrichChallengeForCurrentUser(challenge);
+  }
+
+  Future<Challenge> acceptChallenge(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _challengeIndex(id);
+    if (idx == null) return challengeById(id);
+    final old = _challenges[idx];
+    if (old.status != ChallengeStatus.pendingAcceptance) return _enrichChallengeForCurrentUser(old);
+
+    final updatedParticipants = old.participants.map((p) {
+      if (p.user.id == MockData.currentUserId) {
+        return ChallengeParticipant(
+          id: p.id,
+          role: p.role,
+          status: 'accepted',
+          user: p.user,
+          team: p.team,
+        );
+      }
+      return p;
+    }).toList();
+
+    final allAccepted = updatedParticipants.every((p) => p.status == 'accepted');
+    return _storeChallenge(
+      idx,
+      old.copyWith(
+        participants: updatedParticipants,
+        status: allAccepted ? ChallengeStatus.accepted : old.status,
+      ),
+    );
+  }
+
+  Future<Challenge> declineChallenge(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _challengeIndex(id);
+    if (idx == null) return challengeById(id);
+    final old = _challenges[idx];
+    return _storeChallenge(
+      idx,
+      old.copyWith(
+        status: ChallengeStatus.declined,
+        declinedReason: 'explicit',
+      ),
+    );
+  }
+
+  Future<Challenge> applyToChallenge(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _challengeIndex(id);
+    if (idx == null) return challengeById(id);
+    final old = _challenges[idx];
+    if (old.type != ChallengeType.public) return _enrichChallengeForCurrentUser(old);
+    if (old.participants.any((p) => p.user.id == MockData.currentUserId)) {
+      return _enrichChallengeForCurrentUser(old);
+    }
+
+    final me = Player(
+      id: MockData.currentUserId,
+      name: 'Você',
+      latitude: MockData.centerLat,
+      longitude: MockData.centerLng,
+      ntrpRating: 3.5,
+    );
+    final candidate = ChallengeParticipant(
+      id: 900 + old.participants.length,
+      role: 'candidate',
+      status: 'pending',
+      user: me,
+    );
+    await startConversation(old.creator.id, old.creator.name);
+
+    return _storeChallenge(
+      idx,
+      old.copyWith(
+        participants: [...old.participants, candidate],
+        status: ChallengeStatus.candidatesAwaitingAccept,
+        candidatesCount: old.candidatesCount + 1,
+      ),
+    );
+  }
+
+  Future<List<ChallengeParticipant>> listChallengeCandidates(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    final idx = _challengeIndex(id);
+    if (idx == null) return const [];
+    return _challenges[idx].participants.where((p) => p.role == 'candidate').toList();
+  }
+
+  Future<Challenge> acceptChallengeCandidate(int challengeId, int userId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _challengeIndex(challengeId);
+    if (idx == null) return challengeById(challengeId);
+    final old = _challenges[idx];
+
+    final updatedParticipants = old.participants.map((p) {
+      if (p.user.id == userId && p.role == 'candidate') {
+        return ChallengeParticipant(
+          id: p.id,
+          role: 'invitee',
+          status: 'accepted',
+          user: p.user,
+          team: old.format == ChallengeFormat.doubles ? 2 : null,
+        );
+      }
+      return p;
+    }).toList();
+
+    final acceptedNonCreator = updatedParticipants
+        .where((p) => p.role != 'candidate' && p.role != 'creator' && p.status == 'accepted')
+        .length;
+    final needed = old.slotsTotal - 1;
+    final newStatus = acceptedNonCreator >= needed
+        ? ChallengeStatus.accepted
+        : ChallengeStatus.candidatesAwaitingAccept;
+    final remainingCandidates =
+        updatedParticipants.where((p) => p.role == 'candidate').length;
+
+    return _storeChallenge(
+      idx,
+      old.copyWith(
+        participants: updatedParticipants,
+        status: newStatus,
+        candidatesCount: remainingCandidates,
+      ),
+    );
+  }
+
+  Future<Challenge> rejectChallengeResult(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _challengeIndex(id);
+    if (idx == null) return challengeById(id);
+    final old = _challenges[idx];
+    if (old.result == null) return _enrichChallengeForCurrentUser(old);
+
+    return _storeChallenge(
+      idx,
+      old.copyWith(
+        status: ChallengeStatus.pendingScore,
+        clearResult: true,
+        hasSubmittedEvaluation: false,
+      ),
+    );
+  }
+
+  Future<Challenge> updatePublicChallenge(
+    int id, {
+    String? message,
+    int? placeId,
+    String? googlePlaceId,
+    bool? openLocation,
+    DateTime? scheduledStart,
+    DateTime? scheduledEnd,
+    double? minNtrp,
+    double? maxNtrp,
+    String? genderPreference,
+    String? professionPreference,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final idx = _challengeIndex(id);
+    if (idx == null) return challengeById(id);
+    final old = _challenges[idx];
+    if (old.status != ChallengeStatus.pendingCandidates) {
+      throw ApiException('Desafio não pode ser editado neste status.', statusCode: 422);
+    }
+
+    Place? place = old.place;
+    if (placeId != null) {
+      place = _places.firstWhere((p) => p.id == placeId, orElse: () => _places.first);
+    } else if (openLocation == true) {
+      place = null;
+    }
+
+    return _storeChallenge(
+      idx,
+      old.copyWith(
+        message: message,
+        openLocation: openLocation,
+        scheduledStart: scheduledStart,
+        scheduledEnd: scheduledEnd,
+        minNtrp: minNtrp,
+        maxNtrp: maxNtrp,
+        genderPreference: genderPreference,
+        professionPreference: professionPreference,
+        place: place,
+      ),
     );
   }
 
@@ -537,6 +722,7 @@ class MockApiService {
     int? placeId,
     String? googlePlaceId,
     required DateTime scheduledStart,
+    DateTime? scheduledEnd,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final me = Player(id: MockData.currentUserId, name: 'Você', latitude: MockData.centerLat, longitude: MockData.centerLng);
@@ -565,6 +751,7 @@ class MockApiService {
       format: format,
       status: ChallengeStatus.pendingAcceptance,
       scheduledStart: scheduledStart,
+      scheduledEnd: scheduledEnd,
       creator: me,
       creatorTeam: 1,
       place: place,
@@ -614,11 +801,14 @@ class MockApiService {
   Future<Challenge> createPublicChallenge({
     required ChallengeFormat format,
     required DateTime scheduledStart,
+    DateTime? scheduledEnd,
     int? placeId,
     String? googlePlaceId,
     bool openLocation = false,
     double? minNtrp,
     double? maxNtrp,
+    String? genderPreference,
+    String? professionPreference,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final me = Player(id: MockData.currentUserId, name: 'Você', latitude: MockData.centerLat, longitude: MockData.centerLng);
@@ -645,11 +835,14 @@ class MockApiService {
       format: format,
       status: ChallengeStatus.pendingCandidates,
       scheduledStart: scheduledStart,
+      scheduledEnd: scheduledEnd,
       creator: me,
       place: place,
       openLocation: openLocation,
       minNtrp: minNtrp,
       maxNtrp: maxNtrp,
+      genderPreference: genderPreference,
+      professionPreference: professionPreference,
       role: 'created',
     );
     _challenges = [challenge, ..._challenges];
@@ -734,27 +927,12 @@ class MockApiService {
       opponentRatings: ratings,
       placeQualityStars: placeQualityStars,
       placeComment: placeComment,
+      proposedAt: DateTime.now(),
+      autoAcceptAt: DateTime.now().add(const Duration(hours: 24)),
     );
 
-    final updated = Challenge(
-      id: old.id,
-      type: old.type,
-      format: old.format,
+    final updated = old.copyWith(
       status: ChallengeStatus.pendingResultApproval,
-      scheduledStart: old.scheduledStart,
-      scheduledEnd: old.scheduledEnd,
-      message: old.message,
-      openLocation: old.openLocation,
-      minNtrp: old.minNtrp,
-      maxNtrp: old.maxNtrp,
-      genderPreference: old.genderPreference,
-      slotsTotal: old.slotsTotal,
-      creator: old.creator,
-      creatorTeam: old.creatorTeam,
-      place: old.place,
-      participants: old.participants,
-      candidatesCount: old.candidatesCount,
-      role: old.role,
       hasSubmittedEvaluation: true,
       result: result,
     );
@@ -792,7 +970,9 @@ class MockApiService {
     final newResult = ChallengeResult(
       skipScore: result.skipScore,
       winnerUserId: result.winnerUserId,
+      winnerTeamIds: result.winnerTeamIds,
       winnerName: result.winnerName,
+      winnerTeamLabel: result.winnerTeamLabel,
       scoreLabel: result.scoreLabel,
       submittedByUserId: result.submittedByUserId,
       submittedByName: result.submittedByName,
@@ -801,28 +981,15 @@ class MockApiService {
       approvals: approvals,
       opponentPunctualityStars: result.opponentPunctualityStars,
       opponentComment: result.opponentComment,
+      opponentRatings: result.opponentRatings,
       placeQualityStars: result.placeQualityStars,
       placeComment: result.placeComment,
+      proposedAt: result.proposedAt,
+      autoAcceptAt: result.autoAcceptAt,
     );
 
-    final updated = Challenge(
-      id: old.id,
-      type: old.type,
-      format: old.format,
+    final updated = old.copyWith(
       status: allApproved ? ChallengeStatus.completed : ChallengeStatus.pendingResultApproval,
-      scheduledStart: old.scheduledStart,
-      scheduledEnd: old.scheduledEnd,
-      message: old.message,
-      openLocation: old.openLocation,
-      minNtrp: old.minNtrp,
-      maxNtrp: old.maxNtrp,
-      genderPreference: old.genderPreference,
-      slotsTotal: old.slotsTotal,
-      creator: old.creator,
-      place: old.place,
-      participants: old.participants,
-      candidatesCount: old.candidatesCount,
-      role: old.role,
       hasSubmittedEvaluation: true,
       result: newResult,
     );
@@ -832,32 +999,15 @@ class MockApiService {
 
   Future<Challenge> cancelChallenge(int id) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
-    final idx = _challenges.indexWhere((c) => c.id == id);
-    if (idx < 0) return challengeById(id);
-    final old = _challenges[idx];
-    final updated = Challenge(
-      id: old.id,
-      type: old.type,
-      format: old.format,
-      status: ChallengeStatus.cancelled,
-      scheduledStart: old.scheduledStart,
-      scheduledEnd: old.scheduledEnd,
-      message: old.message,
-      openLocation: old.openLocation,
-      minNtrp: old.minNtrp,
-      maxNtrp: old.maxNtrp,
-      genderPreference: old.genderPreference,
-      slotsTotal: old.slotsTotal,
-      creator: old.creator,
-      place: old.place,
-      participants: old.participants,
-      candidatesCount: old.candidatesCount,
-      role: old.role,
-      hasSubmittedEvaluation: old.hasSubmittedEvaluation,
-      result: old.result,
+    final idx = _challengeIndex(id);
+    if (idx == null) return challengeById(id);
+    return _storeChallenge(
+      idx,
+      _challenges[idx].copyWith(
+        status: ChallengeStatus.cancelled,
+        cancelledReason: 'creator',
+      ),
     );
-    _challenges[idx] = updated;
-    return updated;
   }
 
   Future<UserProfile> registerMock({

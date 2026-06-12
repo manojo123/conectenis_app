@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
+import 'package:conectenis_app/features/challenges/presentation/widgets/challenge_candidates_panel.dart';
 import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/utils/date_time_format.dart';
 import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
 import 'package:conectenis_app/shared/widgets/challenge_participants_versus.dart';
 import 'package:conectenis_app/shared/widgets/challenge_result_section.dart';
@@ -84,6 +86,37 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
     }
   }
 
+  Future<void> _rejectResult() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Recusar resultado'),
+        content: const Text(
+          'O placar voltará para pendente e qualquer participante poderá informar novamente.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Recusar')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(challengesRepositoryProvider).rejectResult(widget.challengeId);
+      bumpChallengesRefresh(ref);
+      await _load();
+      if (mounted) {
+        AppSnackBar.showSuccess(context, 'Resultado recusado.');
+      }
+    } catch (e) {
+      if (mounted) AppSnackBar.showDanger(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _confirmCancel() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -102,6 +135,15 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
     }
   }
 
+  bool get _showCandidatesPanel {
+    final c = _challenge;
+    if (c == null) return false;
+    return c.role == 'created' &&
+        c.type == ChallengeType.public &&
+        (c.status == ChallengeStatus.pendingCandidates ||
+            c.status == ChallengeStatus.candidatesAwaitingAccept);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: LoadingView());
@@ -118,36 +160,72 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
     final currentUserId = ref.watch(authStateProvider).value?.id ?? 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Desafio')),
+      appBar: AppBar(
+        title: const Text('Desafio'),
+        actions: [
+          if (c.canEditAsCreator && isCreator)
+            IconButton(
+              tooltip: 'Editar',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => context.push('/challenges/${c.id}/edit'),
+            ),
+        ],
+      ),
       body: ListView(
         padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
           Row(
             children: [
               Expanded(
-                child: Text(c.status.label, style: Theme.of(context).textTheme.headlineSmall),
+                child: Text(
+                  c.displayStatusLabel,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
               ),
               ChallengeStatusChip(status: c.status),
             ],
           ),
           const SizedBox(height: 8),
           Text('${c.format.label} · ${c.type.label}'),
-          Text(df.format(c.scheduledStart)),
+          Text('Início: ${df.format(c.scheduledStart)}'),
+          if (c.scheduledEnd != null) Text('Término: ${formatDateTimePt(c.scheduledEnd!)}'),
+          if (c.minNtrp != null || c.maxNtrp != null)
+            Text(
+              'NTRP: ${c.minNtrp?.toStringAsFixed(1) ?? '?'} – ${c.maxNtrp?.toStringAsFixed(1) ?? '?'}',
+            ),
+          if (c.professionPreference != null && c.professionPreference!.isNotEmpty)
+            Text('Profissão: ${c.professionPreference}'),
+          if (c.message != null && c.message!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(c.message!),
+          ],
           if (c.hasProposedResult) ...[
             const SizedBox(height: 16),
             ChallengeResultSection(challenge: c, currentUserId: currentUserId),
+          ],
+          if (_showCandidatesPanel) ...[
+            const SizedBox(height: 16),
+            ChallengeCandidatesPanel(
+              challengeId: c.id,
+              onChanged: () {
+                bumpChallengesRefresh(ref);
+                _load();
+              },
+            ),
           ],
           const SizedBox(height: 16),
           Text('Participantes', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           ChallengeParticipantsVersus(challenge: c),
-          if (c.participants.isNotEmpty)
+          if (c.participants.where((p) => p.role != 'candidate').isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 4,
-                children: c.participants.map((p) {
+                children: c.participants
+                    .where((p) => p.role != 'candidate')
+                    .map((p) {
                   return Chip(
                     label: Text('${p.user.name.split(' ').first}: ${p.status}'),
                     visualDensity: VisualDensity.compact,
@@ -195,6 +273,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
               c.status != ChallengeStatus.cancelled &&
               c.status != ChallengeStatus.completed &&
               c.status != ChallengeStatus.declined &&
+              c.status != ChallengeStatus.expired &&
               c.status != ChallengeStatus.pendingResultApproval)
             LimeButton(
               label: 'Cancelar desafio',
@@ -213,6 +292,16 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
               label: 'Aprovar resultado',
               loading: _busy,
               onPressed: _busy ? null : _approveResult,
+            ),
+          ],
+          if (c.canRejectResult) ...[
+            const SizedBox(height: 8),
+            LimeButton(
+              label: 'Recusar resultado',
+              outlined: true,
+              danger: true,
+              loading: _busy,
+              onPressed: _busy ? null : _rejectResult,
             ),
           ],
           if (c.status == ChallengeStatus.completed)

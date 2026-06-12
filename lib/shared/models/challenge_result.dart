@@ -67,6 +67,8 @@ class ChallengeResult {
     this.opponentRatings = const [],
     this.placeQualityStars,
     this.placeComment,
+    this.proposedAt,
+    this.autoAcceptAt,
   });
 
   final bool skipScore;
@@ -85,6 +87,14 @@ class ChallengeResult {
   final List<OpponentResultRating> opponentRatings;
   final int? placeQualityStars;
   final String? placeComment;
+  final DateTime? proposedAt;
+  final DateTime? autoAcceptAt;
+
+  Duration? timeUntilAutoAccept(DateTime now) {
+    if (autoAcceptAt == null) return null;
+    final remaining = autoAcceptAt!.difference(now);
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
 
   bool hasUserApproved(int userId) =>
       approvals.any((a) => a.userId == userId && a.approved);
@@ -122,6 +132,12 @@ class ChallengeResult {
           const [],
       placeQualityStars: json['place_quality_stars'] as int?,
       placeComment: json['place_comment'] as String?,
+      proposedAt: json['proposed_at'] == null
+          ? null
+          : DateTime.tryParse(json['proposed_at'] as String),
+      autoAcceptAt: json['auto_accept_at'] == null
+          ? null
+          : DateTime.tryParse(json['auto_accept_at'] as String),
     );
   }
 }

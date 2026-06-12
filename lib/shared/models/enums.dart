@@ -73,7 +73,8 @@ enum ChallengeStatus {
   pendingResultApproval('pending_result_approval', 'Aguardando aprovação'),
   completed('completed', 'Realizado'),
   declined('declined', 'Recusado'),
-  cancelled('cancelled', 'Cancelado');
+  cancelled('cancelled', 'Cancelado'),
+  expired('expired', 'Expirado');
 
   const ChallengeStatus(this.value, this.label);
   final String value;

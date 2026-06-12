@@ -3,6 +3,7 @@ import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/json_parsers.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/models/player.dart';
+import 'package:conectenis_app/shared/utils/challenge_status_labels.dart';
 
 class Challenge {
   const Challenge({
@@ -18,6 +19,7 @@ class Challenge {
     this.minNtrp,
     this.maxNtrp,
     this.genderPreference,
+    this.professionPreference,
     this.slotsTotal = 2,
     this.place,
     this.participants = const [],
@@ -27,7 +29,12 @@ class Challenge {
     this.result,
     this.canSubmitResult = false,
     this.canApproveResult = false,
+    this.canRejectResult = false,
     this.creatorTeam,
+    this.statusLabel,
+    this.declinedReason,
+    this.cancelledReason,
+    this.closedReason,
   });
 
   final int id;
@@ -41,6 +48,7 @@ class Challenge {
   final double? minNtrp;
   final double? maxNtrp;
   final String? genderPreference;
+  final String? professionPreference;
   final int slotsTotal;
   final Player creator;
   final Place? place;
@@ -51,11 +59,34 @@ class Challenge {
   final ChallengeResult? result;
   final bool canSubmitResult;
   final bool canApproveResult;
+  final bool canRejectResult;
   final int? creatorTeam;
+  final String? statusLabel;
+  final String? declinedReason;
+  final String? cancelledReason;
+  final String? closedReason;
 
-  /// All distinct user ids in this challenge (creator + participants).
+  String get displayStatusLabel => challengeDisplayStatusLabel(
+        status: status,
+        apiStatusLabel: statusLabel,
+        declinedReason: declinedReason,
+        cancelledReason: cancelledReason,
+        closedReason: closedReason,
+      );
+
+  List<ChallengeParticipant> get candidates =>
+      participants.where((p) => p.role == 'candidate').toList();
+
+  bool get canEditAsCreator =>
+      type == ChallengeType.public && status == ChallengeStatus.pendingCandidates;
+
+  /// All distinct user ids in this challenge (creator + non-candidate participants).
   List<int> get participantUserIds {
-    final ids = <int>{creator.id, ...participants.map((p) => p.user.id)};
+    final ids = <int>{creator.id};
+    for (final p in participants) {
+      if (p.role == 'candidate') continue;
+      ids.add(p.user.id);
+    }
     return ids.toList();
   }
 
@@ -171,6 +202,63 @@ class Challenge {
     return [[creator], if (participants.isNotEmpty) [participants.first.user] else []];
   }
 
+  Challenge copyWith({
+    ChallengeStatus? status,
+    DateTime? scheduledStart,
+    DateTime? scheduledEnd,
+    String? message,
+    bool? openLocation,
+    double? minNtrp,
+    double? maxNtrp,
+    String? genderPreference,
+    String? professionPreference,
+    Place? place,
+    List<ChallengeParticipant>? participants,
+    int? candidatesCount,
+    String? role,
+    bool? hasSubmittedEvaluation,
+    ChallengeResult? result,
+    bool clearResult = false,
+    bool? canSubmitResult,
+    bool? canApproveResult,
+    bool? canRejectResult,
+    String? statusLabel,
+    String? declinedReason,
+    String? cancelledReason,
+    String? closedReason,
+  }) {
+    return Challenge(
+      id: id,
+      type: type,
+      format: format,
+      status: status ?? this.status,
+      scheduledStart: scheduledStart ?? this.scheduledStart,
+      scheduledEnd: scheduledEnd ?? this.scheduledEnd,
+      message: message ?? this.message,
+      openLocation: openLocation ?? this.openLocation,
+      minNtrp: minNtrp ?? this.minNtrp,
+      maxNtrp: maxNtrp ?? this.maxNtrp,
+      genderPreference: genderPreference ?? this.genderPreference,
+      professionPreference: professionPreference ?? this.professionPreference,
+      slotsTotal: slotsTotal,
+      creator: creator,
+      creatorTeam: creatorTeam,
+      place: place ?? this.place,
+      participants: participants ?? this.participants,
+      candidatesCount: candidatesCount ?? this.candidatesCount,
+      role: role ?? this.role,
+      hasSubmittedEvaluation: hasSubmittedEvaluation ?? this.hasSubmittedEvaluation,
+      result: clearResult ? null : (result ?? this.result),
+      canSubmitResult: canSubmitResult ?? this.canSubmitResult,
+      canApproveResult: canApproveResult ?? this.canApproveResult,
+      canRejectResult: canRejectResult ?? this.canRejectResult,
+      statusLabel: statusLabel ?? this.statusLabel,
+      declinedReason: declinedReason ?? this.declinedReason,
+      cancelledReason: cancelledReason ?? this.cancelledReason,
+      closedReason: closedReason ?? this.closedReason,
+    );
+  }
+
   factory Challenge.fromJson(Map<String, dynamic> json) {
     final creatorJson = json['creator'] as Map<String, dynamic>;
     return Challenge(
@@ -187,6 +275,7 @@ class Challenge {
       minNtrp: json['min_ntrp'] == null ? null : parseJsonDouble(json['min_ntrp']),
       maxNtrp: json['max_ntrp'] == null ? null : parseJsonDouble(json['max_ntrp']),
       genderPreference: json['gender_preference'] as String?,
+      professionPreference: json['profession_preference'] as String?,
       slotsTotal: parseJsonInt(json['slots_total'] ?? 2),
       creator: Player.fromJson(creatorJson),
       creatorTeam: _parseTeam(creatorJson['team'] ?? json['creator_team']),
@@ -205,6 +294,11 @@ class Challenge {
           : null,
       canSubmitResult: json['can_submit_result'] == true,
       canApproveResult: json['can_approve_result'] == true,
+      canRejectResult: json['can_reject_result'] == true,
+      statusLabel: json['status_label'] as String?,
+      declinedReason: json['declined_reason'] as String?,
+      cancelledReason: json['cancelled_reason'] as String?,
+      closedReason: json['closed_reason'] as String?,
     );
   }
 

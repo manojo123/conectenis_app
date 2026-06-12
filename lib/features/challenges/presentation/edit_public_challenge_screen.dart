@@ -14,63 +14,103 @@ import 'package:conectenis_app/shared/widgets/gender_multi_selector.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/place_select_field.dart';
 
-class CreatePublicChallengeScreen extends ConsumerStatefulWidget {
-  const CreatePublicChallengeScreen({super.key});
+class EditPublicChallengeScreen extends ConsumerStatefulWidget {
+  const EditPublicChallengeScreen({super.key, required this.challengeId});
+
+  final int challengeId;
 
   @override
-  ConsumerState<CreatePublicChallengeScreen> createState() => _CreatePublicChallengeScreenState();
+  ConsumerState<EditPublicChallengeScreen> createState() => _EditPublicChallengeScreenState();
 }
 
-class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChallengeScreen> {
-  final Set<ChallengeFormat> _formats = {ChallengeFormat.singles};
+class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeScreen> {
+  bool _loading = true;
+  String? _error;
+  bool _submitting = false;
+
+  final _messageController = TextEditingController();
+  final _professionController = TextEditingController();
   double _minNtrp = 3.0;
   double _maxNtrp = 3.0;
-  bool _ntrpInitialized = false;
   Set<Gender> _genderPrefs = {};
-  DateTime _start = roundToFiveMinutes(DateTime.now().add(const Duration(days: 2)));
-  DateTime _end = roundToFiveMinutes(DateTime.now().add(const Duration(days: 2, hours: 2)));
-  final _professionController = TextEditingController();
+  DateTime? _start;
+  DateTime? _end;
   bool _openLocation = false;
   NearbyCourt? _selectedCourt;
-  bool _submitting = false;
 
   @override
   void dispose() {
+    _messageController.dispose();
     _professionController.dispose();
     super.dispose();
   }
 
-  void _ensureNtrpDefaults(double userNtrp) {
-    if (_ntrpInitialized) return;
-    _ntrpInitialized = true;
-    final lo = ChallengeNtrpBounds.allowedMin(userNtrp);
-    final hi = ChallengeNtrpBounds.allowedMax(userNtrp);
-    final target = userNtrp.clamp(lo, hi);
-    _minNtrp = target;
-    _maxNtrp = target;
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  void _toggleFormat(ChallengeFormat format) {
+  Future<void> _load() async {
     setState(() {
-      if (_formats.contains(format)) {
-        if (_formats.length > 1) _formats.remove(format);
-      } else {
-        _formats.add(format);
-      }
+      _loading = true;
+      _error = null;
     });
+    try {
+      final c = await ref.read(challengesRepositoryProvider).byId(widget.challengeId);
+      if (!mounted) return;
+      if (!c.canEditAsCreator) {
+        setState(() {
+          _loading = false;
+          _error = 'Este desafio não pode mais ser editado.';
+        });
+        return;
+      }
+      _messageController.text = c.message ?? '';
+      _professionController.text = c.professionPreference ?? '';
+      _minNtrp = c.minNtrp ?? 3.0;
+      _maxNtrp = c.maxNtrp ?? 3.0;
+      if (c.genderPreference != null) {
+        try {
+          _genderPrefs = {Gender.values.firstWhere((g) => g.value == c.genderPreference)};
+        } catch (_) {}
+      }
+      _start = c.scheduledStart;
+      _end = c.scheduledEnd ?? c.scheduledStart.add(const Duration(hours: 2));
+      _openLocation = c.openLocation;
+      if (c.place != null) {
+        _selectedCourt = NearbyCourt(
+          placeId: c.place!.id,
+          name: c.place!.name,
+          latitude: c.place!.latitude,
+          longitude: c.place!.longitude,
+        );
+      }
+      setState(() {
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
+    }
   }
 
   Future<void> _pickStart() async {
+    if (_start == null) return;
     final picked = await pickDateTimeWithFiveMinuteSteps(
       context,
-      initial: _start,
+      initial: _start!,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null) {
       setState(() {
         _start = picked;
-        if (!_end.isAfter(picked)) {
+        if (_end != null && !_end!.isAfter(picked)) {
           _end = picked.add(const Duration(hours: 2));
         }
       });
@@ -78,29 +118,25 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
   }
 
   Future<void> _pickEnd() async {
+    if (_end == null) return;
     final picked = await pickDateTimeWithFiveMinuteSteps(
       context,
-      initial: _end,
-      firstDate: _start,
+      initial: _end!,
+      firstDate: _start ?? DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => _end = picked);
   }
 
   Future<void> _submit(double userNtrp) async {
-    if (_formats.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione simples e/ou duplas.')),
-      );
-      return;
-    }
+    if (_start == null || _end == null) return;
     if (!_openLocation && _selectedCourt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione um local ou marque "local em aberto".')),
       );
       return;
     }
-    if (!_end.isAfter(_start)) {
+    if (_end!.isBefore(_start!)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('O horário de término deve ser após o início.')),
       );
@@ -111,42 +147,36 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
       minNtrp: _minNtrp,
       maxNtrp: _maxNtrp,
     )) {
-      final lo = ChallengeNtrpBounds.allowedMin(userNtrp);
-      final hi = ChallengeNtrpBounds.allowedMax(userNtrp);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'O nível do desafio deve ficar entre ${lo.toStringAsFixed(1)} e ${hi.toStringAsFixed(1)}.',
-          ),
-        ),
+        const SnackBar(content: Text('Faixa de NTRP inválida para o seu nível.')),
       );
       return;
     }
 
     setState(() => _submitting = true);
     try {
-      final repo = ref.read(challengesRepositoryProvider);
-      for (final format in _formats) {
-        await repo.createPublic(
-          format: format,
-          scheduledStart: _start,
-          scheduledEnd: _end,
-          openLocation: _openLocation,
-          placeId: _openLocation ? null : _selectedCourt?.placeId,
-          googlePlaceId: _openLocation ? null : _selectedCourt?.googlePlaceId,
-          minNtrp: _minNtrp,
-          maxNtrp: _maxNtrp,
-          genderPreference: genderPreferenceFromSet(_genderPrefs),
-          professionPreference: _professionController.text.trim().isEmpty
-              ? null
-              : _professionController.text.trim(),
-        );
-      }
+      await ref.read(challengesRepositoryProvider).updatePublic(
+            id: widget.challengeId,
+            message: _messageController.text.trim().isEmpty ? null : _messageController.text.trim(),
+            openLocation: _openLocation,
+            placeId: _openLocation ? null : _selectedCourt?.placeId,
+            googlePlaceId: _openLocation ? null : _selectedCourt?.googlePlaceId,
+            scheduledStart: _start,
+            scheduledEnd: _end,
+            minNtrp: _minNtrp,
+            maxNtrp: _maxNtrp,
+            genderPreference: genderPreferenceFromSet(_genderPrefs),
+            professionPreference: _professionController.text.trim().isEmpty
+                ? null
+                : _professionController.text.trim(),
+          );
       bumpChallengesRefresh(ref);
       if (!mounted) return;
-      context.go('/challenges');
+      context.pop();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -154,14 +184,32 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Editar Desafio')),
+        body: Center(child: Text(_error!)),
+      );
+    }
+
     final userNtrp = ref.watch(authStateProvider).value?.ntrpRating ?? 3.0;
-    _ensureNtrpDefaults(userNtrp);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Criar Desafio Público')),
+      appBar: AppBar(title: const Text('Editar Desafio Público')),
       body: ListView(
         padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
         children: [
+          TextFormField(
+            controller: _messageController,
+            decoration: const InputDecoration(
+              labelText: 'Mensagem (opcional)',
+              alignLabelWithHint: true,
+            ),
+            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
           const Text('Nível procurado'),
           const SizedBox(height: 8),
           ChallengeNtrpRangePicker(
@@ -179,20 +227,6 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
             onChanged: (g) => setState(() => _genderPrefs = g),
           ),
           const SizedBox(height: 16),
-          const Text('Modalidade'),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: ChallengeFormat.values.map((format) {
-              final selected = _formats.contains(format);
-              return FilterChip(
-                label: Text(format.label),
-                selected: selected,
-                onSelected: (_) => _toggleFormat(format),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
           TextFormField(
             controller: _professionController,
             decoration: const InputDecoration(
@@ -203,14 +237,14 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Início'),
-            subtitle: Text(formatDateTimePt(_start)),
+            subtitle: Text(_start == null ? '—' : formatDateTimePt(_start!)),
             trailing: const Icon(Icons.calendar_today),
             onTap: _pickStart,
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Término'),
-            subtitle: Text(formatDateTimePt(_end)),
+            subtitle: Text(_end == null ? '—' : formatDateTimePt(_end!)),
             trailing: const Icon(Icons.calendar_today),
             onTap: _pickEnd,
           ),
@@ -233,7 +267,7 @@ class _CreatePublicChallengeScreenState extends ConsumerState<CreatePublicChalle
           ],
           const SizedBox(height: 24),
           LimeButton(
-            label: 'Confirmar envio',
+            label: 'Salvar alterações',
             loading: _submitting,
             glow: true,
             onPressed: () => _submit(userNtrp),

@@ -230,8 +230,38 @@ abstract final class MockData {
       message: 'Aberto para todos os níveis',
     );
 
+    final myPublicWithCandidates = Challenge(
+      id: 107,
+      type: ChallengeType.public,
+      format: ChallengeFormat.singles,
+      status: ChallengeStatus.candidatesAwaitingAccept,
+      scheduledStart: DateTime.now().add(const Duration(days: 4)),
+      scheduledEnd: DateTime.now().add(const Duration(days: 4, hours: 2)),
+      creator: me,
+      place: place,
+      minNtrp: 3.0,
+      maxNtrp: 4.0,
+      candidatesCount: 2,
+      participants: [
+        ChallengeParticipant(
+          id: 20,
+          role: 'candidate',
+          status: 'pending',
+          user: players[0],
+        ),
+        ChallengeParticipant(
+          id: 21,
+          role: 'candidate',
+          status: 'pending',
+          user: players[1],
+        ),
+      ],
+      role: 'created',
+      message: 'Simples — aceito candidatos',
+    );
+
     return switch (role) {
-      ChallengeListRole.created => [direct, doublesDirect],
+      ChallengeListRole.created => [direct, doublesDirect, myPublicWithCandidates],
       ChallengeListRole.received => [received],
       ChallengeListRole.publicNearby => [publicChallenge, publicSingles, publicOpen],
     };

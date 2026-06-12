@@ -15,6 +15,7 @@ import 'package:conectenis_app/features/challenges/presentation/challenge_evalua
 import 'package:conectenis_app/features/challenges/presentation/challenges_wall_screen.dart';
 import 'package:conectenis_app/features/challenges/presentation/create_direct_challenge_screen.dart';
 import 'package:conectenis_app/features/challenges/presentation/create_public_challenge_screen.dart';
+import 'package:conectenis_app/features/challenges/presentation/edit_public_challenge_screen.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_list_screen.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
@@ -140,6 +141,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/challenges/new/public', builder: (_, _) => const CreatePublicChallengeScreen()),
+      GoRoute(
+        path: '/challenges/:id/edit',
+        builder: (_, state) => EditPublicChallengeScreen(
+          challengeId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
       GoRoute(
         path: '/challenges/:id/evaluation',
         builder: (_, state) => ChallengeEvaluationScreen(

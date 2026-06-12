@@ -27,6 +27,7 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
   final Map<int, Player> _opponents = {};
   NearbyCourt? _court;
   DateTime _start = roundToFiveMinutes(DateTime.now().add(const Duration(days: 1)));
+  DateTime _end = roundToFiveMinutes(DateTime.now().add(const Duration(days: 1, hours: 2)));
   bool _submitting = false;
 
   int get _maxOpponents => _format.slotsTotal - 1;
@@ -46,14 +47,31 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
     }
   }
 
-  Future<void> _pickDateTime() async {
+  Future<void> _pickStart() async {
     final picked = await pickDateTimeWithFiveMinuteSteps(
       context,
       initial: _start,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 90)),
     );
-    if (picked != null) setState(() => _start = picked);
+    if (picked != null) {
+      setState(() {
+        _start = picked;
+        if (!_end.isAfter(picked)) {
+          _end = picked.add(const Duration(hours: 2));
+        }
+      });
+    }
+  }
+
+  Future<void> _pickEnd() async {
+    final picked = await pickDateTimeWithFiveMinuteSteps(
+      context,
+      initial: _end,
+      firstDate: _start,
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+    );
+    if (picked != null) setState(() => _end = picked);
   }
 
   Future<void> _pickOpponents() async {
@@ -81,6 +99,12 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
       );
       return;
     }
+    if (!_end.isAfter(_start)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O horário de término deve ser após o início.')),
+      );
+      return;
+    }
     setState(() => _submitting = true);
     try {
       await ref.read(challengesRepositoryProvider).createDirect(
@@ -89,6 +113,7 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
             placeId: _court!.placeId,
             googlePlaceId: _court!.googlePlaceId,
             scheduledStart: _start,
+            scheduledEnd: _end,
           );
       bumpChallengesRefresh(ref);
       if (!mounted) return;
@@ -161,10 +186,17 @@ class _CreateDirectChallengeScreenState extends ConsumerState<CreateDirectChalle
           const SizedBox(height: 16),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Data e hora'),
+            title: const Text('Início'),
             subtitle: Text(_formatDateTime(_start)),
             trailing: const Icon(Icons.calendar_today),
-            onTap: _pickDateTime,
+            onTap: _pickStart,
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Término'),
+            subtitle: Text(_formatDateTime(_end)),
+            trailing: const Icon(Icons.calendar_today),
+            onTap: _pickEnd,
           ),
           const Divider(),
           const Text('Local'),
