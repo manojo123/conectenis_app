@@ -1,4 +1,5 @@
 import 'package:conectenis_app/shared/models/json_parsers.dart';
+import 'package:conectenis_app/shared/models/rating_dimensions.dart';
 import 'package:conectenis_app/shared/utils/geo.dart';
 
 class Place {
@@ -13,6 +14,7 @@ class Place {
     this.distanceKm,
     this.createdAt,
     this.recentReviews = const [],
+    this.ratingDimensions,
   });
 
   final int id;
@@ -25,6 +27,7 @@ class Place {
   final double? distanceKm;
   final DateTime? createdAt;
   final List<PlaceReview> recentReviews;
+  final PlaceRatingDimensions? ratingDimensions;
 
   String get subtitle {
     if (distanceKm != null) {
@@ -45,6 +48,7 @@ class Place {
       distanceKm: distanceKmBetween(lat, lng, latitude, longitude),
       createdAt: createdAt,
       recentReviews: recentReviews,
+      ratingDimensions: ratingDimensions,
     );
   }
 
@@ -67,6 +71,9 @@ class Place {
               ?.map((e) => PlaceReview.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      ratingDimensions: PlaceRatingDimensions.fromJson(
+        json['rating_dimensions'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -91,17 +98,27 @@ class PlaceReview {
     required this.author,
     required this.comment,
     required this.stars,
+    this.courtQualityStars,
+    this.infrastructureStars,
   });
 
   final String author;
   final String comment;
   final int stars;
+  final int? courtQualityStars;
+  final int? infrastructureStars;
 
   factory PlaceReview.fromJson(Map<String, dynamic> json) {
     return PlaceReview(
       author: json['author'] as String? ?? json['user_name'] as String? ?? 'Jogador',
       comment: json['comment'] as String? ?? '',
       stars: parseJsonInt(json['stars']),
+      courtQualityStars: json['court_quality_stars'] == null
+          ? null
+          : parseJsonInt(json['court_quality_stars']),
+      infrastructureStars: json['infrastructure_stars'] == null
+          ? null
+          : parseJsonInt(json['infrastructure_stars']),
     );
   }
 }

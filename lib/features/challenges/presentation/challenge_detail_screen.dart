@@ -70,20 +70,8 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
     }
   }
 
-  Future<void> _approveResult() async {
-    setState(() => _busy = true);
-    try {
-      await ref.read(challengesRepositoryProvider).approveResult(widget.challengeId);
-      bumpChallengesRefresh(ref);
-      await _load();
-      if (mounted) {
-        AppSnackBar.showSuccess(context, 'Aprovação registrada.');
-      }
-    } catch (e) {
-      if (mounted) AppSnackBar.showDanger(context, e.toString());
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+  void _approveResult() {
+    context.push('/challenges/${widget.challengeId}/approve-evaluation');
   }
 
   Future<void> _rejectResult() async {

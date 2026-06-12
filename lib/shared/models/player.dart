@@ -1,5 +1,6 @@
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/json_parsers.dart';
+import 'package:conectenis_app/shared/models/rating_dimensions.dart';
 import 'package:conectenis_app/shared/utils/date_of_birth.dart';
 
 class Player {
@@ -23,6 +24,7 @@ class Player {
     this.averageRating,
     this.reviewsCount,
     this.recentReviews = const [],
+    this.ratingDimensions,
   });
 
   final int id;
@@ -44,6 +46,7 @@ class Player {
   final double? averageRating;
   final int? reviewsCount;
   final List<PlayerReview> recentReviews;
+  final PlayerRatingDimensions? ratingDimensions;
 
   int? get age => ageFromDateOfBirth(dateOfBirth);
 
@@ -83,6 +86,9 @@ class Player {
               ?.map((e) => PlayerReview.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      ratingDimensions: PlayerRatingDimensions.fromJson(
+        json['rating_dimensions'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -99,17 +105,32 @@ class PlayerReview {
     required this.author,
     required this.comment,
     required this.stars,
+    this.punctualityStars,
+    this.fairPlayStars,
+    this.communicationStars,
   });
 
   final String author;
   final String comment;
   final int stars;
+  final int? punctualityStars;
+  final int? fairPlayStars;
+  final int? communicationStars;
 
   factory PlayerReview.fromJson(Map<String, dynamic> json) {
     return PlayerReview(
       author: json['author'] as String? ?? '',
       comment: json['comment'] as String? ?? '',
       stars: parseJsonInt(json['stars']),
+      punctualityStars: json['punctuality_stars'] == null
+          ? null
+          : parseJsonInt(json['punctuality_stars']),
+      fairPlayStars: json['fair_play_stars'] == null
+          ? null
+          : parseJsonInt(json['fair_play_stars']),
+      communicationStars: json['communication_stars'] == null
+          ? null
+          : parseJsonInt(json['communication_stars']),
     );
   }
 }

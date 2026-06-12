@@ -9,16 +9,11 @@ import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
-import 'package:conectenis_app/shared/widgets/star_rating_input.dart';
-import 'package:conectenis_app/shared/widgets/user_avatar.dart';
+import 'package:conectenis_app/shared/widgets/opponent_rating_form.dart';
+import 'package:conectenis_app/shared/widgets/place_rating_form.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-class _OpponentRatingState {
-  int stars = 0;
-  final commentController = TextEditingController();
-}
 
 class ChallengeEvaluationScreen extends ConsumerStatefulWidget {
   const ChallengeEvaluationScreen({super.key, required this.challengeId});
@@ -36,9 +31,8 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
   bool _skipScore = false;
   final _myGames = TextEditingController();
   final _opponentGames = TextEditingController();
-  final _placeComment = TextEditingController();
-  final Map<int, _OpponentRatingState> _opponentRatings = {};
-  int _placeQuality = 0;
+  final Map<int, OpponentRatingInput> _opponentRatings = {};
+  final PlaceRatingInput _placeRating = PlaceRatingInput();
   int? _tieWinnerUserId;
   bool? _tieMyTeamWins;
   bool _submitting = false;
@@ -53,9 +47,9 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
   void dispose() {
     _myGames.dispose();
     _opponentGames.dispose();
-    _placeComment.dispose();
+    _placeRating.dispose();
     for (final state in _opponentRatings.values) {
-      state.commentController.dispose();
+      state.dispose();
     }
     super.dispose();
   }
@@ -63,7 +57,7 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
   void _initOpponentRatings(Challenge challenge, int currentUserId) {
     if (_opponentRatings.isNotEmpty) return;
     for (final id in challenge.opponentTeamUserIds(currentUserId)) {
-      _opponentRatings[id] = _OpponentRatingState();
+      _opponentRatings[id] = OpponentRatingInput();
     }
   }
 
@@ -116,6 +110,22 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
     return id == null ? 'Adversário' : (challenge.participantName(id) ?? 'Adversário');
   }
 
+  List<OpponentRatingPayload> _buildOpponentPayloads(List<int> opponents) {
+    return opponents
+        .map(
+          (id) => OpponentRatingPayload(
+            userId: id,
+            punctualityStars: _opponentRatings[id]!.punctualityStars,
+            fairPlayStars: _opponentRatings[id]!.fairPlayStars,
+            communicationStars: _opponentRatings[id]!.communicationStars,
+            comment: _opponentRatings[id]!.commentController.text.trim().isEmpty
+                ? null
+                : _opponentRatings[id]!.commentController.text.trim(),
+          ),
+        )
+        .toList();
+  }
+
   Future<void> _submit() async {
     final challenge = _challenge;
     final currentUserId = ref.read(authStateProvider).value?.id;
@@ -129,14 +139,20 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
 
     for (final id in opponents) {
       final rating = _opponentRatings[id];
-      if (rating == null || rating.stars < 1) {
-        AppSnackBar.showWarning(context, 'Avalie todos os adversários com pelo menos 1 estrela.');
+      if (rating == null || !rating.isComplete) {
+        AppSnackBar.showWarning(
+          context,
+          'Avalie pontualidade, fair play e comunicação de todos os adversários.',
+        );
         return;
       }
     }
 
-    if (challenge.place != null && _placeQuality < 1) {
-      AppSnackBar.showWarning(context, 'Avalie o local com pelo menos 1 estrela.');
+    if (challenge.place != null && !_placeRating.isComplete) {
+      AppSnackBar.showWarning(
+        context,
+        'Avalie a qualidade da quadra e a infraestrutura do local.',
+      );
       return;
     }
 
@@ -193,17 +209,8 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
       }
     }
 
-    final opponentPayloads = opponents
-        .map(
-          (id) => OpponentRatingPayload(
-            userId: id,
-            punctualityStars: _opponentRatings[id]!.stars,
-            comment: _opponentRatings[id]!.commentController.text.trim().isEmpty
-                ? null
-                : _opponentRatings[id]!.commentController.text.trim(),
-          ),
-        )
-        .toList();
+    final opponentPayloads = _buildOpponentPayloads(opponents);
+    final placeComment = _placeRating.commentController.text.trim();
 
     setState(() => _submitting = true);
     try {
@@ -218,9 +225,15 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
             opponentRatings: opponentPayloads,
             opponentPunctualityStars:
                 !_isDoubles ? opponentPayloads.first.punctualityStars : null,
+            opponentFairPlayStars: !_isDoubles ? opponentPayloads.first.fairPlayStars : null,
+            opponentCommunicationStars:
+                !_isDoubles ? opponentPayloads.first.communicationStars : null,
             opponentComment: !_isDoubles ? opponentPayloads.first.comment : null,
-            placeQualityStars: challenge.place != null ? _placeQuality : null,
-            placeComment: _placeComment.text.trim().isEmpty ? null : _placeComment.text.trim(),
+            courtQualityStars:
+                challenge.place != null ? _placeRating.courtQualityStars : null,
+            infrastructureStars:
+                challenge.place != null ? _placeRating.infrastructureStars : null,
+            placeComment: placeComment.isEmpty ? null : placeComment,
           );
       if (!mounted) return;
       bumpChallengesRefresh(ref);
@@ -242,53 +255,6 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
-  }
-
-  Widget _buildOpponentRatingCard(Challenge challenge, int opponentId) {
-    final rating = _opponentRatings[opponentId] ??= _OpponentRatingState();
-    final player = challenge.participantPlayer(opponentId);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                UserAvatar(
-                  name: player?.name ?? '',
-                  avatarUrl: player?.avatarUrl,
-                  radius: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    player?.name ?? 'Jogador',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text('Pontualidade e conduta'),
-            StarRatingInput(
-              value: rating.stars,
-              onChanged: (v) => setState(() => rating.stars = v),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: rating.commentController,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Comentário (opcional)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -404,22 +370,19 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: 8),
-          ...opponents.map((id) => _buildOpponentRatingCard(challenge, id)),
+          ...opponents.map(
+            (id) => OpponentRatingForm(
+              player: challenge.participantPlayer(id),
+              rating: _opponentRatings[id] ??= OpponentRatingInput(),
+              onChanged: () => setState(() {}),
+            ),
+          ),
           if (challenge.place != null) ...[
             const SizedBox(height: 12),
-            Text('AVALIAR LOCAL', style: Theme.of(context).textTheme.titleSmall),
-            Text(challenge.place!.name),
-            const SizedBox(height: 8),
-            const Text('Qualidade da quadra / local'),
-            StarRatingInput(value: _placeQuality, onChanged: (v) => setState(() => _placeQuality = v)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _placeComment,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Comentário sobre o local (opcional)',
-                border: OutlineInputBorder(),
-              ),
+            PlaceRatingForm(
+              placeName: challenge.place!.name,
+              rating: _placeRating,
+              onChanged: () => setState(() {}),
             ),
           ],
           const SizedBox(height: 32),

@@ -30,12 +30,16 @@ class OpponentResultRating {
     required this.userId,
     required this.userName,
     required this.punctualityStars,
+    this.fairPlayStars,
+    this.communicationStars,
     this.comment,
   });
 
   final int userId;
   final String userName;
   final int punctualityStars;
+  final int? fairPlayStars;
+  final int? communicationStars;
   final String? comment;
 
   factory OpponentResultRating.fromJson(Map<String, dynamic> json) {
@@ -43,6 +47,12 @@ class OpponentResultRating {
       userId: parseJsonInt(json['user_id']),
       userName: json['user_name'] as String? ?? json['name'] as String? ?? '',
       punctualityStars: parseJsonInt(json['punctuality_stars'] ?? json['stars']),
+      fairPlayStars: json['fair_play_stars'] == null
+          ? null
+          : parseJsonInt(json['fair_play_stars']),
+      communicationStars: json['communication_stars'] == null
+          ? null
+          : parseJsonInt(json['communication_stars']),
       comment: json['comment'] as String?,
     );
   }
@@ -66,6 +76,8 @@ class ChallengeResult {
     this.opponentComment,
     this.opponentRatings = const [],
     this.placeQualityStars,
+    this.courtQualityStars,
+    this.infrastructureStars,
     this.placeComment,
     this.proposedAt,
     this.autoAcceptAt,
@@ -86,6 +98,8 @@ class ChallengeResult {
   final String? opponentComment;
   final List<OpponentResultRating> opponentRatings;
   final int? placeQualityStars;
+  final int? courtQualityStars;
+  final int? infrastructureStars;
   final String? placeComment;
   final DateTime? proposedAt;
   final DateTime? autoAcceptAt;
@@ -131,6 +145,8 @@ class ChallengeResult {
               .toList() ??
           const [],
       placeQualityStars: json['place_quality_stars'] as int?,
+      courtQualityStars: json['court_quality_stars'] as int?,
+      infrastructureStars: json['infrastructure_stars'] as int?,
       placeComment: json['place_comment'] as String?,
       proposedAt: json['proposed_at'] == null
           ? null

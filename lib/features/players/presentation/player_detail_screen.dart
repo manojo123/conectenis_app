@@ -35,6 +35,7 @@ class PlayerDetailScreen extends ConsumerWidget {
         }
 
         final heroTag = 'player-avatar-${player.id}';
+        final dims = player.ratingDimensions;
 
         return Scaffold(
           appBar: AppBar(title: Text(player.name)),
@@ -81,14 +82,39 @@ class PlayerDetailScreen extends ConsumerWidget {
                 _InfoRow('Desafios vencidos', '${player.challengesWon}'),
               if (player.averageRating != null)
                 _InfoRow('Avaliação', '${player.averageRating} (${player.reviewsCount ?? 0})'),
-              ...player.recentReviews.map(
-                (r) => ListTile(
-                  dense: true,
-                  title: Text(r.author),
-                  subtitle: Text(r.comment),
-                  trailing: Text('★' * r.stars),
+              if (dims != null) ...[
+                if (dims.punctuality != null)
+                  _InfoRow('Pontualidade', dims.punctuality!.toStringAsFixed(1)),
+                if (dims.fairPlay != null)
+                  _InfoRow('Fair Play', dims.fairPlay!.toStringAsFixed(1)),
+                if (dims.communication != null)
+                  _InfoRow('Comunicação', dims.communication!.toStringAsFixed(1)),
+              ],
+              if (player.recentReviews.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('Comentários da comunidade', style: Theme.of(context).textTheme.titleSmall),
+                ...player.recentReviews.map(
+                  (r) => Card(
+                    margin: const EdgeInsets.only(top: 8),
+                    child: ListTile(
+                      title: Text(r.author),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (r.punctualityStars != null)
+                            Text('Pontualidade: ${'★' * r.punctualityStars!}'),
+                          if (r.fairPlayStars != null)
+                            Text('Fair Play: ${'★' * r.fairPlayStars!}'),
+                          if (r.communicationStars != null)
+                            Text('Comunicação: ${'★' * r.communicationStars!}'),
+                          if (r.comment.isNotEmpty) Text(r.comment),
+                        ],
+                      ),
+                      trailing: Text('★' * r.stars),
+                    ),
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: 24),
               LimeButton(
                 label: 'Desafiar',

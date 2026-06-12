@@ -11,6 +11,7 @@ import 'package:conectenis_app/features/auth/presentation/register_screen.dart';
 import 'package:conectenis_app/features/auth/presentation/reset_password_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/challenges/presentation/challenge_detail_screen.dart';
+import 'package:conectenis_app/features/challenges/presentation/challenge_approve_evaluation_screen.dart';
 import 'package:conectenis_app/features/challenges/presentation/challenge_evaluation_screen.dart';
 import 'package:conectenis_app/features/challenges/presentation/challenges_wall_screen.dart';
 import 'package:conectenis_app/features/challenges/presentation/create_direct_challenge_screen.dart';
@@ -150,6 +151,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/challenges/:id/evaluation',
         builder: (_, state) => ChallengeEvaluationScreen(
+          challengeId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/challenges/:id/approve-evaluation',
+        builder: (_, state) => ChallengeApproveEvaluationScreen(
           challengeId: int.parse(state.pathParameters['id']!),
         ),
       ),

@@ -35,6 +35,9 @@ class Challenge {
     this.declinedReason,
     this.cancelledReason,
     this.closedReason,
+    this.distanceKm,
+    this.canApply = false,
+    this.hasApplied = false,
   });
 
   final int id;
@@ -65,6 +68,9 @@ class Challenge {
   final String? declinedReason;
   final String? cancelledReason;
   final String? closedReason;
+  final double? distanceKm;
+  final bool canApply;
+  final bool hasApplied;
 
   String get displayStatusLabel => challengeDisplayStatusLabel(
         status: status,
@@ -226,6 +232,9 @@ class Challenge {
     String? declinedReason,
     String? cancelledReason,
     String? closedReason,
+    double? distanceKm,
+    bool? canApply,
+    bool? hasApplied,
   }) {
     return Challenge(
       id: id,
@@ -256,6 +265,9 @@ class Challenge {
       declinedReason: declinedReason ?? this.declinedReason,
       cancelledReason: cancelledReason ?? this.cancelledReason,
       closedReason: closedReason ?? this.closedReason,
+      distanceKm: distanceKm ?? this.distanceKm,
+      canApply: canApply ?? this.canApply,
+      hasApplied: hasApplied ?? this.hasApplied,
     );
   }
 
@@ -299,6 +311,11 @@ class Challenge {
       declinedReason: json['declined_reason'] as String?,
       cancelledReason: json['cancelled_reason'] as String?,
       closedReason: json['closed_reason'] as String?,
+      distanceKm: json['distance_km'] == null
+          ? null
+          : parseJsonDouble(json['distance_km']),
+      canApply: json['can_apply'] == true,
+      hasApplied: json['has_applied'] == true,
     );
   }
 
@@ -344,16 +361,22 @@ class OpponentRatingPayload {
   const OpponentRatingPayload({
     required this.userId,
     required this.punctualityStars,
+    required this.fairPlayStars,
+    required this.communicationStars,
     this.comment,
   });
 
   final int userId;
   final int punctualityStars;
+  final int fairPlayStars;
+  final int communicationStars;
   final String? comment;
 
   Map<String, dynamic> toJson() => {
         'user_id': userId,
         'punctuality_stars': punctualityStars,
+        'fair_play_stars': fairPlayStars,
+        'communication_stars': communicationStars,
         if (comment != null && comment!.isNotEmpty) 'comment': comment,
       };
 }

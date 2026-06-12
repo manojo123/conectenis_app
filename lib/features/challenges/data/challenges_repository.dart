@@ -22,14 +22,40 @@ class ChallengesRepository {
   final Dio _dio;
   final MockApiService _mock;
 
-  Future<List<Challenge>> list(ChallengeListRole role) {
+  Future<List<Challenge>> list(
+    ChallengeListRole role, {
+    Set<ChallengeStatus>? statuses,
+    DateTime? scheduledFrom,
+    DateTime? scheduledTo,
+    bool includeHistory = false,
+    ChallengeListSort sort = ChallengeListSort.priority,
+    int? radiusKm,
+  }) {
     return _guard(() async {
       if (Env.useMockApi) {
-        return _mock.challenges(role: role);
+        return _mock.challenges(
+          role: role,
+          statuses: statuses,
+          scheduledFrom: scheduledFrom,
+          scheduledTo: scheduledTo,
+          includeHistory: includeHistory,
+          sort: sort,
+          radiusKm: radiusKm,
+        );
       }
+      final params = <String, dynamic>{
+        'role': role.value,
+        'include_history': includeHistory,
+        'sort': sort.value,
+        if (statuses != null && statuses.isNotEmpty)
+          'status': statuses.map((s) => s.value).toList(),
+        if (scheduledFrom != null) 'scheduled_from': scheduledFrom.toIso8601String(),
+        if (scheduledTo != null) 'scheduled_to': scheduledTo.toIso8601String(),
+        if (radiusKm != null) 'radius_km': radiusKm,
+      };
       final response = await _dio.get<List<dynamic>>(
         '/challenges',
-        queryParameters: {'role': role.value},
+        queryParameters: params,
       );
       return (response.data ?? [])
           .map((e) => Challenge.fromJson(e as Map<String, dynamic>))
@@ -215,7 +241,11 @@ class ChallengesRepository {
     List<int>? winnerTeam,
     List<OpponentRatingPayload>? opponentRatings,
     int? opponentPunctualityStars,
+    int? opponentFairPlayStars,
+    int? opponentCommunicationStars,
     String? opponentComment,
+    int? courtQualityStars,
+    int? infrastructureStars,
     int? placeQualityStars,
     String? placeComment,
   }) {
@@ -231,7 +261,11 @@ class ChallengesRepository {
           winnerTeam: winnerTeam,
           opponentRatings: opponentRatings,
           opponentPunctualityStars: opponentPunctualityStars,
+          opponentFairPlayStars: opponentFairPlayStars,
+          opponentCommunicationStars: opponentCommunicationStars,
           opponentComment: opponentComment,
+          courtQualityStars: courtQualityStars,
+          infrastructureStars: infrastructureStars,
           placeQualityStars: placeQualityStars,
           placeComment: placeComment,
         );
@@ -254,10 +288,14 @@ class ChallengesRepository {
               'opponent_ratings': opponentRatings.map((e) => e.toJson()).toList()
             else ...{
               'opponent_punctuality_stars': opponentPunctualityStars,
+              'opponent_fair_play_stars': opponentFairPlayStars,
+              'opponent_communication_stars': opponentCommunicationStars,
               if (opponentComment != null && opponentComment.isNotEmpty)
                 'opponent_comment': opponentComment,
             },
-            'place_quality_stars': ?placeQualityStars,
+            if (courtQualityStars != null) 'court_quality_stars': courtQualityStars,
+            if (infrastructureStars != null) 'infrastructure_stars': infrastructureStars,
+            'place_quality_stars': ?placeQualityStars ?? courtQualityStars,
             if (placeComment != null && placeComment.isNotEmpty) 'place_comment': placeComment,
           },
         );
@@ -293,10 +331,33 @@ class ChallengesRepository {
     });
   }
 
-  Future<Challenge> approveResult(int id) {
+  Future<Challenge> approveResult(
+    int id, {
+    List<OpponentRatingPayload>? opponentRatings,
+    int? courtQualityStars,
+    int? infrastructureStars,
+    String? placeComment,
+  }) {
     return _guard(() async {
-      if (Env.useMockApi) return _mock.approveChallengeResult(id);
-      final response = await _dio.post<Map<String, dynamic>>('/challenges/$id/result/approve');
+      if (Env.useMockApi) {
+        return _mock.approveChallengeResult(
+          id,
+          opponentRatings: opponentRatings,
+          courtQualityStars: courtQualityStars,
+          infrastructureStars: infrastructureStars,
+          placeComment: placeComment,
+        );
+      }
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/challenges/$id/result/approve',
+        data: {
+          if (opponentRatings != null && opponentRatings.isNotEmpty)
+            'opponent_ratings': opponentRatings.map((e) => e.toJson()).toList(),
+          if (courtQualityStars != null) 'court_quality_stars': courtQualityStars,
+          if (infrastructureStars != null) 'infrastructure_stars': infrastructureStars,
+          if (placeComment != null && placeComment.isNotEmpty) 'place_comment': placeComment,
+        },
+      );
       final data = response.data;
       if (data != null && data.containsKey('id')) {
         return Challenge.fromJson(data);

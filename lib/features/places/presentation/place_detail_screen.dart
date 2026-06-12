@@ -166,6 +166,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     }
 
     final place = _place!;
+    final placeDims = place.ratingDimensions;
 
     return Scaffold(
       appBar: AppBar(
@@ -245,6 +246,20 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
               onPressed: _busy || _rateStars < 1 ? null : _rate,
               child: const Text('Enviar avaliação'),
             ),
+            if (placeDims != null) ...[
+              if (placeDims.courtQuality != null)
+                ListTile(
+                  dense: true,
+                  title: const Text('Qualidade da quadra (média)'),
+                  trailing: Text(placeDims.courtQuality!.toStringAsFixed(1)),
+                ),
+              if (placeDims.infrastructure != null)
+                ListTile(
+                  dense: true,
+                  title: const Text('Infraestrutura (média)'),
+                  trailing: Text(placeDims.infrastructure!.toStringAsFixed(1)),
+                ),
+            ],
             if (place.recentReviews.isNotEmpty) ...[
               const Divider(height: 32),
               Text('Comentários', style: Theme.of(context).textTheme.titleSmall),
@@ -254,7 +269,18 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     title: Text(review.author),
-                    subtitle: Text(review.comment.isEmpty ? '(sem comentário)' : review.comment),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (review.courtQualityStars != null)
+                          Text('Quadra: ${'★' * review.courtQualityStars!}'),
+                        if (review.infrastructureStars != null)
+                          Text('Infraestrutura: ${'★' * review.infrastructureStars!}'),
+                        Text(
+                          review.comment.isEmpty ? '(sem comentário)' : review.comment,
+                        ),
+                      ],
+                    ),
                     trailing: Text('★' * review.stars),
                   ),
                 ),

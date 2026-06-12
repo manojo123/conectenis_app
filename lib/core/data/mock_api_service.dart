@@ -1,3 +1,4 @@
+import 'package:conectenis_app/features/challenges/utils/challenge_wall_utils.dart';
 import 'package:conectenis_app/features/home/models/dashboard_matchmaking.dart';
 import 'package:conectenis_app/features/home/models/dashboard_stats.dart';
 import 'package:conectenis_app/features/chat/data/delete_message_scope.dart';
@@ -429,6 +430,12 @@ class MockApiService {
 
   Future<List<Challenge>> challenges({
     required ChallengeListRole role,
+    Set<ChallengeStatus>? statuses,
+    DateTime? scheduledFrom,
+    DateTime? scheduledTo,
+    bool includeHistory = false,
+    ChallengeListSort sort = ChallengeListSort.priority,
+    int? radiusKm,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final seed = MockData.challenges(role: role);
@@ -440,31 +447,71 @@ class MockApiService {
     final ids = <int>{};
     var merged = <Challenge>[];
     for (final c in [...extra, ...seed]) {
-      if (ids.add(c.id)) merged.add(c);
+      if (ids.add(c.id)) merged.add(_enrichChallengeForCurrentUser(c));
     }
     if (role == ChallengeListRole.publicNearby) {
-      merged = _availablePublicChallengesForUser(merged);
+      merged = _availablePublicChallengesForUser(merged, radiusKm: radiusKm);
+    }
+    if (!includeHistory) {
+      merged = merged
+          .where((c) => !challengeHistoryStatuses.contains(c.status))
+          .toList();
+    }
+    if (statuses != null && statuses.isNotEmpty) {
+      merged = merged.where((c) => statuses.contains(c.status)).toList();
+    }
+    if (scheduledFrom != null || scheduledTo != null) {
+      merged = merged.where((c) {
+        if (scheduledFrom != null && c.scheduledStart.isBefore(scheduledFrom)) {
+          return false;
+        }
+        if (scheduledTo != null) {
+          final end = DateTime(scheduledTo.year, scheduledTo.month, scheduledTo.day, 23, 59, 59);
+          if (c.scheduledStart.isAfter(end)) return false;
+        }
+        return true;
+      }).toList();
+    }
+    if (sort == ChallengeListSort.priority) {
+      merged = sortChallengesByPriority(merged);
     }
     return merged;
   }
 
-  List<Challenge> _availablePublicChallengesForUser(List<Challenge> items) {
+  List<Challenge> _availablePublicChallengesForUser(
+    List<Challenge> items, {
+    int? radiusKm,
+  }) {
     const userId = MockData.currentUserId;
     const userNtrp = 3.5;
+    final maxRadius = (radiusKm ?? 50).toDouble();
 
-    return items.where((challenge) {
-      if (challenge.type != ChallengeType.public) return false;
-      if (challenge.creator.id == userId) return false;
-      if (challenge.status != ChallengeStatus.pendingCandidates) return false;
-      if (challenge.participants.any((p) => p.user.id == userId)) return false;
+    return items
+        .where((challenge) {
+          if (challenge.type != ChallengeType.public) return false;
+          if (challenge.creator.id == userId) return false;
+          if (challenge.status != ChallengeStatus.pendingCandidates) return false;
 
-      final min = challenge.minNtrp;
-      final max = challenge.maxNtrp;
-      if (min != null && userNtrp < min) return false;
-      if (max != null && userNtrp > max) return false;
+          final min = challenge.minNtrp;
+          final max = challenge.maxNtrp;
+          if (min != null && userNtrp < min) return false;
+          if (max != null && userNtrp > max) return false;
 
-      return true;
-    }).toList();
+          return true;
+        })
+        .map((challenge) {
+          final hasApplied = challenge.participants.any(
+            (p) => p.user.id == userId && p.role == 'candidate',
+          );
+          final distance = challenge.distanceKm ?? 12.0 + (challenge.id % 30);
+          return challenge.copyWith(
+            distanceKm: distance,
+            canApply: !hasApplied && distance <= maxRadius,
+            hasApplied: hasApplied,
+          );
+        })
+        .where((c) => (c.distanceKm ?? 0) <= maxRadius)
+        .toList();
   }
 
   Future<Challenge> challengeById(int id) async {
@@ -837,7 +884,11 @@ class MockApiService {
     List<int>? winnerTeam,
     List<OpponentRatingPayload>? opponentRatings,
     int? opponentPunctualityStars,
+    int? opponentFairPlayStars,
+    int? opponentCommunicationStars,
     String? opponentComment,
+    int? courtQualityStars,
+    int? infrastructureStars,
     int? placeQualityStars,
     String? placeComment,
   }) async {
@@ -882,6 +933,8 @@ class MockApiService {
                 userId: r.userId,
                 userName: old.participantName(r.userId) ?? 'Jogador',
                 punctualityStars: r.punctualityStars,
+                fairPlayStars: r.fairPlayStars,
+                communicationStars: r.communicationStars,
                 comment: r.comment,
               ),
             )
@@ -903,7 +956,9 @@ class MockApiService {
       opponentPunctualityStars: opponentPunctualityStars,
       opponentComment: opponentComment,
       opponentRatings: ratings,
-      placeQualityStars: placeQualityStars,
+      placeQualityStars: placeQualityStars ?? courtQualityStars,
+      courtQualityStars: courtQualityStars ?? placeQualityStars,
+      infrastructureStars: infrastructureStars,
       placeComment: placeComment,
       proposedAt: DateTime.now(),
       autoAcceptAt: DateTime.now().add(const Duration(hours: 24)),
@@ -918,7 +973,13 @@ class MockApiService {
     return _enrichChallengeForCurrentUser(updated);
   }
 
-  Future<Challenge> approveChallengeResult(int id) async {
+  Future<Challenge> approveChallengeResult(
+    int id, {
+    List<OpponentRatingPayload>? opponentRatings,
+    int? courtQualityStars,
+    int? infrastructureStars,
+    String? placeComment,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
     final idx = _challenges.indexWhere((c) => c.id == id);
     if (idx < 0) return challengeById(id);
@@ -960,8 +1021,10 @@ class MockApiService {
       opponentPunctualityStars: result.opponentPunctualityStars,
       opponentComment: result.opponentComment,
       opponentRatings: result.opponentRatings,
-      placeQualityStars: result.placeQualityStars,
-      placeComment: result.placeComment,
+      placeQualityStars: result.placeQualityStars ?? courtQualityStars,
+      courtQualityStars: courtQualityStars ?? result.courtQualityStars,
+      infrastructureStars: infrastructureStars ?? result.infrastructureStars,
+      placeComment: placeComment ?? result.placeComment,
       proposedAt: result.proposedAt,
       autoAcceptAt: result.autoAcceptAt,
     );

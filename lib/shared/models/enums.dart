@@ -96,6 +96,14 @@ enum ChallengeListRole {
   final String label;
 }
 
+enum ChallengeListSort {
+  priority('priority'),
+  scheduledStart('scheduled_start');
+
+  const ChallengeListSort(this.value);
+  final String value;
+}
+
 enum PlayInvitationStatus {
   pending('pending', 'Pendente'),
   accepted('accepted', 'Aceito'),
@@ -170,4 +178,32 @@ enum RankingScope {
   const RankingScope(this.value, this.label);
   final String value;
   final String label;
+}
+
+enum RankingGeoScope {
+  country('country', 'Brasil'),
+  state('state', 'Estado'),
+  city('city', 'Cidade');
+
+  const RankingGeoScope(this.value, this.label);
+  final String value;
+  final String label;
+}
+
+enum RankingGenderFilter {
+  all('all', 'Todos'),
+  male('male', 'Masculino'),
+  female('female', 'Feminino');
+
+  const RankingGenderFilter(this.value, this.label);
+  final String value;
+  final String label;
+
+  static RankingGenderFilter fromUserGender(Gender? gender) {
+    return switch (gender) {
+      Gender.male => RankingGenderFilter.male,
+      Gender.female => RankingGenderFilter.female,
+      _ => RankingGenderFilter.all,
+    };
+  }
 }

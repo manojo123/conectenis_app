@@ -37,6 +37,23 @@ class _ChallengeResultSectionState extends State<ChallengeResultSection> {
     super.dispose();
   }
 
+  Widget _buildOpponentRatingDisplay(OpponentResultRating r) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(r.userName, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text('Pontualidade: ${'★' * r.punctualityStars}'),
+          if (r.fairPlayStars != null) Text('Fair Play: ${'★' * r.fairPlayStars!}'),
+          if (r.communicationStars != null)
+            Text('Comunicação: ${'★' * r.communicationStars!}'),
+          if (r.comment != null && r.comment!.isNotEmpty) Text(r.comment!),
+        ],
+      ),
+    );
+  }
+
   String? _autoAcceptLabel(ChallengeResult result) {
     final remaining = result.timeUntilAutoAccept(DateTime.now());
     if (remaining == null) return null;
@@ -102,27 +119,25 @@ class _ChallengeResultSectionState extends State<ChallengeResultSection> {
             if (result.opponentRatings.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text('Avaliações dos adversários', style: Theme.of(context).textTheme.titleSmall),
-              ...result.opponentRatings.map(
-                (r) => Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${r.userName}: ${'★' * r.punctualityStars}'),
-                      if (r.comment != null && r.comment!.isNotEmpty) Text(r.comment!),
-                    ],
-                  ),
-                ),
-              ),
+              ...result.opponentRatings.map(_buildOpponentRatingDisplay),
             ] else if (result.opponentPunctualityStars != null) ...[
               const SizedBox(height: 8),
-              Text('Avaliação do adversário: ${'★' * result.opponentPunctualityStars!}'),
+              Text('Avaliação do adversário', style: Theme.of(context).textTheme.titleSmall),
+              Text('Pontualidade: ${'★' * result.opponentPunctualityStars!}'),
               if (result.opponentComment != null && result.opponentComment!.isNotEmpty)
                 Text(result.opponentComment!),
             ],
-            if (result.placeQualityStars != null) ...[
+            if (result.courtQualityStars != null ||
+                result.infrastructureStars != null ||
+                result.placeQualityStars != null) ...[
               const SizedBox(height: 8),
-              Text('Avaliação do local: ${'★' * result.placeQualityStars!}'),
+              Text('Avaliação do local', style: Theme.of(context).textTheme.titleSmall),
+              if (result.courtQualityStars != null)
+                Text('Qualidade da quadra: ${'★' * result.courtQualityStars!}')
+              else if (result.placeQualityStars != null)
+                Text('Qualidade da quadra: ${'★' * result.placeQualityStars!}'),
+              if (result.infrastructureStars != null)
+                Text('Infraestrutura: ${'★' * result.infrastructureStars!}'),
               if (result.placeComment != null && result.placeComment!.isNotEmpty)
                 Text(result.placeComment!),
             ],
