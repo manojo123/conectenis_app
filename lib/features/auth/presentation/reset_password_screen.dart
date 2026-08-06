@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_symbols_icons/symbols.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
+import 'package:conectenis_app/shared/widgets/app_toast.dart';
+import 'package:conectenis_app/shared/widgets/lime_button.dart';
+import 'package:conectenis_app/shared/widgets/screen_header.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   const ResetPasswordScreen({
@@ -23,6 +28,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _password = TextEditingController();
   final _passwordConfirmation = TextEditingController();
   bool _loading = false;
+  bool _obscure = true;
 
   @override
   void dispose() {
@@ -34,11 +40,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (widget.token.isEmpty || widget.email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Link inválido. Solicite um novo link de redefinição.'),
-        ),
-      );
+      showToast(context, 'Link inválido. Solicite um novo link de redefinição.');
       return;
     }
 
@@ -52,68 +54,93 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             passwordConfirmation: _passwordConfirmation.text,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      showToast(context, message);
       context.go('/login');
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authErrorMessage(e))),
-      );
+      showToast(context, authErrorMessage(e));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova senha')),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Defina uma nova senha para ${widget.email}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: _password,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Nova senha'),
-                  validator: (v) =>
-                      v == null || v.length < 8 ? 'Mínimo 8 caracteres' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordConfirmation,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Confirmar senha'),
-                  validator: (v) {
-                    if (v == null || v.length < 8) {
-                      return 'Mínimo 8 caracteres';
-                    }
-                    if (v != _password.text) return 'As senhas não coincidem';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  child: _loading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Redefinir senha'),
-                ),
-              ],
+        child: Column(
+          children: [
+            ScreenHeader(
+              title: 'Nova senha',
+              onBack: () => context.go('/login'),
             ),
-          ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Defina uma nova senha para ${widget.email}',
+                        style:
+                            TextStyle(fontSize: 14, color: t.muted, height: 1.5),
+                      ),
+                      const SizedBox(height: 22),
+                      TextFormField(
+                        controller: _password,
+                        obscureText: _obscure,
+                        decoration: InputDecoration(
+                          hintText: 'Nova senha',
+                          prefixIcon:
+                              const Icon(Symbols.lock_rounded, size: 20),
+                          suffixIcon: IconButton(
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                            icon: Icon(
+                              _obscure
+                                  ? Symbols.visibility_rounded
+                                  : Symbols.visibility_off_rounded,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        validator: (v) => v == null || v.length < 8
+                            ? 'Mínimo 8 caracteres'
+                            : null,
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _passwordConfirmation,
+                        obscureText: _obscure,
+                        decoration: const InputDecoration(
+                          hintText: 'Confirmar senha',
+                          prefixIcon: Icon(Symbols.lock_rounded, size: 20),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.length < 8) {
+                            return 'Mínimo 8 caracteres';
+                          }
+                          if (v != _password.text) {
+                            return 'As senhas não coincidem';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 22),
+                      LimeButton(
+                        label: 'Redefinir senha',
+                        glow: true,
+                        loading: _loading,
+                        onPressed: _loading ? null : _submit,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

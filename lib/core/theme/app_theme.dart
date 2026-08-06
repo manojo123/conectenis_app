@@ -99,7 +99,11 @@ abstract final class AppTheme {
         filled: true,
         fillColor: surfaceRaised,
         labelStyle: TextStyle(color: textMuted),
-        hintStyle: TextStyle(color: textMuted),
+        hintStyle: TextStyle(color: textMuted, fontSize: 15),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+        prefixIconColor: textMuted,
+        suffixIconColor: textMuted,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
           borderSide: BorderSide(color: border),

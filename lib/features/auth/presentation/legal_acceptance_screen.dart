@@ -1,11 +1,15 @@
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/presentation/widgets/legal_links_text.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/auth/providers/legal_info_provider.dart';
+import 'package:conectenis_app/shared/widgets/app_card.dart';
+import 'package:conectenis_app/shared/widgets/app_toast.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 class LegalAcceptanceScreen extends ConsumerStatefulWidget {
   const LegalAcceptanceScreen({super.key});
@@ -20,9 +24,8 @@ class _LegalAcceptanceScreenState extends ConsumerState<LegalAcceptanceScreen> {
 
   Future<void> _submit() async {
     if (!_accepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aceite os Termos e a Política de Privacidade para continuar')),
-      );
+      showToast(
+          context, 'Aceite os Termos e a Política de Privacidade para continuar');
       return;
     }
 
@@ -30,15 +33,12 @@ class _LegalAcceptanceScreenState extends ConsumerState<LegalAcceptanceScreen> {
     try {
       await ref.read(authStateProvider.notifier).acceptLegalTerms();
       if (mounted && ref.read(authStateProvider).hasError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authErrorMessage(ref.read(authStateProvider).error!))),
-        );
+        showToast(
+            context, authErrorMessage(ref.read(authStateProvider).error!));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authErrorMessage(e))),
-        );
+        showToast(context, authErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -50,27 +50,28 @@ class _LegalAcceptanceScreenState extends ConsumerState<LegalAcceptanceScreen> {
     final legalAsync = ref.watch(legalInfoProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Termos e Privacidade')),
-      body: legalAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) {
-          final fallback = LegalInfo.fromEnv();
-          return _Body(
-            termsUrl: fallback.termsUrl,
-            privacyUrl: fallback.privacyUrl,
+      body: SafeArea(
+        child: legalAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) {
+            final fallback = LegalInfo.fromEnv();
+            return _Body(
+              termsUrl: fallback.termsUrl,
+              privacyUrl: fallback.privacyUrl,
+              accepted: _accepted,
+              submitting: _submitting,
+              onAcceptedChanged: (v) => setState(() => _accepted = v),
+              onSubmit: _submit,
+            );
+          },
+          data: (legal) => _Body(
+            termsUrl: legal.termsUrl,
+            privacyUrl: legal.privacyUrl,
             accepted: _accepted,
             submitting: _submitting,
             onAcceptedChanged: (v) => setState(() => _accepted = v),
             onSubmit: _submit,
-          );
-        },
-        data: (legal) => _Body(
-          termsUrl: legal.termsUrl,
-          privacyUrl: legal.privacyUrl,
-          accepted: _accepted,
-          submitting: _submitting,
-          onAcceptedChanged: (v) => setState(() => _accepted = v),
-          onSubmit: _submit,
+          ),
         ),
       ),
     );
@@ -96,24 +97,63 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     return ListView(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
+      padding: EdgeInsets.fromLTRB(24, 30, 24, screenBottomInset(context) + 24),
       children: [
+        Container(
+          width: 64,
+          height: 64,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: t.tintAcc,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Icon(Symbols.shield_rounded, size: 32, color: t.accentText),
+        ),
+        const SizedBox(height: 18),
         Text(
-          'Conformidade LGPD',
-          style: Theme.of(context).textTheme.titleLarge,
+          'Termos e Privacidade',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
+            color: t.text,
+          ),
         ),
-        const SizedBox(height: 12),
-        const Text(
-          'Para usar o ConecTenis, é necessário aceitar os Termos de Uso e a Política de Privacidade. '
-          'O aplicativo utiliza geolocalização para matchmaking regional — detalhes estão na política.',
+        const SizedBox(height: 8),
+        Text(
+          'Para usar o ConecTênis, é necessário aceitar os Termos de Uso e a Política de Privacidade.',
+          style: TextStyle(fontSize: 14, color: t.muted, height: 1.5),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
+        AppCard(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Symbols.location_on_rounded,
+                  size: 22, color: t.accentText),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'O aplicativo utiliza geolocalização para matchmaking regional. '
+                  'Sua localização exata nunca é exibida a outros jogadores — detalhes na política.',
+                  style:
+                      TextStyle(fontSize: 13, color: t.muted, height: 1.55),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Checkbox(
               value: accepted,
+              activeColor: t.accent,
+              checkColor: t.onAccent,
               onChanged: submitting ? null : (v) => onAcceptedChanged(v ?? false),
             ),
             Expanded(
@@ -127,7 +167,7 @@ class _Body extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
         LimeButton(
           label: 'Continuar',
           loading: submitting,

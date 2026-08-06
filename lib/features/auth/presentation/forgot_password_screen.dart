@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
+import 'package:conectenis_app/shared/widgets/app_toast.dart';
+import 'package:conectenis_app/shared/widgets/lime_button.dart';
+import 'package:conectenis_app/shared/widgets/screen_header.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -42,71 +47,99 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authErrorMessage(e))),
-      );
+      showToast(context, authErrorMessage(e));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     return Scaffold(
-      appBar: AppBar(title: const Text('Esqueci minha senha')),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Informe seu e-mail. Se existir uma conta, enviaremos um link para redefinir a senha.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+        child: Column(
+          children: [
+            const ScreenHeader(title: 'Esqueci a senha'),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_successMessage != null) ...[
+                        const SizedBox(height: 26),
+                        Container(
+                          width: 72,
+                          height: 72,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: t.tintSucc,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Icon(Symbols.mark_email_read_rounded,
+                              size: 34, color: t.success),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          _successMessage!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 14.5, color: t.text, height: 1.5),
+                        ),
+                        const SizedBox(height: 26),
+                        LimeButton(
+                          label: 'Voltar ao login',
+                          outlined: true,
+                          onPressed: () => context.go('/login'),
+                        ),
+                      ] else ...[
+                        Text(
+                          'Informe seu e-mail. Se existir uma conta, enviaremos um link para redefinir a senha.',
+                          style: TextStyle(
+                              fontSize: 14, color: t.muted, height: 1.5),
+                        ),
+                        const SizedBox(height: 22),
+                        TextFormField(
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            hintText: 'E-mail',
+                            prefixIcon: Icon(Symbols.mail_rounded, size: 20),
+                          ),
+                          validator: (v) => v == null || !v.contains('@')
+                              ? 'E-mail inválido'
+                              : null,
+                        ),
+                        const SizedBox(height: 22),
+                        LimeButton(
+                          label: 'Enviar link',
+                          glow: true,
+                          loading: _loading,
+                          onPressed: _loading ? null : _submit,
+                        ),
+                        const SizedBox(height: 14),
+                        Center(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => context.go('/login'),
+                            child: Text(
+                              'Voltar ao login',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: t.accentText,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 24),
-                if (_successMessage != null) ...[
-                  Icon(Icons.mark_email_read_outlined,
-                      size: 48, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(height: 16),
-                  Text(
-                    _successMessage!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 24),
-                  OutlinedButton(
-                    onPressed: () => context.go('/login'),
-                    child: const Text('Voltar ao login'),
-                  ),
-                ] else ...[
-                  TextFormField(
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'E-mail'),
-                    validator: (v) =>
-                        v == null || !v.contains('@') ? 'E-mail inválido' : null,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _loading ? null : _submit,
-                    child: _loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Enviar link'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () => context.go('/login'),
-                    child: const Text('Voltar ao login'),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

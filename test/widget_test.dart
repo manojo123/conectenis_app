@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:conectenis_app/core/theme/app_theme.dart';
 import 'package:conectenis_app/features/auth/presentation/login_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/shared/models/user_profile.dart';
@@ -23,14 +24,17 @@ void main() {
         overrides: [
           authStateProvider.overrideWith(_LoggedOutAuthNotifier.new),
         ],
-        child: const MaterialApp(home: LoginScreen()),
+        child: MaterialApp(theme: AppTheme.dark, home: const LoginScreen()),
       ),
     );
     await tester.pump();
     await tester.pump();
 
     expect(find.bySemanticsLabel('ConecTênis'), findsOneWidget);
-    expect(find.text('CONECTE-SE OU CADASTRE-SE'), findsOneWidget);
+    expect(find.text('Conecte-se. Desafie. Jogue.'), findsOneWidget);
     expect(find.text('ENTRAR'), findsOneWidget);
+    expect(find.text('Esqueci a senha'), findsOneWidget);
+    expect(find.text('Google'), findsOneWidget);
+    expect(find.text('Apple'), findsOneWidget);
   });
 }
