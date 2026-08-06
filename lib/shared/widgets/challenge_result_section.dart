@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/challenge_result.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
@@ -91,7 +92,7 @@ class _ChallengeResultSectionState extends State<ChallengeResultSection> {
               const SizedBox(height: 4),
               Text(
                 'Informado por ${result.submittedByName}',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(color: context.t.muted, fontSize: 13),
               ),
             ],
             const SizedBox(height: 12),
@@ -172,15 +173,15 @@ class _ChallengeResultSectionState extends State<ChallengeResultSection> {
             }),
             if (challenge.status == ChallengeStatus.pendingResultApproval) ...[
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Todos os participantes precisam aprovar antes do desafio ser marcado como Realizado.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(color: context.t.muted, fontSize: 13),
               ),
               if (autoAcceptLabel != null) ...[
                 const SizedBox(height: 6),
                 Text(
                   autoAcceptLabel,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  style: TextStyle(color: context.t.muted, fontSize: 13),
                 ),
               ],
             ],

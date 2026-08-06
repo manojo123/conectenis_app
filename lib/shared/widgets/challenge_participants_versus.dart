@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/utils/player_navigation.dart';
@@ -26,11 +26,11 @@ class ChallengeParticipantsVersus extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (kDebugMode && !challenge.hasTeamData)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               'Times não informados pela API — layout estimado.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: TextStyle(color: context.t.muted, fontSize: 12),
             ),
           ),
         Card(
