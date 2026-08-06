@@ -24,10 +24,17 @@ class ReverbService {
   }) async {
     if (!isConfigured) return;
 
+    // KNOWN LIMITATION: pusher_channels_flutter 2.4.x cannot target a
+    // custom host, so REVERB_HOST/PORT are ignored and the client points
+    // at pusher.com. Before enabling Reverb (REVERB_APP_KEY), upgrade to
+    // pusher_channels_flutter >=2.6.0 (requires the flutter_secure_storage
+    // 10.x migration) and pass host/wsPort/wssPort here.
+    // See docs/BACKEND_PROMPT_REDESIGN.md.
     _pusher ??= PusherChannelsFlutter.getInstance();
     await _pusher!.init(
       apiKey: Env.reverbAppKey,
       cluster: '',
+      useTLS: Env.reverbScheme == 'https',
       onAuthorizer: (channelName, socketId, options) async {
         final response = await _dio.post<Map<String, dynamic>>(
           '/broadcasting/auth',

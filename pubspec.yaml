@@ -18,6 +18,8 @@ dependencies:
   geolocator: ^13.0.2
   image_picker: ^1.1.2
   cached_network_image: ^3.4.1
+  # NOTE: >=2.6.0 adds the custom host/port options Reverb needs, but it
+  # conflicts with flutter_secure_storage 9.x — bump both together.
   pusher_channels_flutter: ^2.4.0
   intl: ^0.20.2
   flutter_dotenv: ^5.2.1

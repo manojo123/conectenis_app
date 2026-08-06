@@ -1,5 +1,13 @@
 # ConecTenis — Backend integration
 
+> **Redesign (ago/2026):** the app now follows the approved dark/lime
+> prototype. Navigation is Mapa · Mensagens · Desafios · Notificações ·
+> Perfil (o dashboard e a aba Ranking saíram da barra; rankings abrem a
+> partir do Perfil). Os recursos legados `play_invitations` e `matches`
+> foram **removidos do app**. Lacunas de backend expostas pelo redesign
+> (unread de conversas, notifications read-all, etc.) estão em
+> [`BACKEND_PROMPT_REDESIGN.md`](BACKEND_PROMPT_REDESIGN.md).
+
 ## Laravel API (Sail / WSL)
 
 | Item | Value |
@@ -21,8 +29,8 @@ wsl -d Ubuntu -- bash -lc "cd ~/projects/conec/conectenis && ./vendor/bin/sail u
 
 | `USE_MOCK_API` | Behavior |
 |----------------|----------|
-| `true` (default) | Map, players, places, invitations, chat, matches use in-app mock data (Jundiaí seeds). |
-| `false` | Map, players, places, invitations, and chat call Laravel. Match logging may still be mock-only. |
+| `true` (default) | Map, players, places, challenges, chat and dashboard stats use in-app mock data (Jundiaí seeds). |
+| `false` | Everything calls Laravel. |
 
 **Auth always uses the live Laravel API** (register, login, logout, user, forgot/reset password), regardless of `USE_MOCK_API`.
 
@@ -53,21 +61,12 @@ Copy `.env.example` to `.env`:
 ```env
 API_BASE_URL=http://localhost/api
 USE_MOCK_API=true
-HOME_VARIANT=dashboard
 APP_SHARE_URL=https://conectenis.com.br
 ```
 
+`HOME_VARIANT` was removed in the redesign — the map is always the home tab.
+
 Set `API_BASE_URL` per platform (see table above). Auth works with Sail running; other features can stay on mock until API routes exist.
-
-### Home variant (`HOME_VARIANT`)
-
-| Value | Home tab content |
-|-------|------------------|
-| `dashboard` (default) | Engagement dashboard — stats panel + local matchmaking card |
-| `map` | Map with nearby players and places |
-| `feed` | Public nearby challenges feed |
-
-When `USE_MOCK_API=true`, dashboard endpoints are served by in-app mock data. Set `USE_MOCK_API=false` after implementing the backend endpoints below.
 
 ## Dashboard (`/api/dashboard/*`)
 
@@ -75,13 +74,10 @@ Requires Sanctum bearer token. See [BACKEND_PROMPT_DASHBOARD_RN03.md](BACKEND_PR
 
 | Method | Path | Query / notes |
 |--------|------|---------------|
-| `GET` | `/api/dashboard/matchmaking` | `radius_km` = `5` \| `10` \| `25` — count of players at same NTRP in radius |
-| `GET` | `/api/dashboard/stats` | Consolidated NTRP, W/L record, local + state rank |
+| `GET` | `/api/dashboard/stats` | Consolidated NTRP, W/L record, local + state rank — feeds the **Perfil** tab |
 
-**Matchmaking response:**
-```json
-{ "count": 3, "radius_km": 10, "ntrp_rating": 3.5, "has_matches": true }
-```
+`GET /api/dashboard/matchmaking` is no longer called by the app (the
+matchmaking hero card was retired with the dashboard home).
 
 **Stats response:** `tennis_level`, `record` (wins, losses, matches_played, win_rate), `ranking.local`, `ranking.general`.
 
@@ -197,19 +193,12 @@ Mark read: `POST /api/notifications/{id}/read`. Unread count on `GET /api/auth/u
 | `POST` | `/api/messages` | `{ conversation_id, body }` | Re-opens hidden thread for both participants |
 | `DELETE` | `/api/messages/{id}` | `{ scope: "for_me" \| "for_everyone" }` | `for_me`: hide for current user; `for_everyone`: sender only, removes for both |
 
-## Play invitations (`/api/play-invitations/*`) — legacy
+## Play invitations (`/api/play-invitations/*`) — removed from the app
 
-| Method | Path | Notes |
-|--------|------|--------|
-| `GET` | `/api/play-invitations` | Query: `role` = `all` \| `sent` \| `received` |
-| `POST` | `/api/play-invitations` | `{ invitee_id, place_id, scheduled_at, message? }` |
-| `GET` | `/api/play-invitations/{id}` | |
-| `POST` | `/api/play-invitations/{id}/accept` | Invitee, status `pending` |
-| `POST` | `/api/play-invitations/{id}/decline` | Invitee, status `pending` |
-| `POST` | `/api/play-invitations/{id}/cancel` | Inviter, status `pending` |
-| `POST` | `/api/play-invitations/{id}/complete` | Either participant, status `accepted` |
-| `POST` | `/api/play-invitations/{id}/rate-player` | Status `completed` — `{ stars, comment? }` |
-| `POST` | `/api/play-invitations/{id}/report-player` | `{ reason, details? }` |
+The redesign deleted all play-invitation client code (superseded by
+`/api/challenges/*`). The routes can be retired server-side — see
+[`BACKEND_PROMPT_REDESIGN.md`](BACKEND_PROMPT_REDESIGN.md) §6. The same
+applies to `/api/matches*`.
 
 ### Place report reasons (`place_reports.reason`)
 
@@ -234,14 +223,16 @@ Mark read: `POST /api/notifications/{id}/read`. Unread count on `GET /api/auth/u
 | `unsportsmanlike` | Conduta antidesportiva durante o jogo |
 | `other` | Outro (detalhar no texto, min 10 caracteres) |
 
-## Manual E2E checklist (places + invitations)
+## Manual E2E checklist (redesign)
 
 1. Set `USE_MOCK_API=false`, restart app, ensure Sail is up.
-2. User A logs in, opens a player profile, taps **Convidar para jogar**, picks date/time and place (or creates one).
-3. User B logs in on another device/emulator, opens **Convites** tab, accepts invitation.
-4. Either user taps **Marcar como realizada**, then rates player and place.
-5. Verify decline/cancel flows and overlap error (second invite within ±2h).
-6. Map **Lugares** filter shows nearby places; **Adicionar local** works.
+2. User A logs in (e-mail ou Google) → LGPD → onboarding em 3 etapas → cai no **Mapa**.
+3. No mapa: alternar Jogadores/Quadras, tocar num pin → card inferior → **DESAFIAR** (pré-seleciona o adversário no Novo desafio).
+4. Criar desafio direto e público pelo pill **NOVO** na aba Desafios; validar os quatro segmentos (Recebidos / Mural / Meus jogos / Histórico).
+5. User B aceita o convite (inline no card, no detalhe ou no cartão de desafio dentro do chat).
+6. Após a partida: **Avaliar partida** → placar + estrelas; User B aprova o resultado; conferir pontos em **Rankings** (aberto pelo card NTRP do Perfil).
+7. Notificações: deep links funcionam e **Marcar lidas** zera o badge da aba.
+8. Alternar o tema no Perfil (ou no login/mapa/mensagens) e reiniciar o app — o tema persiste.
 
 ### Google Maps (Android)
 
