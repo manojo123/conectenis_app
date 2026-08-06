@@ -386,6 +386,7 @@ class _PlayerProfileBody extends ConsumerWidget {
         child: Row(
           children: [
             Expanded(
+              flex: 100,
               child: LimeButton(
                 label: 'Mensagem',
                 outlined: true,

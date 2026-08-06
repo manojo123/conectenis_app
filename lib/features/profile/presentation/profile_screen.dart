@@ -345,9 +345,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: StatTile(
-                value: loading
-                    ? '…'
-                    : '${record?.winRatePercent ?? 0}%',
+                value: loading ? '…' : (record?.winRatePercent ?? '0%'),
                 label: 'Aproveitamento',
                 valueColor: t.accentText,
               ),

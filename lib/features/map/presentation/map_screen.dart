@@ -578,6 +578,7 @@ class _PlayerSheetCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
+                flex: 100,
                 child: PressableScale(
                   onTap: onProfile,
                   child: Container(
@@ -728,6 +729,7 @@ class _PlaceSheetCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
+                flex: 100,
                 child: PressableScale(
                   onTap: onOpen,
                   child: Container(

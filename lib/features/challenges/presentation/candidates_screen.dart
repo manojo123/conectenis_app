@@ -264,6 +264,7 @@ class _CandidatesScreenState extends ConsumerState<CandidatesScreen> {
               Row(
                 children: [
                   Expanded(
+                    flex: 100,
                     child: CardActionButton(
                       label: 'Conversar',
                       kind: CardActionKind.outline,

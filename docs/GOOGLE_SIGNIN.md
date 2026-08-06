@@ -55,24 +55,40 @@ Put the **same Client ID** (not the secret) in **Flutter** `.env`:
 GOOGLE_OAUTH_WEB_CLIENT_ID=123456789-xxxx.apps.googleusercontent.com
 ```
 
-### 4. Create OAuth client — Android (required for emulator/device)
+### 4. Create OAuth clients — Android (required for emulator/device)
+
+> ⚠️ The app's package was renamed to **`br.com.conectenis.app`** (ago/2026).
+> Android OAuth clients registered for the old `com.example.conectenis_app`
+> stop working after the rename — Google Sign-In then fails with
+> `ApiException: 10` (DEVELOPER_ERROR).
+
+Each Android OAuth client is one **(package name, SHA-1)** pair, so create
+**two** clients — one per keystore:
 
 1. **Create credentials** → **OAuth client ID** → **Android**.
-2. Package name: `com.example.conectenis_app`  
+2. Package name: `br.com.conectenis.app`
    (must match `applicationId` in `android/app/build.gradle.kts`).
-3. **SHA-1 certificate fingerprint** (debug keystore for local dev):
+3. **SHA-1 certificate fingerprint**:
 
-**Windows (PowerShell):**
+| Build | Keystore | SHA-1 (this machine, ago/2026) |
+|---|---|---|
+| `flutter run` (debug) | `%USERPROFILE%\.android\debug.keystore` | `E7:90:E6:3A:AD:0E:7C:A3:64:5F:B2:A0:27:23:3B:E3:53:E2:BB:70` |
+| Release APK (testers) | `C:/Users/Jorge Moura/conectenis-upload.jks` | `FF:27:B2:81:BF:34:5C:0F:E4:DF:D0:00:AF:11:07:71:7F:9B:02:E4` |
+
+To regenerate the fingerprints:
 
 ```powershell
-keytool -list -v -keystore "$env:USERPROFILE\.android\debug.keystore" -alias androiddebugkey -storepass android -keypass android
+& "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -list -v -keystore "$env:USERPROFILE\.android\debug.keystore" -alias androiddebugkey -storepass android
 ```
 
-Copy the line `SHA1: AA:BB:CC:...` into Google Cloud (no spaces optional; colons are fine).
+4. Create both clients. Changes can take a few minutes to propagate.
 
-4. Create.
+If the package or SHA-1 is wrong, Google Sign-In fails with
+`PlatformException(sign_in_failed, ...ApiException: 10...)`.
 
-If SHA-1 is wrong, Google Sign-In fails with generic errors or no ID token.
+> If the **Maps** key is restricted by app (package + SHA-1), update those
+> restrictions with the same pairs — otherwise map tiles stop rendering in
+> release builds.
 
 ### 5. Create OAuth client — iOS (only if you test on iPhone)
 
@@ -136,6 +152,7 @@ flutter run
 |--------|-----|
 | Snackbar “configure GOOGLE_OAUTH_WEB_CLIENT_ID” | Add Web Client ID to Flutter `.env`, restart app |
 | `PlatformException` / sign-in failed on Android | Wrong package name or missing/wrong **SHA-1** on Android OAuth client |
+| `ApiException: 10` (DEVELOPER_ERROR) | Android OAuth client doesn't match the installed APK — register `br.com.conectenis.app` with the debug **and** upload SHA-1s (section 4) |
 | API 401/422 on `/auth/social/google` | `GOOGLE_CLIENT_ID`/`SECRET` in Laravel; token expired — try again |
 | No ID token | `serverClientId` must be **Web** client ID, not Android client ID |
 | “Access blocked” on consent screen | Add your Gmail under **Test users** while app is in Testing |
@@ -148,6 +165,6 @@ flutter run
 - [ ] OAuth consent screen configured + test user added
 - [ ] Web OAuth client → Laravel `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`
 - [ ] Same Web Client ID → Flutter `GOOGLE_OAUTH_WEB_CLIENT_ID`
-- [ ] Android OAuth client with `com.example.conectenis_app` + debug SHA-1
+- [ ] Android OAuth clients with `br.com.conectenis.app` + debug SHA-1 **and** upload SHA-1
 - [ ] `flutter pub get` + full app restart
 - [ ] Sail up, `USE_MOCK_API=false`

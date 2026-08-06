@@ -139,6 +139,7 @@ class _ChatChallengePanelState extends ConsumerState<ChatChallengePanel> {
                   Row(
                     children: [
                       Expanded(
+                        flex: 100,
                         child: PressableScale(
                           scale: 0.97,
                           enabled: !_busy,
