@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:material_symbols_icons/symbols.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
+import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/ranking/data/rankings_repository.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/utils/ntrp_labels.dart';
+import 'package:conectenis_app/shared/widgets/chip_row.dart';
+import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
+import 'package:conectenis_app/shared/widgets/screen_header.dart';
+import 'package:conectenis_app/shared/widgets/segmented_tabs.dart';
+import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class RankingScreen extends ConsumerStatefulWidget {
   const RankingScreen({super.key});
@@ -24,6 +32,15 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
   String? _error;
 
   static const _ntrpOptions = [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0];
+
+  // Prototype scope order: Cidade · Estado · Brasil.
+  static const _geoOrder = [
+    RankingGeoScope.city,
+    RankingGeoScope.state,
+    RankingGeoScope.country,
+  ];
+
+  static const _medals = [Color(0xFFE8B931), Color(0xFFB9C2D6), Color(0xFFC77B4A)];
 
   @override
   void initState() {
@@ -75,132 +92,412 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
     }
   }
 
-  Widget _filterSection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Segmentação', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          SegmentedButton<ChallengeFormat>(
-            segments: ChallengeFormat.values
-                .map((f) => ButtonSegment(value: f, label: Text(f.label)))
-                .toList(),
-            selected: {_format},
-            onSelectionChanged: (s) {
-              setState(() => _format = s.first);
-              _load();
-            },
-          ),
-          const SizedBox(height: 8),
-          SegmentedButton<RankingGenderFilter>(
-            segments: RankingGenderFilter.values
-                .map((g) => ButtonSegment(value: g, label: Text(g.label)))
-                .toList(),
-            selected: {_gender},
-            onSelectionChanged: (s) {
-              setState(() => _gender = s.first);
-              _load();
-            },
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<double>(
-            initialValue: _ntrpLevel,
-            decoration: const InputDecoration(
-              labelText: 'Nível NTRP',
-              border: OutlineInputBorder(),
-              isDense: true,
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final response = _response;
+    final entries = response?.entries ?? [];
+    final currentUserId = ref.watch(authStateProvider).value?.id;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            const ScreenHeader(title: 'Rankings'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+              child: SegmentedTabs(
+                labels: _geoOrder.map((g) => g.label).toList(),
+                index: _geoOrder.indexOf(_geo),
+                onChanged: (i) {
+                  setState(() => _geo = _geoOrder[i]);
+                  _load();
+                },
+              ),
             ),
-            items: _ntrpOptions
-                .map((n) => DropdownMenuItem(value: n, child: Text(n.toStringAsFixed(1))))
-                .toList(),
-            onChanged: (v) {
-              if (v == null) return;
-              setState(() => _ntrpLevel = v);
-              _load();
-            },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              child: Column(
+                children: [
+                  _filterRow(
+                    t,
+                    'FORMATO',
+                    ChoiceChipRow(
+                      options:
+                          ChallengeFormat.values.map((f) => f.label).toList(),
+                      selectedIndex: ChallengeFormat.values.indexOf(_format),
+                      dense: true,
+                      scrollable: true,
+                      onSelected: (i) {
+                        setState(() => _format = ChallengeFormat.values[i]);
+                        _load();
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _filterRow(
+                    t,
+                    'GÊNERO',
+                    ChoiceChipRow(
+                      options: RankingGenderFilter.values
+                          .map((g) => g.label)
+                          .toList(),
+                      selectedIndex:
+                          RankingGenderFilter.values.indexOf(_gender),
+                      dense: true,
+                      scrollable: true,
+                      onSelected: (i) {
+                        setState(
+                            () => _gender = RankingGenderFilter.values[i]);
+                        _load();
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _filterRow(
+                    t,
+                    'NÍVEL',
+                    ChoiceChipRow(
+                      options: _ntrpOptions.map(ntrpValueLabel).toList(),
+                      selectedIndex: _ntrpOptions.indexOf(_ntrpLevel),
+                      dense: true,
+                      scrollable: true,
+                      onSelected: (i) {
+                        setState(() => _ntrpLevel = _ntrpOptions[i]);
+                        _load();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _loading
+                  ? const LoadingView()
+                  : _error != null
+                      ? ErrorView(message: _error!, onRetry: _load)
+                      : RefreshIndicator(
+                          onRefresh: _load,
+                          child: entries.isEmpty
+                              ? ListView(
+                                  children: const [
+                                    SizedBox(height: 60),
+                                    EmptyState(
+                                      icon: Symbols.leaderboard_rounded,
+                                      title:
+                                          'Nenhum jogador neste segmento ainda',
+                                      subtitle:
+                                          'Jogue partidas avaliadas para entrar no ranking.',
+                                    ),
+                                  ],
+                                )
+                              : ListView(
+                                  padding: EdgeInsets.fromLTRB(14, 4, 14,
+                                      screenBottomInset(context) + 18),
+                                  children: [
+                                    if (response?.userPosition != null)
+                                      _userPositionCard(
+                                        t,
+                                        response!.userPosition!,
+                                        response.segmentLabel,
+                                      ),
+                                    if (entries.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      _podium(t, entries.take(3).toList()),
+                                    ],
+                                    const SizedBox(height: 12),
+                                    _rowsCard(t, entries, currentUserId),
+                                  ],
+                                ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _filterRow(AppTokens t, String label, Widget child) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 62,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: t.disabled,
+            ),
           ),
-          const SizedBox(height: 8),
-          SegmentedButton<RankingGeoScope>(
-            segments: RankingGeoScope.values
-                .map((g) => ButtonSegment(value: g, label: Text(g.label)))
-                .toList(),
-            selected: {_geo},
-            onSelectionChanged: (s) {
-              setState(() => _geo = s.first);
-              _load();
-            },
+        ),
+        Expanded(child: child),
+      ],
+    );
+  }
+
+  Widget _userPositionCard(
+      AppTokens t, RankingUserPosition position, String? segmentLabel) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [t.tintAcc, t.tintAcc.withValues(alpha: 0)],
+          stops: const [0, 0.7],
+        ),
+        color: t.surface,
+        border: Border.all(color: t.accent),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Text(
+            '#${position.rank}',
+            style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1,
+              color: t.accentText,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sua posição${segmentLabel != null ? ' · $segmentLabel' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: t.text,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${position.points} pts · ${position.wins} vitórias',
+                  style: TextStyle(fontSize: 12, color: t.muted),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _userPositionCard(RankingUserPosition position) {
-    return Card(
-      color: AppColors.primary.withValues(alpha: 0.08),
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
-          child: Text('${position.rank}'),
-        ),
-        title: const Text('Sua posição neste ranking'),
-        subtitle: Text('${position.points} pts · ${position.wins} vitórias'),
+  Widget _podium(AppTokens t, List<RankingEntry> top) {
+    if (top.isEmpty) return const SizedBox.shrink();
+    // Display order 2nd · 1st · 3rd, pedestal heights from the prototype.
+    final order = <(RankingEntry, int, double)>[
+      if (top.length > 1) (top[1], 1, 96),
+      (top[0], 0, 124),
+      if (top.length > 2) (top[2], 2, 80),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final (entry, medalIndex, height) in order)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _medals[medalIndex],
+                              width: 2.5,
+                            ),
+                          ),
+                          child: UserAvatar(
+                            name: entry.player.name,
+                            avatarUrl: entry.player.avatarUrl,
+                            hasCustomAvatar: entry.player.hasCustomAvatar,
+                            userId: entry.player.id,
+                            radius: 27,
+                          ),
+                        ),
+                        Positioned(
+                          top: -9,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              width: 20,
+                              height: 20,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _medals[medalIndex],
+                                shape: BoxShape.circle,
+                                border: Border.all(color: t.bg, width: 2),
+                              ),
+                              child: Text(
+                                '${medalIndex + 1}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F1A38),
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      entry.player.name,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: t.text,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Container(
+                      width: double.infinity,
+                      height: height,
+                      padding: const EdgeInsets.only(top: 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [t.surface2, t.surface2.withValues(alpha: 0)],
+                        ),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        '${entry.points}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: t.accentText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final response = _response;
-    final entries = response?.entries ?? [];
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Ranking')),
-      body: Column(
+  Widget _rowsCard(AppTokens t, List<RankingEntry> entries, int? currentUserId) {
+    final rest = entries.length > 3 ? entries.sublist(3) : <RankingEntry>[];
+    if (rest.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: t.surface,
+        border: Border.all(color: t.border),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
         children: [
-          _filterSection(),
-          if (response?.segmentLabel != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: Text(
-                response!.segmentLabel!,
-                style: Theme.of(context).textTheme.bodySmall,
+          for (final e in rest) _rankRow(t, e, e.player.id == currentUserId),
+        ],
+      ),
+    );
+  }
+
+  Widget _rankRow(AppTokens t, RankingEntry e, bool isMe) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+      decoration: BoxDecoration(
+        color: isMe ? t.tintAcc : Colors.transparent,
+        border: Border.all(color: isMe ? t.accent : Colors.transparent),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 26,
+            child: Text(
+              '${e.rank}',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                color: t.muted,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
-          if (response?.userPosition != null) _userPositionCard(response!.userPosition!),
+          ),
+          const SizedBox(width: 8),
+          UserAvatar(
+            name: e.player.name,
+            avatarUrl: e.player.avatarUrl,
+            hasCustomAvatar: e.player.hasCustomAvatar,
+            userId: e.player.id,
+            radius: 19,
+          ),
+          const SizedBox(width: 11),
           Expanded(
-            child: _loading
-                ? const LoadingView()
-                : _error != null
-                    ? ErrorView(message: _error!, onRetry: _load)
-                    : entries.isEmpty
-                        ? const Center(child: Text('Nenhum jogador neste segmento ainda.'))
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            child: ListView.builder(
-                              itemCount: entries.length,
-                              itemBuilder: (_, i) {
-                                final e = entries[i];
-                                return ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.onPrimary,
-                                    child: Text('${e.rank}'),
-                                  ),
-                                  title: Text(e.player.name),
-                                  subtitle: Text(
-                                    'NTRP ${e.player.ntrpRating.toStringAsFixed(1)}'
-                                    '${e.cityName != null ? ' · ${e.cityName}' : ''}',
-                                  ),
-                                  trailing: Text('${e.points} pts · ${e.wins} V'),
-                                );
-                              },
-                            ),
-                          ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isMe ? 'Você' : e.player.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: t.text,
+                  ),
+                ),
+                Text(
+                  'NTRP ${ntrpValueLabel(e.player.ntrpRating)}'
+                  '${e.cityName != null ? ' · ${e.cityName}' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: t.muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${e.points}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: t.text,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              Text(
+                '${e.wins} V',
+                style: TextStyle(fontSize: 10.5, color: t.muted),
+              ),
+            ],
           ),
         ],
       ),
