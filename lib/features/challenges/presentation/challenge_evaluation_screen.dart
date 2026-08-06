@@ -1,19 +1,26 @@
 import 'package:conectenis_app/core/network/api_exception.dart';
-import 'package:conectenis_app/core/theme/layout.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
 import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
-import 'package:conectenis_app/shared/widgets/app_snackbar.dart';
+import 'package:conectenis_app/shared/widgets/app_card.dart';
+import 'package:conectenis_app/shared/widgets/app_toast.dart';
+import 'package:conectenis_app/shared/widgets/bottom_action_bar.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/opponent_rating_form.dart';
 import 'package:conectenis_app/shared/widgets/place_rating_form.dart';
+import 'package:conectenis_app/shared/widgets/screen_header.dart';
+import 'package:conectenis_app/shared/widgets/section_label.dart';
+import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 class ChallengeEvaluationScreen extends ConsumerStatefulWidget {
   const ChallengeEvaluationScreen({super.key, required this.challengeId});
@@ -133,14 +140,14 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
 
     final opponents = challenge.opponentTeamUserIds(currentUserId);
     if (opponents.isEmpty) {
-      AppSnackBar.showDanger(context, 'Não foi possível identificar os adversários.');
+      showToast(context,'Não foi possível identificar os adversários.');
       return;
     }
 
     for (final id in opponents) {
       final rating = _opponentRatings[id];
       if (rating == null || !rating.isComplete) {
-        AppSnackBar.showWarning(
+        showToast(
           context,
           'Avalie pontualidade, fair play e comunicação de todos os adversários.',
         );
@@ -149,7 +156,7 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
     }
 
     if (challenge.place != null && !_placeRating.isComplete) {
-      AppSnackBar.showWarning(
+      showToast(
         context,
         'Avalie a qualidade da quadra e a infraestrutura do local.',
       );
@@ -162,7 +169,7 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
       myGames = int.tryParse(_myGames.text.trim());
       opponentGames = int.tryParse(_opponentGames.text.trim());
       if (myGames == null || opponentGames == null || myGames < 0 || opponentGames < 0) {
-        AppSnackBar.showWarning(
+        showToast(
           context,
           'Informe o placar com números válidos ou marque "Não quero informar o placar".',
         );
@@ -170,11 +177,11 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
       }
       if (_isTie) {
         if (_isDoubles && _tieMyTeamWins == null) {
-          AppSnackBar.showWarning(context, 'Em caso de empate, selecione qual dupla venceu.');
+          showToast(context,'Em caso de empate, selecione qual dupla venceu.');
           return;
         }
         if (!_isDoubles && _tieWinnerUserId == null) {
-          AppSnackBar.showWarning(context, 'Em caso de empate, selecione quem venceu.');
+          showToast(context,'Em caso de empate, selecione quem venceu.');
           return;
         }
       }
@@ -190,7 +197,7 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
           winnerTeam = challenge.opponentTeamUserIds(currentUserId);
         }
         if (winnerTeam == null || winnerTeam.length != 2) {
-          AppSnackBar.showDanger(context, 'Informe qual dupla venceu o desafio.');
+          showToast(context,'Informe qual dupla venceu o desafio.');
           return;
         }
       } else {
@@ -203,7 +210,7 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
           winnerUserId = _tieWinnerUserId;
         }
         if (winnerUserId == null) {
-          AppSnackBar.showDanger(context, 'Informe quem venceu o desafio.');
+          showToast(context,'Informe quem venceu o desafio.');
           return;
         }
       }
@@ -237,7 +244,7 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
           );
       if (!mounted) return;
       bumpChallengesRefresh(ref);
-      AppSnackBar.showSuccess(
+      showToast(
         context,
         'Resultado informado. Aguardando aprovação dos outros participantes.',
       );
@@ -245,13 +252,13 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.statusCode == 409) {
-        AppSnackBar.showWarning(context, e.message);
+        showToast(context,e.message);
         context.go('/challenges/${widget.challengeId}');
         return;
       }
-      AppSnackBar.showDanger(context, e.message);
+      showToast(context,e.message);
     } catch (e) {
-      if (mounted) AppSnackBar.showDanger(context, e.toString());
+      if (mounted) showToast(context,e.toString());
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -259,13 +266,25 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     if (_loading) {
       return const Scaffold(body: LoadingView(message: 'Carregando desafio...'));
     }
     if (_error != null || _challenge == null) {
       return Scaffold(
-        appBar: AppBar(),
-        body: ErrorView(message: _error ?? 'Desafio não encontrado', onRetry: _load),
+        body: SafeArea(
+          child: Column(
+            children: [
+              const ScreenHeader(title: 'Registrar resultado', close: true),
+              Expanded(
+                child: ErrorView(
+                  message: _error ?? 'Desafio não encontrado',
+                  onRetry: _load,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -273,126 +292,256 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
     final currentUserId = ref.watch(authStateProvider).value?.id ?? 0;
     final opponentSideLabel = _opponentSideLabel(challenge, currentUserId);
     final opponents = challenge.opponentTeamUserIds(currentUserId);
+    final opponentPlayer = opponents.isNotEmpty
+        ? challenge.participantPlayer(opponents.first)
+        : null;
+    final df = DateFormat('EEE, dd/MM · HH:mm', 'pt_BR');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Avaliação do desafio')),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
-        children: [
-          Text('INFORMAR PLACAR', style: Theme.of(context).textTheme.titleSmall),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _skipScore,
-            onChanged: (v) => setState(() {
-              _skipScore = v ?? false;
-              _tieWinnerUserId = null;
-              _tieMyTeamWins = null;
-            }),
-            title: const Text('Não quero informar o placar'),
-          ),
-          if (!_skipScore) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _myGames,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: _isDoubles ? 'Games da minha dupla' : 'Meus games',
+      body: SafeArea(
+        child: Column(
+          children: [
+            const ScreenHeader(title: 'Registrar resultado', close: true),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                children: [
+                  AppCard(
+                    padding: const EdgeInsets.all(13),
+                    radius: 16,
+                    child: Row(
+                      children: [
+                        if (opponentPlayer != null)
+                          UserAvatar(
+                            name: opponentPlayer.name,
+                            avatarUrl: opponentPlayer.avatarUrl,
+                            hasCustomAvatar: opponentPlayer.hasCustomAvatar,
+                            userId: opponentPlayer.id,
+                            radius: 24,
+                          ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'vs $opponentSideLabel',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: t.text,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${df.format(challenge.scheduledStart)}${challenge.place != null ? ' · ${challenge.place!.name}' : ''}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 12, color: t.muted),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    onChanged: (_) => setState(() {
+                  ),
+                  const SizedBox(height: 20),
+                  const SectionLabel.caps('Informar placar'),
+                  const SizedBox(height: 6),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() {
+                      _skipScore = !_skipScore;
                       _tieWinnerUserId = null;
                       _tieMyTeamWins = null;
                     }),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: _skipScore,
+                          activeColor: t.accent,
+                          checkColor: t.onAccent,
+                          onChanged: (v) => setState(() {
+                            _skipScore = v ?? false;
+                            _tieWinnerUserId = null;
+                            _tieMyTeamWins = null;
+                          }),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Não quero informar o placar',
+                            style: TextStyle(fontSize: 14, color: t.text),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const Padding(padding: EdgeInsets.all(8), child: Text('×')),
-                Expanded(
-                  child: TextField(
-                    controller: _opponentGames,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(labelText: 'Games de $opponentSideLabel'),
-                    onChanged: (_) => setState(() {
-                      _tieWinnerUserId = null;
-                      _tieMyTeamWins = null;
-                    }),
-                  ),
-                ),
-              ],
-            ),
-            if (_isTie) ...[
-              const SizedBox(height: 12),
-              Text('Empate — quem venceu?', style: Theme.of(context).textTheme.titleSmall),
-              if (_isDoubles)
-                RadioGroup<bool>(
-                  groupValue: _tieMyTeamWins,
-                  onChanged: (v) => setState(() => _tieMyTeamWins = v),
-                  child: Column(
-                    children: [
-                      RadioListTile<bool>(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Minha dupla venceu'),
-                        value: true,
-                      ),
-                      RadioListTile<bool>(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Dupla adversária venceu'),
-                        value: false,
-                      ),
+                  if (!_skipScore) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _myGames,
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: t.text,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: '0',
+                              helperText: _isDoubles
+                                  ? 'Games da minha dupla'
+                                  : 'Meus games',
+                              helperStyle:
+                                  TextStyle(fontSize: 11, color: t.muted),
+                            ),
+                            onChanged: (_) => setState(() {
+                              _tieWinnerUserId = null;
+                              _tieMyTeamWins = null;
+                            }),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Text(
+                            '×',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: t.disabled,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: _opponentGames,
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: t.text,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: '0',
+                              helperText: 'Games de $opponentSideLabel',
+                              helperStyle:
+                                  TextStyle(fontSize: 11, color: t.muted),
+                            ),
+                            onChanged: (_) => setState(() {
+                              _tieWinnerUserId = null;
+                              _tieMyTeamWins = null;
+                            }),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_isTie) ...[
+                      const SizedBox(height: 14),
+                      const SectionLabel('Empate — quem venceu?'),
+                      const SizedBox(height: 4),
+                      if (_isDoubles)
+                        RadioGroup<bool>(
+                          groupValue: _tieMyTeamWins,
+                          onChanged: (v) => setState(() => _tieMyTeamWins = v),
+                          child: Column(
+                            children: [
+                              RadioListTile<bool>(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Minha dupla venceu'),
+                                value: true,
+                              ),
+                              RadioListTile<bool>(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Dupla adversária venceu'),
+                                value: false,
+                              ),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        RadioGroup<int>(
+                          groupValue: _tieWinnerUserId,
+                          onChanged: (v) => setState(() => _tieWinnerUserId = v),
+                          child: Column(
+                            children: [
+                              RadioListTile<int>(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Eu venci'),
+                                value: currentUserId,
+                              ),
+                              RadioListTile<int>(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text('$opponentSideLabel venceu'),
+                                value: opponents.first,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
+                  ],
+                  const SizedBox(height: 22),
+                  SectionLabel.caps(
+                    _isDoubles ? 'Avaliar adversários' : 'Avaliar adversário',
                   ),
-                )
-              else ...[
-                RadioGroup<int>(
-                  groupValue: _tieWinnerUserId,
-                  onChanged: (v) => setState(() => _tieWinnerUserId = v),
-                  child: Column(
-                    children: [
-                      RadioListTile<int>(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Eu venci'),
-                        value: currentUserId,
-                      ),
-                      RadioListTile<int>(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text('$opponentSideLabel venceu'),
-                        value: opponents.first,
-                      ),
-                    ],
+                  const SizedBox(height: 10),
+                  ...opponents.map(
+                    (id) => OpponentRatingForm(
+                      player: challenge.participantPlayer(id),
+                      rating: _opponentRatings[id] ??= OpponentRatingInput(),
+                      onChanged: () => setState(() {}),
+                    ),
                   ),
-                ),
-              ],
-            ],
-          ],
-          const SizedBox(height: 24),
-          Text(
-            _isDoubles ? 'AVALIAR ADVERSÁRIOS' : 'AVALIAR ADVERSÁRIO',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          const SizedBox(height: 8),
-          ...opponents.map(
-            (id) => OpponentRatingForm(
-              player: challenge.participantPlayer(id),
-              rating: _opponentRatings[id] ??= OpponentRatingInput(),
-              onChanged: () => setState(() {}),
+                  if (challenge.place != null) ...[
+                    const SizedBox(height: 12),
+                    PlaceRatingForm(
+                      placeName: challenge.place!.name,
+                      rating: _placeRating,
+                      onChanged: () => setState(() {}),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: t.tintInfo,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Symbols.info_rounded, size: 20, color: t.info),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Text(
+                            'O placar vale pontos no ranking após confirmação do adversário. Resultados divergentes vão para revisão.',
+                            style: TextStyle(
+                                fontSize: 12.5, color: t.muted, height: 1.55),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (challenge.place != null) ...[
-            const SizedBox(height: 12),
-            PlaceRatingForm(
-              placeName: challenge.place!.name,
-              rating: _placeRating,
-              onChanged: () => setState(() {}),
-            ),
           ],
-          const SizedBox(height: 32),
-          LimeButton(
-            label: 'Enviar avaliação',
-            loading: _submitting,
-            glow: true,
-            onPressed: _submit,
-          ),
-        ],
+        ),
+      ),
+      bottomNavigationBar: BottomActionBar(
+        child: LimeButton(
+          label: 'Confirmar resultado',
+          loading: _submitting,
+          glow: true,
+          onPressed: _submitting ? null : _submit,
+        ),
       ),
     );
   }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
 import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
@@ -9,10 +8,15 @@ import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/nearby_court.dart';
 import 'package:conectenis_app/shared/utils/challenge_ntrp_bounds.dart';
 import 'package:conectenis_app/shared/utils/date_time_format.dart';
+import 'package:conectenis_app/shared/widgets/app_toast.dart';
+import 'package:conectenis_app/shared/widgets/bottom_action_bar.dart';
 import 'package:conectenis_app/shared/widgets/challenge_ntrp_range_picker.dart';
+import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/gender_multi_selector.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/place_select_field.dart';
+import 'package:conectenis_app/shared/widgets/screen_header.dart';
+import 'package:conectenis_app/shared/widgets/section_label.dart';
 
 class EditPublicChallengeScreen extends ConsumerStatefulWidget {
   const EditPublicChallengeScreen({super.key, required this.challengeId});
@@ -131,15 +135,11 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
   Future<void> _submit(double userNtrp) async {
     if (_start == null || _end == null) return;
     if (!_openLocation && _selectedCourt == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um local ou marque "local em aberto".')),
-      );
+      showToast(context, 'Selecione um local ou marque "local em aberto".');
       return;
     }
     if (_end!.isBefore(_start!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('O horário de término deve ser após o início.')),
-      );
+      showToast(context, 'O horário de término deve ser após o início.');
       return;
     }
     if (!ChallengeNtrpBounds.isValidRange(
@@ -147,9 +147,7 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
       minNtrp: _minNtrp,
       maxNtrp: _maxNtrp,
     )) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Faixa de NTRP inválida para o seu nível.')),
-      );
+      showToast(context, 'Faixa de NTRP inválida para o seu nível.');
       return;
     }
 
@@ -172,10 +170,11 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
           );
       bumpChallengesRefresh(ref);
       if (!mounted) return;
+      showToast(context, 'Desafio atualizado!');
       context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        showToast(context, e.toString());
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -189,90 +188,113 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
     }
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Editar Desafio')),
-        body: Center(child: Text(_error!)),
+        body: SafeArea(
+          child: Column(
+            children: [
+              const ScreenHeader(title: 'Editar desafio', close: true),
+              Expanded(child: ErrorView(message: _error!, onRetry: _load)),
+            ],
+          ),
+        ),
       );
     }
 
     final userNtrp = ref.watch(authStateProvider).value?.ntrpRating ?? 3.0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Editar Desafio Público')),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, screenBottomInset(context) + 24),
-        children: [
-          TextFormField(
-            controller: _messageController,
-            decoration: const InputDecoration(
-              labelText: 'Mensagem (opcional)',
-              alignLabelWithHint: true,
-            ),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 16),
-          const Text('Nível procurado'),
-          const SizedBox(height: 8),
-          ChallengeNtrpRangePicker(
-            userNtrp: userNtrp,
-            minNtrp: _minNtrp,
-            maxNtrp: _maxNtrp,
-            onChanged: (values) => setState(() {
-              _minNtrp = values.start;
-              _maxNtrp = values.end;
-            }),
-          ),
-          const SizedBox(height: 16),
-          GenderMultiSelector(
-            selected: _genderPrefs,
-            onChanged: (g) => setState(() => _genderPrefs = g),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _professionController,
-            decoration: const InputDecoration(
-              labelText: 'Profissão procurada (opcional)',
-            ),
-          ),
-          const SizedBox(height: 16),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Início'),
-            subtitle: Text(_start == null ? '—' : formatDateTimePt(_start!)),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: _pickStart,
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Término'),
-            subtitle: Text(_end == null ? '—' : formatDateTimePt(_end!)),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: _pickEnd,
-          ),
-          const Divider(),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _openLocation,
-            onChanged: (v) => setState(() {
-              _openLocation = v ?? false;
-              if (_openLocation) _selectedCourt = null;
-            }),
-            title: const Text('Local em aberto (qualquer local)'),
-          ),
-          if (!_openLocation) ...[
-            const SizedBox(height: 8),
-            PlaceSelectField(
-              selectedCourt: _selectedCourt,
-              onChanged: (court) => setState(() => _selectedCourt = court),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const ScreenHeader(title: 'Editar desafio público', close: true),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                children: [
+                  const SectionLabel('Faixa de nível (NTRP)'),
+                  const SizedBox(height: 9),
+                  ChallengeNtrpRangePicker(
+                    userNtrp: userNtrp,
+                    minNtrp: _minNtrp,
+                    maxNtrp: _maxNtrp,
+                    onChanged: (values) => setState(() {
+                      _minNtrp = values.start;
+                      _maxNtrp = values.end;
+                    }),
+                  ),
+                  const SizedBox(height: 18),
+                  const SectionLabel('Preferência de gênero'),
+                  const SizedBox(height: 9),
+                  GenderMultiSelector(
+                    selected: _genderPrefs,
+                    onChanged: (g) => setState(() => _genderPrefs = g),
+                  ),
+                  const SizedBox(height: 18),
+                  const SectionLabel('Profissão procurada'),
+                  const SizedBox(height: 9),
+                  TextFormField(
+                    controller: _professionController,
+                    decoration:
+                        const InputDecoration(hintText: 'Ex.: Médico, Advogada…'),
+                  ),
+                  const SizedBox(height: 18),
+                  const SectionLabel('Data e horário'),
+                  const SizedBox(height: 9),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Início'),
+                    subtitle:
+                        Text(_start == null ? '—' : formatDateTimePt(_start!)),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: _pickStart,
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Término'),
+                    subtitle: Text(_end == null ? '—' : formatDateTimePt(_end!)),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: _pickEnd,
+                  ),
+                  const Divider(),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _openLocation,
+                    onChanged: (v) => setState(() {
+                      _openLocation = v ?? false;
+                      if (_openLocation) _selectedCourt = null;
+                    }),
+                    title: const Text('Local em aberto (qualquer local)'),
+                  ),
+                  if (!_openLocation) ...[
+                    const SizedBox(height: 8),
+                    PlaceSelectField(
+                      selectedCourt: _selectedCourt,
+                      onChanged: (court) => setState(() => _selectedCourt = court),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  const SectionLabel('Mensagem'),
+                  const SizedBox(height: 9),
+                  TextFormField(
+                    controller: _messageController,
+                    decoration: const InputDecoration(
+                      hintText: 'Ex.: Jogo tranquilo, foco em treinar backhand…',
+                    ),
+                    maxLines: 3,
+                    minLines: 2,
+                  ),
+                ],
+              ),
             ),
           ],
-          const SizedBox(height: 24),
-          LimeButton(
-            label: 'Salvar alterações',
-            loading: _submitting,
-            glow: true,
-            onPressed: () => _submit(userNtrp),
-          ),
-        ],
+        ),
+      ),
+      bottomNavigationBar: BottomActionBar(
+        child: LimeButton(
+          label: 'Salvar alterações',
+          loading: _submitting,
+          glow: true,
+          onPressed: _submitting ? null : () => _submit(userNtrp),
+        ),
       ),
     );
   }
