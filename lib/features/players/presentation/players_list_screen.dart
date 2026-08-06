@@ -2,19 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/features/chat/data/chat_repository.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/features/players/data/players_repository.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/player.dart';
+import 'package:conectenis_app/shared/utils/debounce.dart';
+import 'package:conectenis_app/shared/utils/ntrp_labels.dart';
+import 'package:conectenis_app/shared/widgets/app_toast.dart';
+import 'package:conectenis_app/shared/widgets/chip_row.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
-import 'package:conectenis_app/shared/widgets/gender_selector.dart';
+import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
-import 'package:conectenis_app/shared/utils/debounce.dart';
+import 'package:conectenis_app/shared/widgets/pressable.dart';
+import 'package:conectenis_app/shared/widgets/screen_header.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class PlayersListScreen extends ConsumerStatefulWidget {
@@ -27,34 +34,46 @@ class PlayersListScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
+  final _searchController = TextEditingController();
   final _cityController = TextEditingController();
-  final _cityDebouncer = Debouncer();
+  final _searchDebouncer = Debouncer();
   double _minNtrp = 1.0;
   double _maxNtrp = 5.0;
   double _minAge = 18;
   double _maxAge = 60;
-  Gender? _gender;
-  String _sort = 'distance';
+  int _genderIndex = 0; // 0 = todos
+  int _sortIndex = 0;
+  bool _filtersOpen = false;
   AsyncValue<List<Player>> _players = const AsyncLoading();
   List<Player> _cachedPlayers = [];
+
+  static const _sortValues = ['distance', 'ntrp_desc', 'age_asc'];
 
   @override
   void initState() {
     super.initState();
-    _cityController.addListener(_onCityChanged);
+    _searchController.addListener(_onQueryChanged);
+    _cityController.addListener(_onQueryChanged);
     _load();
   }
 
-  void _onCityChanged() {
-    _cityDebouncer.run(() => _load(initial: false));
+  void _onQueryChanged() {
+    _searchDebouncer.run(() => _load(initial: false));
   }
 
   @override
   void dispose() {
-    _cityDebouncer.dispose();
+    _searchDebouncer.dispose();
+    _searchController.dispose();
     _cityController.dispose();
     super.dispose();
   }
+
+  Gender? get _gender => switch (_genderIndex) {
+        1 => Gender.male,
+        2 => Gender.female,
+        _ => null,
+      };
 
   Future<({double lat, double lng})> _currentCenter() async {
     double lat = MockData.centerLat;
@@ -83,13 +102,14 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
       final list = await ref.read(playersRepositoryProvider).nearby(
             lat: center.lat,
             lng: center.lng,
+            name: _searchController.text.trim(),
             city: _cityController.text.trim(),
             gender: _gender,
             minNtrp: _minNtrp,
             maxNtrp: _maxNtrp,
             minAge: _minAge.round(),
             maxAge: _maxAge.round(),
-            sort: _sort,
+            sort: _sortValues[_sortIndex],
           );
       setState(() {
         _cachedPlayers = list;
@@ -100,109 +120,10 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
     }
   }
 
-  void _selectPlayer(Player player) {
-    context.pop(player);
-  }
-
-  Widget _buildPlayerList(List<Player> list) {
-    if (list.isEmpty) {
-      return EmptyState(
-        icon: Icons.people_outline,
-        title: 'Nenhum jogador encontrado',
-        subtitle: widget.selectMode
-            ? 'Amplie os filtros para ver mais jogadores.'
-            : 'Ajuste os filtros ou volte mais tarde.',
-      );
-    }
-    return ListView.builder(
-      padding: EdgeInsets.fromLTRB(
-        12,
-        12,
-        12,
-        MediaQuery.viewPaddingOf(context).bottom + 12,
-      ),
-      itemCount: list.length,
-      itemBuilder: (_, i) {
-        final p = list[i];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: InkWell(
-            onTap: widget.selectMode ? () => _selectPlayer(p) : null,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      UserAvatar(
-                        name: p.name,
-                        avatarUrl: p.avatarUrl,
-                        radius: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              p.name,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            Text('NTRP: ${p.ntrpRating.toStringAsFixed(1)}'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (p.city != null) Text('Cidade: ${p.city}'),
-                  if (p.profession != null) Text('Profissão: ${p.profession}'),
-                  if (p.distanceKm != null)
-                    Text('Distância: ${p.distanceKm!.toStringAsFixed(1)} km'),
-                  const SizedBox(height: 8),
-                  if (widget.selectMode)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => _selectPlayer(p),
-                        child: const Text('Selecionar'),
-                      ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _openChat(context, p),
-                            icon: const Icon(Icons.chat, size: 18),
-                            label: const Text('MENSAGEM'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => context.push(
-                              '/challenges/new/direct?playerId=${p.id}',
-                            ),
-                            icon: const Icon(Icons.sports_tennis, size: 18),
-                            label: const Text('DESAFIAR'),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Future<void> _openChat(BuildContext context, Player player) async {
     try {
-      final conv = await ref.read(chatRepositoryProvider).start(player.id, player.name);
+      final conv =
+          await ref.read(chatRepositoryProvider).start(player.id, player.name);
       if (!context.mounted) return;
       openChatThread(
         context,
@@ -217,90 +138,117 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
       );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : e.toString())),
-      );
+      showToast(context, e is ApiException ? e.message : e.toString());
     }
   }
 
-  Widget _buildFilterBar() {
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+
+    return Scaffold(
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _cityController,
-              decoration: const InputDecoration(
-                labelText: 'Cidade',
-                prefixIcon: Icon(Icons.location_city),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text('Idade: ${_minAge.round()} – ${_maxAge.round()}'),
-            RangeSlider(
-              min: 10,
-              max: 80,
-              divisions: 70,
-              values: RangeValues(_minAge, _maxAge),
-              onChanged: (v) => setState(() {
-                _minAge = v.start;
-                _maxAge = v.end;
-              }),
-              onChangeEnd: (_) => _load(initial: false),
-            ),
-            Text('NTRP: ${_minNtrp.toStringAsFixed(1)} – ${_maxNtrp.toStringAsFixed(1)}'),
-            RangeSlider(
-              min: 1,
-              max: 5,
-              divisions: 8,
-              values: RangeValues(_minNtrp, _maxNtrp),
-              onChanged: (v) => setState(() {
-                _minNtrp = v.start;
-                _maxNtrp = v.end;
-              }),
-              onChangeEnd: (_) => _load(initial: false),
-            ),
-            DropdownButtonFormField<Gender?>(
-              initialValue: _gender,
-              decoration: const InputDecoration(labelText: 'Sexo', isDense: true),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Todos')),
-                ...Gender.values.map(
-                  (g) => DropdownMenuItem(
-                    value: g,
-                    child: Row(
-                      children: [
-                        Icon(genderIcon(g), size: 22),
-                        const SizedBox(width: 8),
-                        Text(g.label),
-                      ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Row(
+                children: [
+                  CircleIconButton(
+                    icon: Symbols.arrow_back_rounded,
+                    onTap: () => context.pop(),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: t.inputBg,
+                        border: Border.all(color: t.border),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Icon(Symbols.search_rounded,
+                              size: 19, color: t.muted),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              autofocus: !widget.selectMode,
+                              decoration: InputDecoration(
+                                hintText: 'Nome do jogador…',
+                                filled: false,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 12),
+                                hintStyle: TextStyle(
+                                    fontSize: 14.5, color: t.muted),
+                              ),
+                              style:
+                                  TextStyle(fontSize: 14.5, color: t.text),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-              onChanged: (v) {
-                setState(() => _gender = v);
-                _load(initial: false);
-              },
+                  const SizedBox(width: 10),
+                  CircleIconButton(
+                    icon: Symbols.tune_rounded,
+                    color: _filtersOpen ? t.accentText : t.muted,
+                    onTap: () => setState(() => _filtersOpen = !_filtersOpen),
+                    tooltip: 'Filtros',
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _sort,
-              decoration: const InputDecoration(labelText: 'Ordenar por', isDense: true),
-              items: const [
-                DropdownMenuItem(value: 'distance', child: Text('Distância')),
-                DropdownMenuItem(value: 'ntrp_desc', child: Text('NTRP (maior primeiro)')),
-                DropdownMenuItem(value: 'age_asc', child: Text('Idade (mais jovem)')),
-              ],
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _sort = v);
-                _load(initial: false);
-              },
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 220),
+              crossFadeState: _filtersOpen
+                  ? CrossFadeState.showFirst
+                  : CrossFadeState.showSecond,
+              firstChild: _filters(t),
+              secondChild: const SizedBox(width: double.infinity),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  switch (_players) {
+                    AsyncData(:final value) => value.length == 1
+                        ? '1 jogador encontrado'
+                        : '${value.length} jogadores encontrados',
+                    _ => 'Buscando…',
+                  },
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: t.muted,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => _load(initial: _cachedPlayers.isEmpty),
+                child: _players.when(
+                  loading: () {
+                    if (_cachedPlayers.isNotEmpty) {
+                      return _resultList(_cachedPlayers);
+                    }
+                    return const LoadingView();
+                  },
+                  error: (e, _) => ErrorView(
+                    message: e.toString(),
+                    onRetry: () => _load(initial: true),
+                  ),
+                  data: _resultList,
+                ),
+              ),
             ),
           ],
         ),
@@ -308,43 +256,356 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final title = widget.selectMode ? 'Escolher adversário' : 'Busca por Jogadores';
-
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Column(
+  Widget _filters(AppTokens t) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildFilterBar(),
-          if (widget.selectMode)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Mostrando jogadores perto de você. Use os filtros para refinar.',
-                  style: Theme.of(context).textTheme.bodySmall,
+          _filterRow(
+            t,
+            'CIDADE',
+            Expanded(
+              child: Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 13),
+                decoration: BoxDecoration(
+                  color: t.surface,
+                  border: Border.all(color: t.border),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: TextField(
+                  controller: _cityController,
+                  decoration: InputDecoration(
+                    hintText: 'Todas',
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    hintStyle: TextStyle(fontSize: 12.5, color: t.muted),
+                  ),
+                  style: TextStyle(fontSize: 12.5, color: t.text),
                 ),
               ),
             ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => _load(initial: _cachedPlayers.isEmpty),
-              child: _players.when(
-                loading: () {
-                  if (_cachedPlayers.isNotEmpty) {
-                    return _buildPlayerList(_cachedPlayers);
-                  }
-                  return const LoadingView();
-                },
-                error: (e, _) => ErrorView(message: e.toString(), onRetry: () => _load(initial: true)),
-                data: (list) => _buildPlayerList(list),
+          ),
+          const SizedBox(height: 9),
+          _filterRow(
+            t,
+            'IDADE',
+            Expanded(
+              child: Row(
+                children: [
+                  Text(
+                    '${_minAge.round()}–${_maxAge.round()}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: t.text,
+                    ),
+                  ),
+                  Expanded(
+                    child: SliderTheme(
+                      data: _sliderTheme(t),
+                      child: RangeSlider(
+                        min: 10,
+                        max: 80,
+                        divisions: 70,
+                        values: RangeValues(_minAge, _maxAge),
+                        onChanged: (v) => setState(() {
+                          _minAge = v.start;
+                          _maxAge = v.end;
+                        }),
+                        onChangeEnd: (_) => _load(initial: false),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          _filterRow(
+            t,
+            'NÍVEL',
+            Expanded(
+              child: Row(
+                children: [
+                  Text(
+                    '${ntrpValueLabel(_minNtrp)}–${ntrpValueLabel(_maxNtrp)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: t.text,
+                    ),
+                  ),
+                  Expanded(
+                    child: SliderTheme(
+                      data: _sliderTheme(t),
+                      child: RangeSlider(
+                        min: 1,
+                        max: 5,
+                        divisions: 8,
+                        values: RangeValues(_minNtrp, _maxNtrp),
+                        onChanged: (v) => setState(() {
+                          _minNtrp = v.start;
+                          _maxNtrp = v.end;
+                        }),
+                        onChangeEnd: (_) => _load(initial: false),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          _filterRow(
+            t,
+            'SEXO',
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ChoiceChipRow(
+                  options: const ['Todos', 'Masculino', 'Feminino'],
+                  selectedIndex: _genderIndex,
+                  dense: true,
+                  onSelected: (i) {
+                    setState(() => _genderIndex = i);
+                    _load(initial: false);
+                  },
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 9),
+          _filterRow(
+            t,
+            'ORDEM',
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ChoiceChipRow(
+                  options: const ['Distância', 'Nível', 'Idade'],
+                  selectedIndex: _sortIndex,
+                  dense: true,
+                  onSelected: (i) {
+                    setState(() => _sortIndex = i);
+                    _load(initial: false);
+                  },
+                ),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  SliderThemeData _sliderTheme(AppTokens t) {
+    return SliderTheme.of(context).copyWith(
+      activeTrackColor: t.accent,
+      inactiveTrackColor: t.surface2,
+      thumbColor: t.accent,
+      overlayColor: t.tintAcc,
+      rangeThumbShape:
+          const RoundRangeSliderThumbShape(enabledThumbRadius: 8),
+      trackHeight: 4,
+    );
+  }
+
+  Widget _filterRow(AppTokens t, String label, Widget child) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 52,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: t.disabled,
+            ),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+
+  Widget _resultList(List<Player> list) {
+    final t = context.t;
+    if (list.isEmpty) {
+      return EmptyState(
+        icon: Symbols.group_rounded,
+        title: 'Nenhum jogador encontrado',
+        subtitle: widget.selectMode
+            ? 'Amplie os filtros para ver mais jogadores.'
+            : 'Ajuste os filtros ou volte mais tarde.',
+      );
+    }
+    return ListView.builder(
+      padding: EdgeInsets.fromLTRB(
+        14,
+        2,
+        14,
+        MediaQuery.viewPaddingOf(context).bottom + 14,
+      ),
+      itemCount: list.length,
+      itemBuilder: (_, i) {
+        final p = list[i];
+        final subParts = <String>[
+          if (p.age != null) '${p.age} anos',
+          if ((p.profession ?? '').isNotEmpty) p.profession!,
+        ];
+        final metaParts = <String>[
+          if (p.locationLabel.isNotEmpty) p.locationLabel,
+          if (p.distanceKm != null)
+            '${p.distanceKm!.toStringAsFixed(1).replaceAll('.', ',')} km',
+        ];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: PressableScale(
+            scale: 0.985,
+            onTap: () => widget.selectMode
+                ? context.pop(p)
+                : context.push('/players/${p.id}'),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: t.surface,
+                border: Border.all(color: t.border),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      UserAvatar(
+                        name: p.name,
+                        avatarUrl: p.avatarUrl,
+                        hasCustomAvatar: p.hasCustomAvatar,
+                        userId: p.id,
+                        radius: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                                color: t.text,
+                              ),
+                            ),
+                            if (subParts.isNotEmpty)
+                              Text(
+                                subParts.join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style:
+                                    TextStyle(fontSize: 12, color: t.muted),
+                              ),
+                            if (metaParts.isNotEmpty)
+                              Text(
+                                metaParts.join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style:
+                                    TextStyle(fontSize: 12, color: t.muted),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: t.tintAcc,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          ntrpValueLabel(p.ntrpRating),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: t.accentText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (widget.selectMode)
+                    LimeButton(
+                      label: 'Selecionar',
+                      onPressed: () => context.pop(p),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PressableScale(
+                            onTap: () => _openChat(context, p),
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 11),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: t.border),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              child: Text(
+                                'MENSAGEM',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.4,
+                                  color: t.text,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: PressableScale(
+                            onTap: () => context.push(
+                              '/challenges/new/direct?playerId=${p.id}',
+                            ),
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 11),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: t.accent,
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              child: Text(
+                                'DESAFIAR',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.4,
+                                  color: t.onAccent,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
