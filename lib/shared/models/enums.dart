@@ -104,24 +104,6 @@ enum ChallengeListSort {
   final String value;
 }
 
-enum PlayInvitationStatus {
-  pending('pending', 'Pendente'),
-  accepted('accepted', 'Aceito'),
-  declined('declined', 'Recusado'),
-  cancelled('cancelled', 'Cancelado'),
-  completed('completed', 'Realizado');
-
-  const PlayInvitationStatus(this.value, this.label);
-  final String value;
-  final String label;
-
-  static PlayInvitationStatus fromValue(String? value) =>
-      PlayInvitationStatus.values.firstWhere(
-        (e) => e.value == value,
-        orElse: () => PlayInvitationStatus.pending,
-      );
-}
-
 enum PlaceReportReason {
   badConditions('bad_conditions', 'Quadra/local em más condições que prejudica o jogo'),
   doesNotExist('does_not_exist', 'Local não existe'),
@@ -159,25 +141,6 @@ enum UserReportReason {
         (e) => e.value == value,
         orElse: () => UserReportReason.other,
       );
-}
-
-enum InvitationListRole {
-  all('all', 'Todos'),
-  sent('sent', 'Enviados'),
-  received('received', 'Recebidos');
-
-  const InvitationListRole(this.value, this.label);
-  final String value;
-  final String label;
-}
-
-enum RankingScope {
-  home('home', 'Cidade do perfil'),
-  played('played', 'Vitórias na cidade');
-
-  const RankingScope(this.value, this.label);
-  final String value;
-  final String label;
 }
 
 enum RankingGeoScope {

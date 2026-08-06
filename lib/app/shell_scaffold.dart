@@ -1,96 +1,154 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:material_symbols_icons/symbols.dart';
+import 'package:conectenis_app/app/nav_badges.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
+import 'package:conectenis_app/shared/widgets/frosted.dart';
+
+/// Approximate height of the frosted nav bar (excluding the device inset).
+/// Screens that draw behind it add this to their bottom padding.
+const kNavBarHeight = 74.0;
 
 class ShellScaffold extends StatelessWidget {
   const ShellScaffold({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
-  static const _challengesTabIndex = 2;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: navigationShell,
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.only(bottom: 10),
-        child: NavigationBar(
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: navigationShell.goBranch,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'Início',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.map_outlined),
-              selectedIcon: Icon(Icons.map),
-              label: 'Mapa',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.sports_tennis_outlined),
-              selectedIcon: Icon(Icons.sports_tennis),
-              label: 'Desafios',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.leaderboard_outlined),
-              selectedIcon: Icon(Icons.leaderboard),
-              label: 'Ranking',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.chat_bubble_outline),
-              selectedIcon: Icon(Icons.chat_bubble),
-              label: 'Mensagens',
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: navigationShell.currentIndex == _challengesTabIndex
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: FloatingActionButton.extended(
-                  onPressed: () => _showCreateChallengeMenu(context),
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.onPrimary,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Desafio'),
-                ),
-              ),
-            )
-          : null,
+      // NOTE: flipped to true in the map-tab redesign phase, once every tab
+      // pads its scroll content by kNavBarHeight.
+      extendBody: false,
+      body: SafeArea(bottom: false, child: navigationShell),
+      bottomNavigationBar: _CtNavBar(shell: navigationShell),
     );
   }
+}
 
-  void _showCreateChallengeMenu(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (ctx) => SafeArea(
+class _CtNavBar extends ConsumerWidget {
+  const _CtNavBar({required this.shell});
+
+  final StatefulNavigationShell shell;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.t;
+    final messages = ref.watch(unreadMessagesCountProvider).valueOrNull ?? 0;
+    final challenges = ref.watch(pendingChallengesCountProvider).valueOrNull ?? 0;
+    final notifications = ref.watch(unreadNotificationsCountProvider);
+
+    final items = [
+      (Symbols.map_rounded, 'Mapa', 0),
+      (Symbols.chat_bubble_rounded, 'Mensagens', messages),
+      (Symbols.sports_tennis_rounded, 'Desafios', challenges),
+      (Symbols.notifications_rounded, 'Notificações', notifications),
+      (Symbols.person_rounded, 'Perfil', 0),
+    ];
+
+    return Frosted(
+      border: Border(top: BorderSide(color: t.border)),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(6, 8, 6, 12),
+          child: Row(
+            children: [
+              for (final (index, item) in items.indexed)
+                Expanded(
+                  child: _NavItem(
+                    icon: item.$1,
+                    label: item.$2,
+                    badge: item.$3,
+                    active: shell.currentIndex == index,
+                    onTap: () => shell.goBranch(
+                      index,
+                      initialLocation: index == shell.currentIndex,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.badge,
+    required this.active,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final int badge;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final color = active ? t.accentText : t.muted;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: Icon(Icons.person, color: Theme.of(ctx).colorScheme.primary),
-              title: const Text('Desafio direto'),
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/challenges/new/direct');
-              },
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  size: 24,
+                  color: color,
+                  fill: active ? 1 : 0,
+                  weight: 500,
+                ),
+                if (badge > 0)
+                  Positioned(
+                    top: -4,
+                    right: -9,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 16),
+                      height: 16,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: t.error,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        badge > 99 ? '99+' : '$badge',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            ListTile(
-              leading: Icon(Icons.public, color: Theme.of(ctx).colorScheme.primary),
-              title: const Text('Desafio público'),
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/challenges/new/public');
-              },
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                color: color,
+              ),
             ),
           ],
         ),

@@ -1,7 +1,6 @@
 import 'package:conectenis_app/shared/models/challenge.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/place.dart';
-import 'package:conectenis_app/shared/models/play_invitation.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 
 /// Seed data around Jundiaí/SP for alpha demos.
@@ -93,43 +92,6 @@ abstract final class MockData {
       distanceKm: 1.8,
     ),
   ];
-
-  static List<PlayInvitation> playInvitations() {
-    final rafael = players[0];
-    final mariana = players[1];
-    final place = places[0];
-    return [
-      PlayInvitation(
-        id: 1,
-        status: PlayInvitationStatus.pending,
-        scheduledAt: DateTime.now().add(const Duration(days: 2)),
-        message: 'Bora jogar um set?',
-        inviter: Player(
-          id: currentUserId,
-          name: 'Você',
-          latitude: centerLat,
-          longitude: centerLng,
-        ),
-        invitee: mariana,
-        place: place,
-        role: 'sent',
-      ),
-      PlayInvitation(
-        id: 2,
-        status: PlayInvitationStatus.accepted,
-        scheduledAt: DateTime.now().add(const Duration(days: 1)),
-        inviter: rafael,
-        invitee: Player(
-          id: currentUserId,
-          name: 'Você',
-          latitude: centerLat,
-          longitude: centerLng,
-        ),
-        place: places[1],
-        role: 'received',
-      ),
-    ];
-  }
 
   static List<Challenge> challenges({ChallengeListRole role = ChallengeListRole.created}) {
     final me = Player(id: currentUserId, name: 'Você', latitude: centerLat, longitude: centerLng, ntrpRating: 3.5);

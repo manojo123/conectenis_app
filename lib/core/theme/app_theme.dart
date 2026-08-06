@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/core/theme/app_radii.dart';
 import 'package:conectenis_app/core/theme/app_shadows.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 
 abstract final class AppTheme {
   static ThemeData get dark => _buildTheme(
@@ -46,6 +48,9 @@ abstract final class AppTheme {
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      extensions: <ThemeExtension<dynamic>>[
+        isDark ? AppTokens.dark : AppTokens.light,
+      ],
       scaffoldBackgroundColor: background,
       colorScheme: ColorScheme(
         brightness: brightness,
@@ -69,7 +74,9 @@ abstract final class AppTheme {
         elevation: 0,
         centerTitle: true,
       ),
-      textTheme: _textTheme(textPrimary, textMuted, textDisabled, linkAccent),
+      textTheme: GoogleFonts.archivoTextTheme(
+        _textTheme(textPrimary, textMuted, textDisabled, linkAccent),
+      ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: navBg,
         indicatorColor: AppColors.primary.withValues(alpha: 0.2),
@@ -123,7 +130,8 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+          textStyle:
+              const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.5),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -192,10 +200,13 @@ abstract final class AppTheme {
       displayLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w900),
       displayMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w800),
       displaySmall: TextStyle(color: textPrimary, fontWeight: FontWeight.w800),
-      headlineLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
-      headlineMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
-      headlineSmall: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
-      titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+      headlineLarge: TextStyle(
+          color: textPrimary, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+      headlineMedium: TextStyle(
+          color: textPrimary, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+      headlineSmall: TextStyle(
+          color: textPrimary, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+      titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w800),
       titleMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
       titleSmall: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
       bodyLarge: TextStyle(color: textPrimary),
@@ -230,7 +241,7 @@ abstract final class AppTheme {
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
       ),
       textStyle: WidgetStateProperty.all(
-        const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8),
       ),
       elevation: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) return 0;

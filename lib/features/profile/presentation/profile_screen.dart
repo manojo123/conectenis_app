@@ -77,12 +77,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             onTap: () => context.push('/profile/edit'),
           ),
           ListTile(
-            leading: const Icon(Icons.notifications_outlined),
-            title: const Text('Notificações'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/notifications'),
-          ),
-          ListTile(
             leading: const Icon(Icons.search),
             title: const Text('Buscar jogadores'),
             trailing: const Icon(Icons.chevron_right),

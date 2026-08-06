@@ -27,6 +27,8 @@ dependencies:
   google_sign_in: ^6.2.2
   geocoding: ^4.0.0
   crypto: ^3.0.6
+  google_fonts: ^6.2.1
+  material_symbols_icons: ^4.2785.1
 
 dev_dependencies:
   flutter_test:
@@ -43,3 +45,5 @@ flutter:
     - assets/images/logo_square_dark.png
     - assets/images/logo_horizontal_light.png
     - assets/images/logo_horizontal_dark.png
+    - assets/map_styles/map_dark.json
+    - assets/map_styles/map_light.json

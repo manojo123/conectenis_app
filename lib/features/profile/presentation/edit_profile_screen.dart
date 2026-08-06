@@ -82,7 +82,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           );
       if (mounted) {
         ref.read(profileUpdatedNoticeProvider.notifier).state = true;
-        context.push('/profile');
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/profile');
+        }
       }
     } catch (e) {
       if (mounted) {

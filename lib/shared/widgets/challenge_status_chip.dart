@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:conectenis_app/core/theme/app_radii.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/semantic_colors.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 
@@ -10,17 +10,22 @@ class ChallengeStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final color = SemanticColors.forChallengeStatus(status);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-        border: Border.all(color: color),
+        color: t.tintFor(color),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         status.label.toUpperCase(),
-        style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.7,
+          color: color,
+        ),
       ),
     );
   }

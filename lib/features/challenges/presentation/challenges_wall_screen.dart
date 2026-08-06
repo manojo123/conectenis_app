@@ -280,6 +280,15 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mural de Desafios'),
+        // Interim entry point after the shell FAB was retired; the wall
+        // redesign replaces this with the prototype "NOVO" pill.
+        actions: [
+          IconButton(
+            tooltip: 'Novo desafio',
+            icon: const Icon(Icons.add),
+            onPressed: () => _showCreateMenu(context),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabs,
           tabs: const [
@@ -301,6 +310,35 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen>
             ),
           Expanded(child: _buildBody()),
         ],
+      ),
+    );
+  }
+
+  void _showCreateMenu(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.person, color: Theme.of(ctx).colorScheme.primary),
+              title: const Text('Desafio direto'),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/challenges/new/direct');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.public, color: Theme.of(ctx).colorScheme.primary),
+              title: const Text('Desafio público'),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/challenges/new/public');
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -16,33 +17,33 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.t;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: scheme.outline.withValues(alpha: 0.6)),
-            const SizedBox(height: 16),
+            Icon(icon, size: 44, color: t.disabled),
+            const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: t.text,
+              ),
             ),
             if (subtitle != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 subtitle!,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurface.withValues(alpha: 0.7),
-                    ),
+                style: TextStyle(fontSize: 13.5, color: t.muted, height: 1.55),
               ),
             ],
-            if (action != null) ...[const SizedBox(height: 24), action!],
+            if (action != null) ...[const SizedBox(height: 20), action!],
           ],
         ),
       ),

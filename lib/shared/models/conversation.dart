@@ -8,6 +8,7 @@ class Conversation {
     this.lastMessage,
     this.updatedAt,
     this.otherAvatarUrl,
+    this.unreadCount = 0,
   });
 
   final int id;
@@ -16,6 +17,10 @@ class Conversation {
   final String? lastMessage;
   final DateTime? updatedAt;
   final String? otherAvatarUrl;
+
+  /// Unread messages for the current user. Optional server field
+  /// (`unread_count`) — see docs/BACKEND_PROMPT_REDESIGN.md; 0 when absent.
+  final int unreadCount;
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     return Conversation(
@@ -27,6 +32,7 @@ class Conversation {
           ? DateTime.tryParse(json['updated_at'] as String)
           : null,
       otherAvatarUrl: json['other_avatar_url'] as String?,
+      unreadCount: parseJsonInt(json['unread_count']),
     );
   }
 }

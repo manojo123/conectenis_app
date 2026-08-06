@@ -147,49 +147,4 @@ class RankingsRepository {
     }
   }
 
-  /// Legacy fetch for backward compatibility during API transition.
-  Future<List<RankingEntry>> fetchLegacy({
-    required RankingScope scope,
-    int? cityId,
-    String? state,
-    String country = 'BR',
-  }) async {
-    if (Env.useMockApi) {
-      return (await fetch(
-        geo: RankingGeoScope.city,
-        ntrpLevel: 4.0,
-        gender: RankingGenderFilter.all,
-        format: ChallengeFormat.singles,
-      ))
-          .entries;
-    }
-
-    try {
-      final response = await _dio.get<Map<String, dynamic>>(
-        '/rankings',
-        queryParameters: {
-          'scope': scope.value,
-          'city_id': ?cityId,
-          'state': ?state,
-          'country': country,
-        },
-      );
-      final list = response.data?['data'] as List<dynamic>? ?? [];
-      return list.map((e) {
-        final map = e as Map<String, dynamic>;
-        final playerMap = map['player'] as Map<String, dynamic>;
-        final cityMap = map['city'] as Map<String, dynamic>?;
-        return RankingEntry(
-          rank: parseJsonInt(map['rank']),
-          wins: parseJsonInt(map['wins']),
-          points: parseJsonInt(map['points']),
-          player: Player.fromJson(playerMap),
-          cityName: cityMap?['name'] as String?,
-          state: cityMap?['state'] as String?,
-        );
-      }).toList();
-    } on DioException catch (e) {
-      throw ApiException.fromDio(e);
-    }
-  }
 }

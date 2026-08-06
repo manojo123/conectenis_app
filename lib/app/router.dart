@@ -20,10 +20,7 @@ import 'package:conectenis_app/features/challenges/presentation/edit_public_chal
 import 'package:conectenis_app/features/chat/presentation/chat_list_screen.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
-import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/features/achievements/presentation/achievements_screen.dart';
-import 'package:conectenis_app/features/home/presentation/home_dashboard_screen.dart';
-import 'package:conectenis_app/features/home/presentation/home_feed_screen.dart';
 import 'package:conectenis_app/features/location/presentation/location_gated_home.dart';
 import 'package:conectenis_app/features/map/presentation/map_screen.dart';
 import 'package:conectenis_app/features/places/presentation/court_picker_screen.dart';
@@ -46,12 +43,11 @@ const _publicAuthPaths = {
   '/reset-password',
 };
 
-Widget _buildHomeTab() {
-  if (Env.useHomeFeed) {
-    return LocationGatedHome(child: const HomeFeedScreen());
-  }
-  return LocationGatedHome(child: const HomeDashboardScreen());
-}
+/// Old tab paths from the pre-redesign shell — keep deep links working.
+const _legacyPathRedirects = {
+  '/map': '/',
+  '/ranking-tab': '/ranking',
+};
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ref.read(routerRefreshListenableProvider);
@@ -61,6 +57,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     refreshListenable: refresh,
     redirect: (context, state) {
+      final legacy = _legacyPathRedirects[state.matchedLocation];
+      if (legacy != null) return legacy;
+
       final auth = ref.read(authStateProvider);
       final isLoading = auth.isLoading;
       final user = auth.valueOrNull;
@@ -167,10 +166,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/achievements', builder: (_, _) => const AchievementsScreen()),
-      GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
       GoRoute(path: '/ranking', builder: (_, _) => const RankingScreen()),
       GoRoute(path: '/profile/edit', builder: (_, _) => const EditProfileScreen()),
-      GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, navigationShell) => ShellScaffold(navigationShell: navigationShell),
         branches: [
@@ -178,23 +175,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/',
-                builder: (_, _) => _buildHomeTab(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/map',
                 builder: (_, _) => LocationGatedHome(child: const MapScreen()),
               ),
             ],
-          ),
-          StatefulShellBranch(
-            routes: [GoRoute(path: '/challenges', builder: (_, _) => const ChallengesWallScreen())],
-          ),
-          StatefulShellBranch(
-            routes: [GoRoute(path: '/ranking-tab', builder: (_, _) => const RankingScreen())],
           ),
           StatefulShellBranch(
             routes: [
@@ -218,6 +201,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                 ],
               ),
             ],
+          ),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/challenges', builder: (_, _) => const ChallengesWallScreen())],
+          ),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen())],
+          ),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen())],
           ),
         ],
       ),

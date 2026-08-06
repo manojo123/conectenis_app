@@ -74,16 +74,8 @@ class Env {
 
   static bool get reverbEnabled => reverbAppKey.isNotEmpty;
 
-  /// Home shell tab: `dashboard` (default), `map`, or `feed`.
-  static String get homeVariant =>
-      (dotenv.env['HOME_VARIANT'] ?? 'dashboard').toLowerCase();
-
   static String get appShareUrl =>
       dotenv.env['APP_SHARE_URL'] ?? 'https://conectenis.com.br';
-
-  static bool get useHomeDashboard => homeVariant == 'dashboard';
-  static bool get useHomeFeed => homeVariant == 'feed';
-  static bool get useHomeMap => !useHomeDashboard && !useHomeFeed;
 
   static String get legalTermsUrl =>
       dotenv.env['LEGAL_TERMS_URL'] ?? 'https://conectenis.com.br/termos';

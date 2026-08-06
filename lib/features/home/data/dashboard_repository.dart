@@ -4,7 +4,6 @@ import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/data/mock_api_service.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
-import 'package:conectenis_app/features/home/models/dashboard_matchmaking.dart';
 import 'package:conectenis_app/features/home/models/dashboard_stats.dart';
 import 'package:conectenis_app/shared/models/json_parsers.dart';
 
@@ -24,24 +23,6 @@ class DashboardRepository {
 
   final Dio _dio;
   final MockApiService _mock;
-
-  static const allowedRadiiKm = [5, 10, 25];
-
-  Future<DashboardMatchmaking> fetchMatchmaking({required int radiusKm}) {
-    return _guard(() async {
-      if (!allowedRadiiKm.contains(radiusKm)) {
-        throw ApiException('Raio inválido. Use 5, 10 ou 25 km.');
-      }
-      if (Env.useMockApi) {
-        return _mock.dashboardMatchmaking(radiusKm: radiusKm);
-      }
-      final response = await _dio.get<Map<String, dynamic>>(
-        '/dashboard/matchmaking',
-        queryParameters: {'radius_km': radiusKm},
-      );
-      return DashboardMatchmaking.fromJson(parseJsonObject(response.data));
-    });
-  }
 
   Future<DashboardStats> fetchStats() {
     return _guard(() async {

@@ -1,5 +1,4 @@
 import 'package:conectenis_app/features/challenges/utils/challenge_wall_utils.dart';
-import 'package:conectenis_app/features/home/models/dashboard_matchmaking.dart';
 import 'package:conectenis_app/features/home/models/dashboard_stats.dart';
 import 'package:conectenis_app/features/chat/data/delete_message_scope.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,9 +9,7 @@ import 'package:conectenis_app/shared/models/challenge_result.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
 import 'package:conectenis_app/shared/models/nearby_court.dart';
 import 'package:conectenis_app/shared/models/place.dart';
-import 'package:conectenis_app/shared/models/play_invitation.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
-import 'package:conectenis_app/shared/models/match_record.dart';
 import 'package:conectenis_app/shared/models/message.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/models/chat_timeline_entry.dart';
@@ -25,13 +22,10 @@ class MockApiService {
   final Set<int> _hiddenConversationIds = {};
   final Set<int> _hiddenMessageIdsForMe = {};
   final Set<int> _deletedForAllMessageIds = {};
-  final List<MatchRecord> _matches = [];
   int _messageId = 100;
   int _conversationId = 1;
-  int _matchId = 1;
   int _placeId = 100;
   final List<Place> _places = List.from(MockData.places);
-  final List<PlayInvitation> _invitations = MockData.playInvitations();
 
   Future<List<Player>> nearbyPlayers({
     double? lat,
@@ -224,77 +218,6 @@ class MockApiService {
     return 'Avaliação salva.';
   }
 
-  Future<List<PlayInvitation>> playInvitations({InvitationListRole role = InvitationListRole.all}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    return switch (role) {
-      InvitationListRole.sent => _invitations.where((i) => i.role == 'sent').toList(),
-      InvitationListRole.received => _invitations.where((i) => i.role == 'received').toList(),
-      _ => List<PlayInvitation>.from(_invitations),
-    };
-  }
-
-  Future<PlayInvitation> playInvitationById(int id) async {
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-    return _invitations.firstWhere((i) => i.id == id);
-  }
-
-  Future<PlayInvitation> createPlayInvitation({
-    required int inviteeId,
-    required int placeId,
-    required DateTime scheduledAt,
-    String? message,
-  }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    final invitee = MockData.players.firstWhere((p) => p.id == inviteeId);
-    final place = _places.firstWhere((p) => p.id == placeId);
-    final inv = PlayInvitation(
-      id: _invitations.length + 10,
-      status: PlayInvitationStatus.pending,
-      scheduledAt: scheduledAt,
-      message: message,
-      inviter: Player(
-        id: MockData.currentUserId,
-        name: 'Você',
-        latitude: MockData.centerLat,
-        longitude: MockData.centerLng,
-      ),
-      invitee: invitee,
-      place: place,
-      role: 'sent',
-    );
-    _invitations.insert(0, inv);
-    return inv;
-  }
-
-  Future<PlayInvitation> playInvitationAction(int id, String action) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    final idx = _invitations.indexWhere((i) => i.id == id);
-    if (idx < 0) throw StateError('Invitation not found');
-    final old = _invitations[idx];
-    final status = switch (action) {
-      'accept' => PlayInvitationStatus.accepted,
-      'decline' => PlayInvitationStatus.declined,
-      'cancel' => PlayInvitationStatus.cancelled,
-      'complete' => PlayInvitationStatus.completed,
-      _ => old.status,
-    };
-    final updated = PlayInvitation(
-      id: old.id,
-      status: status,
-      scheduledAt: old.scheduledAt,
-      message: old.message,
-      completedAt: action == 'complete' ? DateTime.now() : old.completedAt,
-      completedByUserId: action == 'complete' ? MockData.currentUserId : old.completedByUserId,
-      inviter: old.inviter,
-      invitee: old.invitee,
-      place: old.place,
-      role: old.role,
-      hasRatedOpponent: old.hasRatedOpponent,
-    );
-    _invitations[idx] = updated;
-    return updated;
-  }
-
   Future<List<Conversation>> conversations() async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     return _conversations.where((c) => !_hiddenConversationIds.contains(c.id)).toList();
@@ -376,54 +299,6 @@ class MockApiService {
     } else {
       _hiddenMessageIdsForMe.add(id);
     }
-  }
-
-  Future<List<MatchRecord>> matches() async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    return List<MatchRecord>.from(_matches);
-  }
-
-  Future<List<RivalStats>> rivals() async {
-    final map = <int, RivalStats>{};
-    for (final m in _matches) {
-      final existing = map[m.opponentId];
-      if (existing == null) {
-        map[m.opponentId] = RivalStats(
-          opponentId: m.opponentId,
-          opponentName: m.opponentName,
-          wins: m.won ? 1 : 0,
-          losses: m.won ? 0 : 1,
-        );
-      } else {
-        map[m.opponentId] = RivalStats(
-          opponentId: existing.opponentId,
-          opponentName: existing.opponentName,
-          wins: existing.wins + (m.won ? 1 : 0),
-          losses: existing.losses + (m.won ? 0 : 1),
-        );
-      }
-    }
-    return map.values.toList();
-  }
-
-  Future<MatchRecord> logMatch({
-    required int opponentId,
-    required String opponentName,
-    required int playerScore,
-    required int opponentScore,
-    required bool won,
-  }) async {
-    final record = MatchRecord(
-      id: _matchId++,
-      opponentId: opponentId,
-      opponentName: opponentName,
-      playerScore: playerScore,
-      opponentScore: opponentScore,
-      won: won,
-      playedAt: DateTime.now(),
-    );
-    _matches.insert(0, record);
-    return record;
   }
 
   List<Challenge> _challenges = MockData.challenges();
@@ -1061,32 +936,6 @@ class MockApiService {
       name: name,
       email: email,
       profileComplete: false,
-    );
-  }
-
-  /// Mock matchmaking count: same NTRP as current user (3.5), filtered by radius.
-  /// Radius 5 km returns zero matches to demo the viral share state.
-  Future<DashboardMatchmaking> dashboardMatchmaking({required int radiusKm}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    const userNtrp = 3.5;
-    if (radiusKm <= 5) {
-      return DashboardMatchmaking(
-        count: 0,
-        radiusKm: radiusKm,
-        ntrpRating: userNtrp,
-        hasMatches: false,
-      );
-    }
-    final count = MockData.players
-        .where((p) =>
-            p.ntrpRating == userNtrp &&
-            (p.distanceKm ?? double.infinity) <= radiusKm)
-        .length;
-    return DashboardMatchmaking(
-      count: count,
-      radiusKm: radiusKm,
-      ntrpRating: userNtrp,
-      hasMatches: count > 0,
     );
   }
 

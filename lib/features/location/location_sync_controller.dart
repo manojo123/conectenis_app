@@ -3,7 +3,6 @@ import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
 import 'package:conectenis_app/features/auth/data/auth_repository.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
-import 'package:conectenis_app/features/home/providers/dashboard_providers.dart';
 import 'package:conectenis_app/features/location/user_location_service.dart';
 
 final locationSyncControllerProvider = Provider<LocationSyncController>((ref) {
@@ -111,7 +110,6 @@ class LocationSyncController {
               result.profile!,
             );
       }
-      _ref.invalidate(dashboardMatchmakingProvider);
     }
     return result;
   }

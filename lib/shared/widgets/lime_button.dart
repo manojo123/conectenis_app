@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:conectenis_app/core/theme/app_radii.dart';
 import 'package:conectenis_app/core/theme/app_shadows.dart';
+import 'package:conectenis_app/shared/widgets/pressable.dart';
 
 class LimeButton extends StatelessWidget {
   const LimeButton({
@@ -46,6 +48,8 @@ class LimeButton extends StatelessWidget {
             ],
           );
 
+    final enabled = onPressed != null && !loading;
+
     if (outlined) {
       final style = danger
           ? OutlinedButton.styleFrom(
@@ -53,10 +57,14 @@ class LimeButton extends StatelessWidget {
               side: const BorderSide(color: AppColors.error),
             )
           : null;
-      return OutlinedButton(
-        style: style,
-        onPressed: loading ? null : onPressed,
-        child: child,
+      return PressableScale(
+        enabled: enabled,
+        behavior: HitTestBehavior.deferToChild,
+        child: OutlinedButton(
+          style: style,
+          onPressed: loading ? null : onPressed,
+          child: child,
+        ),
       );
     }
 
@@ -65,14 +73,20 @@ class LimeButton extends StatelessWidget {
       child: child,
     );
 
-    if (!glow) return button;
+    final wrapped = glow
+        ? DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              boxShadow: enabled ? AppShadows.limeGlow : null,
+            ),
+            child: button,
+          )
+        : button;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: onPressed != null && !loading ? AppShadows.limeGlow : null,
-      ),
-      child: button,
+    return PressableScale(
+      enabled: enabled,
+      behavior: HitTestBehavior.deferToChild,
+      child: wrapped,
     );
   }
 }

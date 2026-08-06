@@ -51,7 +51,7 @@ class ChallengesRepository {
           'status': statuses.map((s) => s.value).toList(),
         if (scheduledFrom != null) 'scheduled_from': scheduledFrom.toIso8601String(),
         if (scheduledTo != null) 'scheduled_to': scheduledTo.toIso8601String(),
-        if (radiusKm != null) 'radius_km': radiusKm,
+        'radius_km': ?radiusKm,
       };
       final response = await _dio.get<List<dynamic>>(
         '/challenges',
@@ -188,16 +188,16 @@ class ChallengesRepository {
       final response = await _dio.put<Map<String, dynamic>>(
         '/challenges/$id',
         data: {
-          if (message != null) 'message': message,
-          if (placeId != null) 'place_id': placeId,
-          if (googlePlaceId != null) 'google_place_id': googlePlaceId,
-          if (openLocation != null) 'open_location': openLocation,
+          'message': ?message,
+          'place_id': ?placeId,
+          'google_place_id': ?googlePlaceId,
+          'open_location': ?openLocation,
           if (scheduledStart != null) 'scheduled_start': scheduledStart.toIso8601String(),
           if (scheduledEnd != null) 'scheduled_end': scheduledEnd.toIso8601String(),
-          if (minNtrp != null) 'min_ntrp': minNtrp,
-          if (maxNtrp != null) 'max_ntrp': maxNtrp,
+          'min_ntrp': ?minNtrp,
+          'max_ntrp': ?maxNtrp,
           if (genderPreference != null) 'gender_preference': genderPreference.value,
-          if (professionPreference != null) 'profession_preference': professionPreference,
+          'profession_preference': ?professionPreference,
         },
       );
       return Challenge.fromJson(response.data!);
@@ -293,8 +293,8 @@ class ChallengesRepository {
               if (opponentComment != null && opponentComment.isNotEmpty)
                 'opponent_comment': opponentComment,
             },
-            if (courtQualityStars != null) 'court_quality_stars': courtQualityStars,
-            if (infrastructureStars != null) 'infrastructure_stars': infrastructureStars,
+            'court_quality_stars': ?courtQualityStars,
+            'infrastructure_stars': ?infrastructureStars,
             'place_quality_stars': ?placeQualityStars ?? courtQualityStars,
             if (placeComment != null && placeComment.isNotEmpty) 'place_comment': placeComment,
           },
@@ -353,8 +353,8 @@ class ChallengesRepository {
         data: {
           if (opponentRatings != null && opponentRatings.isNotEmpty)
             'opponent_ratings': opponentRatings.map((e) => e.toJson()).toList(),
-          if (courtQualityStars != null) 'court_quality_stars': courtQualityStars,
-          if (infrastructureStars != null) 'infrastructure_stars': infrastructureStars,
+          'court_quality_stars': ?courtQualityStars,
+          'infrastructure_stars': ?infrastructureStars,
           if (placeComment != null && placeComment.isNotEmpty) 'place_comment': placeComment,
         },
       );
