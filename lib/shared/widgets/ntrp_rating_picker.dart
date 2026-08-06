@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:conectenis_app/core/theme/app_colors.dart';
+import 'package:material_symbols_icons/symbols.dart';
+import 'package:conectenis_app/core/theme/app_tokens.dart';
 
-/// NTRP 1.0–5.0 in 0.5 steps (half-star UI).
+/// NTRP 1.0–5.0 in 0.5 steps (half-star picker, prototype lime stars).
 class NtrpRatingPicker extends StatelessWidget {
   const NtrpRatingPicker({
     super.key,
     required this.value,
     required this.onChanged,
-    this.size = 36,
+    this.size = 40,
+    this.showScale = true,
   });
 
   final double value;
   final ValueChanged<double> onChanged;
   final double size;
 
+  /// Shows the "Iniciante / NTRP x,x / Avançado" caption row.
+  final bool showScale;
+
   static const double minRating = 1.0;
   static const double maxRating = 5.0;
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     return Column(
       children: [
         Row(
@@ -29,18 +35,15 @@ class NtrpRatingPicker extends StatelessWidget {
             final half = !filled && value >= starValue - 0.5;
 
             return SizedBox(
-              width: size + 8,
-              height: size + 8,
+              width: size + 6,
+              height: size + 6,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   Icon(
-                    filled
-                        ? Icons.star
-                        : half
-                            ? Icons.star_half
-                            : Icons.star_border,
-                    color: AppColors.warning,
+                    half ? Symbols.star_half_rounded : Symbols.star_rounded,
+                    fill: filled || half ? 1 : 0,
+                    color: filled || half ? t.accent : t.disabled,
                     size: size,
                   ),
                   Row(
@@ -64,30 +67,36 @@ class NtrpRatingPicker extends StatelessWidget {
             );
           }),
         ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Iniciante',
-                style: Theme.of(context).textTheme.bodySmall,
-                overflow: TextOverflow.ellipsis,
+        if (showScale) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Iniciante',
+                  style: TextStyle(fontSize: 12, color: t.muted),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            Text(
-              'NTRP ${value.toStringAsFixed(1)}',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            Expanded(
-              child: Text(
-                'Avançado',
-                textAlign: TextAlign.end,
-                style: Theme.of(context).textTheme.bodySmall,
-                overflow: TextOverflow.ellipsis,
+              Text(
+                'NTRP ${value.toStringAsFixed(1).replaceAll('.', ',')}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: t.text,
+                ),
               ),
-            ),
-          ],
-        ),
+              Expanded(
+                child: Text(
+                  'Avançado',
+                  textAlign: TextAlign.end,
+                  style: TextStyle(fontSize: 12, color: t.muted),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
