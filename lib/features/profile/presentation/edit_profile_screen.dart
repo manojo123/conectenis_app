@@ -294,7 +294,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 22),
-                    const SectionLabel('Estilo de jogo'),
+                    const SectionLabel('Preferência de jogo'),
                     const SizedBox(height: 10),
                     SegmentedTabs(
                       labels: PlayStyle.values.map((s) => s.label).toList(),

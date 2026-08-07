@@ -33,7 +33,6 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
   bool _submitting = false;
 
   final _messageController = TextEditingController();
-  final _professionController = TextEditingController();
   double _minNtrp = 3.0;
   double _maxNtrp = 3.0;
   Set<Gender> _genderPrefs = {};
@@ -45,7 +44,6 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
   @override
   void dispose() {
     _messageController.dispose();
-    _professionController.dispose();
     super.dispose();
   }
 
@@ -71,7 +69,6 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
         return;
       }
       _messageController.text = c.message ?? '';
-      _professionController.text = c.professionPreference ?? '';
       _minNtrp = c.minNtrp ?? 3.0;
       _maxNtrp = c.maxNtrp ?? 3.0;
       if (c.genderPreference != null) {
@@ -164,9 +161,6 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
             minNtrp: _minNtrp,
             maxNtrp: _maxNtrp,
             genderPreference: genderPreferenceFromSet(_genderPrefs),
-            professionPreference: _professionController.text.trim().isEmpty
-                ? null
-                : _professionController.text.trim(),
           );
       bumpChallengesRefresh(ref);
       if (!mounted) return;
@@ -227,14 +221,6 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
                   GenderMultiSelector(
                     selected: _genderPrefs,
                     onChanged: (g) => setState(() => _genderPrefs = g),
-                  ),
-                  const SizedBox(height: 18),
-                  const SectionLabel('Profissão procurada'),
-                  const SizedBox(height: 9),
-                  TextFormField(
-                    controller: _professionController,
-                    decoration:
-                        const InputDecoration(hintText: 'Ex.: Médico, Advogada…'),
                   ),
                   const SizedBox(height: 18),
                   const SectionLabel('Data e horário'),

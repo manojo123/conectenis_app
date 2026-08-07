@@ -39,13 +39,22 @@ class LimeButton extends StatelessWidget {
                   : AppColors.onPrimary,
             ),
           )
-        : Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[Icon(icon, size: 20), const SizedBox(width: 8)],
-              Text(label.toUpperCase()),
-            ],
+        // FittedBox keeps icon+label together (no ellipsis clipping) but
+        // scales down instead of overflowing when squeezed — e.g. two
+        // LimeButtons sharing a row with a Mensagem/Desafiar-style split.
+        : FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 20),
+                  const SizedBox(width: 8),
+                ],
+                Text(label.toUpperCase()),
+              ],
+            ),
           );
 
     final enabled = onPressed != null && !loading;

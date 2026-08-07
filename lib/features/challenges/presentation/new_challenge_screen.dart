@@ -54,7 +54,6 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
   double _maxNtrp = 3.0;
   bool _ntrpInitialized = false;
   Set<Gender> _genderPrefs = {};
-  final _professionController = TextEditingController();
   bool _openLocation = false;
 
   // Shared state.
@@ -78,7 +77,6 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
 
   @override
   void dispose() {
-    _professionController.dispose();
     _messageController.dispose();
     super.dispose();
   }
@@ -208,9 +206,6 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
             minNtrp: _minNtrp,
             maxNtrp: _maxNtrp,
             genderPreference: genderPreferenceFromSet(_genderPrefs),
-            professionPreference: _professionController.text.trim().isEmpty
-                ? null
-                : _professionController.text.trim(),
             message: message.isEmpty ? null : message,
           );
         }
@@ -426,7 +421,7 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
       ),
       const SizedBox(height: 10),
       SizedBox(
-        height: 96,
+        height: 110,
         child: ListView(
           scrollDirection: Axis.horizontal,
           children: [
@@ -598,23 +593,6 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
       GenderMultiSelector(
         selected: _genderPrefs,
         onChanged: (g) => setState(() => _genderPrefs = g),
-      ),
-      const SizedBox(height: 18),
-      SectionLabel(
-        'Profissão procurada',
-        trailing: Text(
-          '(opcional)',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: t.disabled,
-          ),
-        ),
-      ),
-      const SizedBox(height: 9),
-      TextFormField(
-        controller: _professionController,
-        decoration: const InputDecoration(hintText: 'Ex.: Médico, Advogada…'),
       ),
     ];
   }

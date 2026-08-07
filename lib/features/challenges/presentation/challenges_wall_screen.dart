@@ -23,7 +23,7 @@ import 'package:conectenis_app/shared/widgets/segmented_tabs.dart';
 /// Default public challenge search radius (km). Backend config target: 50.
 const kPublicNearbyDefaultRadiusKm = 50;
 
-enum _WallTab { recebidos, mural, meus, historico }
+enum _WallTab { meus, mural, historico }
 
 class ChallengesWallScreen extends ConsumerStatefulWidget {
   const ChallengesWallScreen({super.key});
@@ -33,7 +33,7 @@ class ChallengesWallScreen extends ConsumerStatefulWidget {
 }
 
 class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
-  _WallTab _tab = _WallTab.recebidos;
+  _WallTab _tab = _WallTab.meus;
   List<Challenge> _created = [];
   List<Challenge> _received = [];
   List<Challenge> _public = [];
@@ -103,18 +103,15 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
     return sortChallengesByPriority(items);
   }
 
-  List<Challenge> get _recebidosItems => _applyFilters(_received
-      .where((c) => c.status == ChallengeStatus.pendingAcceptance)
-      .toList());
-
   List<Challenge> get _muralItems => _public;
 
+  /// Everything I'm part of that isn't history yet: challenges I created,
+  /// public ones I've joined, and direct invites sent to me — including
+  /// ones still awaiting my Aceitar/Recusar.
   List<Challenge> get _meusItems {
     final mine = <Challenge>[
       ..._created.where((c) => !isChallengeHistory(c)),
-      ..._received.where((c) =>
-          !isChallengeHistory(c) &&
-          c.status != ChallengeStatus.pendingAcceptance),
+      ..._received.where((c) => !isChallengeHistory(c)),
     ];
     final seen = <int>{};
     return _applyFilters(
@@ -156,27 +153,6 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
     final isMine = user != null && c.creator.id == user.id;
 
     switch (_tab) {
-      case _WallTab.recebidos:
-        return [
-          CardActionButton(
-            label: 'Recusar',
-            kind: CardActionKind.danger,
-            loading: busy,
-            onTap: busy
-                ? null
-                : () => _runAction(
-                    c, () => repo.decline(c.id), 'Desafio recusado.'),
-          ),
-          CardActionButton(
-            label: 'Aceitar',
-            kind: CardActionKind.primary,
-            loading: busy,
-            onTap: busy
-                ? null
-                : () => _runAction(c, () => repo.accept(c.id),
-                    'Desafio aceito! Partida agendada.'),
-          ),
-        ];
       case _WallTab.mural:
         if (c.hasApplied) {
           return const [
@@ -199,6 +175,29 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
           ),
         ];
       case _WallTab.meus:
+        if (c.status == ChallengeStatus.pendingAcceptance &&
+            c.role == 'received') {
+          return [
+            CardActionButton(
+              label: 'Recusar',
+              kind: CardActionKind.danger,
+              loading: busy,
+              onTap: busy
+                  ? null
+                  : () => _runAction(
+                      c, () => repo.decline(c.id), 'Desafio recusado.'),
+            ),
+            CardActionButton(
+              label: 'Aceitar',
+              kind: CardActionKind.primary,
+              loading: busy,
+              onTap: busy
+                  ? null
+                  : () => _runAction(c, () => repo.accept(c.id),
+                      'Desafio aceito! Partida agendada.'),
+            ),
+          ];
+        }
         final actions = <Widget>[];
         if (isMine &&
             c.type == ChallengeType.public &&
@@ -245,17 +244,13 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
   }
 
   (String, String) get _emptyCopy => switch (_tab) {
-        _WallTab.recebidos => (
-            'Nenhum desafio pendente',
-            'Explore o mural público ou desafie alguém pelo mapa!'
+        _WallTab.meus => (
+            'Você ainda não tem jogos ativos',
+            'Crie um desafio com o botão NOVO acima ou candidate-se no Mural.'
           ),
         _WallTab.mural => (
             'O mural está vazio por enquanto',
             'Nenhum desafio público disponível num raio de $kPublicNearbyDefaultRadiusKm km.'
-          ),
-        _WallTab.meus => (
-            'Você ainda não tem jogos ativos',
-            'Crie um desafio com o botão NOVO acima.'
           ),
         _WallTab.historico => (
             'Nada por aqui ainda',
@@ -269,12 +264,7 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
     final t = context.t;
     final user = ref.watch(authStateProvider).value;
 
-    final segments = [
-      ('Recebidos', _recebidosItems.length),
-      ('Mural', 0),
-      ('Meus jogos', 0),
-      ('Histórico', 0),
-    ];
+    const segmentLabels = ['Meus jogos', 'Mural', 'Histórico'];
 
     return Scaffold(
       body: SafeArea(
@@ -357,10 +347,7 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
               child: SegmentedTabs(
-                labels: [
-                  for (final (label, count) in segments)
-                    count > 0 ? '$label · $count' : label,
-                ],
+                labels: segmentLabels,
                 index: _tab.index,
                 dense: true,
                 onChanged: (i) => setState(() => _tab = _WallTab.values[i]),
@@ -381,9 +368,8 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
       return ErrorView(message: _error!, onRetry: _load);
     }
     final items = switch (_tab) {
-      _WallTab.recebidos => _recebidosItems,
-      _WallTab.mural => _muralItems,
       _WallTab.meus => _meusItems,
+      _WallTab.mural => _muralItems,
       _WallTab.historico => _historicoItems,
     };
 
@@ -409,8 +395,10 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
                 return ChallengeMuralCard(
                   challenge: c,
                   currentUserId: userId,
-                  highlightDirect: _tab == _WallTab.recebidos &&
-                      c.type == ChallengeType.direct,
+                  highlightDirect:
+                      c.type == ChallengeType.direct &&
+                          c.status == ChallengeStatus.pendingAcceptance &&
+                          c.role == 'received',
                   actions: _cardActions(c),
                 );
               },
