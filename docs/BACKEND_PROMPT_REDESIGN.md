@@ -175,29 +175,78 @@ stopgap, but the correct fix is server-side: exclude rows from
 requesting user's `gender`. This also saves the client from ever seeing
 challenges it can't act on.
 
-## 10. Feature request (not yet scoped): persistent doubles group chat
+## 10. Persistent doubles group chat (approved — please implement)
 
-Users have asked for a group chat tied to a doubles challenge — all
-participants (both pairs) share one thread that stays open while the
-challenge is open (created → completed/cancelled/expired), then presumably
-archives or closes. This is a bigger feature than a client tweak and needs
-scoping before implementation:
+All 4 participants of a doubles challenge (both pairs) get one shared
+thread. Design decisions below are final — please implement to this spec
+rather than re-deriving them:
 
-- Data model: does a `Challenge` (type=doubles) get an implicit
-  `Conversation` with >2 participants, or is this a new "challenge thread"
-  resource distinct from today's 1:1 `conversations`? The current schema
-  (`other_user_id` singular on the conversation row) assumes exactly one
-  other participant.
-- Lifecycle: who's added/removed as candidates are confirmed/declined:
-  does the thread exist from creation (with placeholder slots) or only
-  once all 4 players are locked in?
-- Close/archive semantics: what happens to the thread when the challenge
-  reaches a terminal status — read-only, hidden, deleted?
-- Notifications/unread counts: do group messages count toward the same
-  `unread_count` badge as 1:1 conversations?
+- **Creation trigger**: automatic, server-side, when the challenge
+  transitions to `accepted` (i.e. all 4 players are locked in — same
+  moment the challenge leaves `pending_candidates`/`candidates_awaiting_accept`).
+  No client action creates it; no thread exists before that point.
+- **Lifecycle**: the thread becomes **read-only** the moment the challenge
+  reaches a terminal status (`completed`, `cancelled`, `expired`,
+  `declined`). History stays visible in `GET /conversations` and
+  `GET /conversations/{id}/messages` — only new messages are blocked.
+- **Unread counts**: merge into the same `unread_count` field / same
+  Mensagens nav badge as 1:1 conversations — no separate badge concept.
 
-Flagging this now so it can be scoped in a follow-up rather than guessed
-at — no backend work requested yet.
+### Data model
+Extend the existing `conversations` resource rather than introducing a
+parallel one — add a participants join (`conversation_participants
+(conversation_id, user_id)`) so a row can have >1 other participant, and
+two new fields:
+
+- `type`: `"direct"` (today's 1:1 rows, unchanged) | `"group"` (new).
+- `challenge_id`: int, only set for `type: "group"`, links back to the
+  doubles challenge.
+
+### `GET /api/conversations` — group row shape
+```json
+{
+  "id": 88,
+  "type": "group",
+  "challenge_id": 501,
+  "title": "Duplas: Quadra Vila Olímpia",
+  "participants": [
+    { "id": 12, "name": "Você", "avatar_url": null },
+    { "id": 34, "name": "Mariana Silva", "avatar_url": null },
+    { "id": 56, "name": "Pedro Alves", "avatar_url": null },
+    { "id": 78, "name": "Carla Nunes", "avatar_url": null }
+  ],
+  "last_message": "Confirmado, até sábado!",
+  "last_message_user_id": 34,
+  "updated_at": "2026-08-05T09:12:00-03:00",
+  "unread_count": 1,
+  "is_archived": false
+}
+```
+- `title` (string, required for `type: group`): short label for the list
+  row (e.g. the place name or "Duplas #{challenge_id}") since there's no
+  single "other user" name to show.
+- `participants` (array, required for `type: group`): every member
+  including the requesting user (flagged by matching their own id) — the
+  client uses this to render the avatar stack and to label who sent each
+  message (`Message.user_id` → lookup by `id` here). `other_user_id` /
+  `other_user_name` / `other_avatar_url` stay `null` on group rows.
+- `is_archived` (bool, required for `type: group`): `true` once the
+  challenge hits a terminal status. `direct` rows can omit this (defaults
+  false).
+- Existing `direct` rows are unaffected — omit `type`/`challenge_id` or
+  send `type: "direct"`, your call, as long as old rows keep working.
+
+### Messages
+`GET /api/conversations/{id}/messages` and `POST /api/messages` need no
+shape change — `Message.user_id` already identifies the sender, and the
+client resolves the display name via the conversation's `participants`
+list. `POST /api/messages` against an archived (`is_archived: true`)
+group conversation → `409` (existing convention for invalid state).
+
+### Notifications
+When the group thread is created, notify all 4 participants (reuse the
+existing notification pipeline / `type` vocabulary from §2 — e.g. a new
+`type: "group_chat_started"` pointing at the conversation).
 
 ## 11. Pest scenarios to add
 
@@ -214,3 +263,9 @@ at — no backend work requested yet.
   event.
 - (If §3 lands) `weekly_delta` reflects snapshot movement.
 - Play-invitation and matches routes removed → `404` (or deprecation path).
+- Doubles group chat (§10): challenge with 4 confirmed players transitions
+  to `accepted` → a `type: group` conversation exists with all 4 as
+  `participants` and `is_archived: false`; challenge transitions to
+  `completed` → same conversation now `is_archived: true` and
+  `POST /messages` against it → `409`; a message from any of the 4 bumps
+  `unread_count` for the other 3 and sums into their Mensagens badge.
