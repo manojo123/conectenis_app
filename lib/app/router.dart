@@ -18,6 +18,7 @@ import 'package:conectenis_app/features/challenges/presentation/challenges_wall_
 import 'package:conectenis_app/features/challenges/presentation/edit_public_challenge_screen.dart';
 import 'package:conectenis_app/features/challenges/presentation/new_challenge_screen.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/models/nearby_court.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_list_screen.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
@@ -140,12 +141,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => NewChallengeScreen(
           initialType: ChallengeType.direct,
           opponentId: int.tryParse(state.uri.queryParameters['playerId'] ?? ''),
+          initialCourt: state.extra as NearbyCourt?,
         ),
       ),
       GoRoute(
         path: '/challenges/new/public',
-        builder: (_, _) =>
-            const NewChallengeScreen(initialType: ChallengeType.public),
+        builder: (_, state) => NewChallengeScreen(
+          initialType: ChallengeType.public,
+          initialCourt: state.extra as NearbyCourt?,
+        ),
       ),
       GoRoute(
         path: '/challenges/:id/edit',

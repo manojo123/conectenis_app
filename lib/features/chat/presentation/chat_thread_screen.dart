@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
+import 'package:conectenis_app/app/nav_badges.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
@@ -50,6 +53,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   int? _peerUserId;
   late final ChatRepository _chatRepository;
   late final ReverbService _reverbService;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -60,7 +64,35 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     _peerAvatarUrl = widget.otherAvatarUrl;
     _peerUserId = widget.otherUserId;
     _load();
+    _markRead();
     _subscribeReverb();
+    // Reverb is disabled in this deployment (no realtime push), so fall back
+    // to light polling to keep the thread reasonably live.
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _silentRefresh());
+  }
+
+  Future<void> _markRead() async {
+    try {
+      await _chatRepository.markRead(widget.conversationId);
+      bumpConversationsRefresh(ref);
+    } catch (_) {
+      // Best-effort: an unread badge that fails to clear once isn't worth surfacing.
+    }
+  }
+
+  Future<void> _silentRefresh() async {
+    if (!mounted || _loading) return;
+    try {
+      final userId = ref.read(authStateProvider).value?.id;
+      final list = await _chatRepository.timeline(
+        widget.conversationId,
+        currentUserId: userId,
+      );
+      if (!mounted || list.length == _timeline.length) return;
+      setState(() => _timeline = list);
+    } catch (_) {
+      // Silent refresh: leave the current timeline as-is on failure.
+    }
   }
 
   Future<void> _subscribeReverb() async {
@@ -192,6 +224,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     _reverbService.disconnect();

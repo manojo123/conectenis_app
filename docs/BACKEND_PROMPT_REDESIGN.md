@@ -23,7 +23,7 @@ non-participants, `404` unknown ids, `409` invalid state transitions.
 
 The nav badge and the conversation list need per-conversation unread counts.
 
-**`GET /api/conversations`** — each row gains two fields:
+**`GET /api/conversations`** — each row gains three fields:
 
 ```json
 [
@@ -33,6 +33,7 @@ The nav badge and the conversation list need per-conversation unread counts.
     "other_user_name": "Mariana Silva",
     "other_avatar_url": null,
     "last_message": "Fechado então! Reservo a quadra 3.",
+    "last_message_user_id": 34,
     "updated_at": "2026-08-05T09:12:00-03:00",
     "unread_count": 2,
     "presence_label": null
@@ -43,6 +44,12 @@ The nav badge and the conversation list need per-conversation unread counts.
 - `unread_count` (int, required): messages the authenticated user has not
   read in this conversation. The Flutter model already parses it (defaults
   to 0 when absent), and the Mensagens tab badge is the sum across rows.
+- `last_message_user_id` (int|null, required): id of whoever sent
+  `last_message`. Without it the conversation list preview is ambiguous —
+  users can't tell if they or the other person sent the last message. The
+  Flutter model already parses this field (`Conversation.lastMessageSenderId`)
+  and prefixes the preview with "Você:" / the other user's name once
+  present; it's a no-op prefix until this field ships.
 - `presence_label` (string|null, optional, nice-to-have): pt-BR presence
   line for the thread header, e.g. `"online"` or `"visto por último há 2 h"`.
   Omit or send null if presence tracking is out of scope.
@@ -156,11 +163,51 @@ upgrading `pusher_channels_flutter` to ≥2.6.0, which requires migrating
 `POST /api/broadcasting/auth` and the `MessageSent` event on
 `private-conversation.{id}` are needed server-side (already documented).
 
-## 9. Pest scenarios to add
+## 9. Public wall: filter by gender preference server-side
+
+`GET /api/challenges?role=public_nearby` (Mural tab) currently returns
+public challenges regardless of `gender_preference`, and only
+`can_apply=false` silently blocks the wrong gender from applying — which
+reads as a bug ("it shows up for me but won't let me join"). The client now
+filters the list locally against the authenticated user's own gender as a
+stopgap, but the correct fix is server-side: exclude rows from
+`public_nearby` where `gender_preference` is set and doesn't match the
+requesting user's `gender`. This also saves the client from ever seeing
+challenges it can't act on.
+
+## 10. Feature request (not yet scoped): persistent doubles group chat
+
+Users have asked for a group chat tied to a doubles challenge — all
+participants (both pairs) share one thread that stays open while the
+challenge is open (created → completed/cancelled/expired), then presumably
+archives or closes. This is a bigger feature than a client tweak and needs
+scoping before implementation:
+
+- Data model: does a `Challenge` (type=doubles) get an implicit
+  `Conversation` with >2 participants, or is this a new "challenge thread"
+  resource distinct from today's 1:1 `conversations`? The current schema
+  (`other_user_id` singular on the conversation row) assumes exactly one
+  other participant.
+- Lifecycle: who's added/removed as candidates are confirmed/declined:
+  does the thread exist from creation (with placeholder slots) or only
+  once all 4 players are locked in?
+- Close/archive semantics: what happens to the thread when the challenge
+  reaches a terminal status — read-only, hidden, deleted?
+- Notifications/unread counts: do group messages count toward the same
+  `unread_count` badge as 1:1 conversations?
+
+Flagging this now so it can be scoped in a follow-up rather than guessed
+at — no backend work requested yet.
+
+## 11. Pest scenarios to add
 
 - Conversation read: send 2 messages A→B, `GET /conversations` as B shows
   `unread_count: 2`; `POST /conversations/{id}/read` as B → 204 and count 0.
 - Messages badge total: unread counts sum across conversations.
+- `last_message_user_id` on `GET /conversations` matches the sender of the
+  most recent message, both when A sent last and when B sent last.
+- `public_nearby` excludes challenges whose `gender_preference` doesn't
+  match the requesting user's gender (§9).
 - `POST /notifications/read-all` zeroes `unread_notifications_count` on the
   next `GET /auth/user`.
 - Notification `data.challenge_id` present for every challenge lifecycle

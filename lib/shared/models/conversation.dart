@@ -9,6 +9,7 @@ class Conversation {
     this.updatedAt,
     this.otherAvatarUrl,
     this.unreadCount = 0,
+    this.lastMessageSenderId,
   });
 
   final int id;
@@ -22,6 +23,11 @@ class Conversation {
   /// (`unread_count`) - see docs/BACKEND_PROMPT_REDESIGN.md; 0 when absent.
   final int unreadCount;
 
+  /// Who sent [lastMessage]. Optional server field (`last_message_user_id`)
+  /// - see docs/BACKEND_PROMPT_REDESIGN.md; null when absent, in which case
+  /// the UI shows the preview with no "Você:"/name prefix.
+  final int? lastMessageSenderId;
+
   factory Conversation.fromJson(Map<String, dynamic> json) {
     return Conversation(
       id: parseJsonInt(json['id']),
@@ -33,6 +39,9 @@ class Conversation {
           : null,
       otherAvatarUrl: json['other_avatar_url'] as String?,
       unreadCount: parseJsonInt(json['unread_count']),
+      lastMessageSenderId: json['last_message_user_id'] == null
+          ? null
+          : parseJsonInt(json['last_message_user_id']),
     );
   }
 }

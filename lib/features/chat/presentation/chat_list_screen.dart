@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +9,7 @@ import 'package:conectenis_app/app/notification_bell_button.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
+import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/chat/data/chat_repository.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
@@ -30,11 +33,21 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   AsyncValue<List<Conversation>> _conversations = const AsyncLoading();
   bool _selectMode = false;
   final Set<int> _selectedIds = {};
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Reverb is disabled in this deployment (no realtime push), so fall back
+    // to light polling to keep the list reasonably live.
+    _pollTimer = Timer.periodic(const Duration(seconds: 12), (_) => _silentRefresh());
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -45,6 +58,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       if (mounted) bumpConversationsRefresh(ref);
     } catch (e, st) {
       setState(() => _conversations = AsyncError(e, st));
+    }
+  }
+
+  Future<void> _silentRefresh() async {
+    if (!mounted || _selectMode) return;
+    try {
+      final list = await ref.read(chatRepositoryProvider).conversations();
+      if (!mounted) return;
+      setState(() => _conversations = AsyncData(list));
+      bumpConversationsRefresh(ref);
+    } catch (_) {
+      // Silent refresh: leave the current list as-is on failure.
     }
   }
 
@@ -213,6 +238,16 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
   }
 
+  String _previewText(Conversation c) {
+    final body = c.lastMessage;
+    if (body == null || body.isEmpty) return 'Nova conversa';
+    if (c.lastMessageSenderId == null) return body;
+    final myId = ref.read(authStateProvider).value?.id;
+    final senderLabel =
+        c.lastMessageSenderId == myId ? 'Você' : c.otherUserName;
+    return '$senderLabel: $body';
+  }
+
   Widget _conversationCard(AppTokens t, Conversation c) {
     final selected = _selectedIds.contains(c.id);
     final unread = c.unreadCount > 0;
@@ -320,7 +355,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              c.lastMessage ?? 'Nova conversa',
+                              _previewText(c),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(

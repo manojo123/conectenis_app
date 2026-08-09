@@ -18,6 +18,7 @@ import 'package:conectenis_app/features/places/data/places_repository.dart';
 import 'package:conectenis_app/features/players/data/players_repository.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/models/nearby_court.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/utils/ntrp_labels.dart';
@@ -450,8 +451,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               onOpen: () => context
                                   .push('/places/${_selectedPlace!.id}')
                                   .then((_) => _loadData()),
-                              onChallengeHere: () =>
-                                  context.push('/challenges/new/public'),
+                              onChallengeHere: () => context.push(
+                                '/challenges/new/public',
+                                extra: NearbyCourt(
+                                  placeId: _selectedPlace!.id,
+                                  name: _selectedPlace!.name,
+                                  latitude: _selectedPlace!.latitude,
+                                  longitude: _selectedPlace!.longitude,
+                                ),
+                              ),
                             )
                           : const SizedBox.shrink(),
                 ),

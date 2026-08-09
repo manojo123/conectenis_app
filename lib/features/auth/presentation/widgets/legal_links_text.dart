@@ -16,8 +16,12 @@ class LegalLinksText extends StatelessWidget {
 
   Future<void> _open(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
+    try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // canLaunchUrl is unreliable on Android 11+ without a matching
+      // <queries> manifest entry, so we try launchUrl directly and just
+      // swallow failure rather than silently no-op before even trying.
     }
   }
 

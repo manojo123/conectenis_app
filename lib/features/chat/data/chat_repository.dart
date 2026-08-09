@@ -123,6 +123,15 @@ class ChatRepository {
     }
   }
 
+  Future<void> markRead(int conversationId) async {
+    if (Env.useMockApi) return;
+    try {
+      await _dio.post('/conversations/$conversationId/read');
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<void> deleteConversation(int id) async {
     if (Env.useMockApi) {
       await _mock.deleteConversation(id);

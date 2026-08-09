@@ -104,7 +104,19 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
     return sortChallengesByPriority(items);
   }
 
-  List<Challenge> get _muralItems => _public;
+  /// Public challenges available to me. Hides any with a gender preference
+  /// that doesn't match mine — the backend's `public_nearby` list doesn't
+  /// filter this server-side yet (see docs/BACKEND_PROMPT_REDESIGN.md), so
+  /// without this a challenge could show up for everyone while only
+  /// `can_apply` silently blocked the mismatched genders from joining.
+  List<Challenge> get _muralItems {
+    final myGender = ref.read(authStateProvider).value?.gender;
+    return _public.where((c) {
+      final pref = c.genderPreference;
+      if (pref == null || pref.isEmpty) return true;
+      return myGender != null && pref == myGender.value;
+    }).toList();
+  }
 
   /// Everything I'm part of that isn't history yet: challenges I created,
   /// public ones I've joined, and direct invites sent to me - including
@@ -164,12 +176,21 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
             ),
           ];
         }
+        if (!c.canApply) {
+          return const [
+            CardActionButton(
+              label: 'Não disponível para o seu perfil',
+              kind: CardActionKind.disabled,
+              onTap: null,
+            ),
+          ];
+        }
         return [
           CardActionButton(
             label: 'Candidatar-se',
             kind: CardActionKind.primary,
             loading: busy,
-            onTap: busy || !c.canApply
+            onTap: busy
                 ? null
                 : () => _runAction(
                     c, () => repo.apply(c.id), 'Candidatura enviada!'),

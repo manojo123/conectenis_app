@@ -32,10 +32,14 @@ class NewChallengeScreen extends ConsumerStatefulWidget {
     super.key,
     this.initialType = ChallengeType.direct,
     this.opponentId,
+    this.initialCourt,
   });
 
   final ChallengeType initialType;
   final int? opponentId;
+
+  /// Pre-fills "Local" — e.g. arriving from the map's CRIAR DESAFIO AQUI.
+  final NearbyCourt? initialCourt;
 
   @override
   ConsumerState<NewChallengeScreen> createState() => _NewChallengeScreenState();
@@ -73,6 +77,7 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
     if (widget.opponentId != null) {
       _loadInitialOpponent(widget.opponentId!);
     }
+    _court = widget.initialCourt;
   }
 
   @override
