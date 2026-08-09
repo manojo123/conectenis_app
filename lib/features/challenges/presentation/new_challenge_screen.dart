@@ -38,7 +38,7 @@ class NewChallengeScreen extends ConsumerStatefulWidget {
   final ChallengeType initialType;
   final int? opponentId;
 
-  /// Pre-fills "Local" — e.g. arriving from the map's CRIAR DESAFIO AQUI.
+  /// Pre-fills "Local" - e.g. arriving from the map's CRIAR DESAFIO AQUI.
   final NearbyCourt? initialCourt;
 
   @override
@@ -51,6 +51,9 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
   // Direct state.
   ChallengeFormat _format = ChallengeFormat.singles;
   final Map<int, Player> _opponents = {};
+
+  // Shared with public: how the match score/winner is decided.
+  ScoringFormat _scoringFormat = ScoringFormat.bestOfThreeSets;
 
   // Public state.
   final Set<ChallengeFormat> _publicFormats = {ChallengeFormat.singles};
@@ -192,6 +195,7 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
       if (_isDirect) {
         await repo.createDirect(
           format: _format,
+          scoringFormat: _scoringFormat,
           participantIds: _opponents.keys.toList(),
           placeId: _court!.placeId,
           googlePlaceId: _court!.googlePlaceId,
@@ -203,6 +207,7 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
         for (final format in _publicFormats) {
           await repo.createPublic(
             format: format,
+            scoringFormat: _scoringFormat,
             scheduledStart: _start,
             scheduledEnd: _end,
             openLocation: _openLocation,
@@ -264,6 +269,10 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
                   ),
                   const SizedBox(height: 20),
                   if (_isDirect) ..._directSection(t) else ..._publicSection(t, userNtrp),
+                  const SizedBox(height: 20),
+                  const SectionLabel('Pontuação'),
+                  const SizedBox(height: 9),
+                  ..._scoringFormatSection(t),
                   const SizedBox(height: 20),
                   const SectionLabel('Data e horário'),
                   const SizedBox(height: 9),
@@ -525,6 +534,63 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
           ],
         ),
       ),
+    ];
+  }
+
+  List<Widget> _scoringFormatSection(AppTokens t) {
+    return [
+      for (final format in ScoringFormat.values) ...[
+        if (format != ScoringFormat.values.first) const SizedBox(height: 8),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _scoringFormat = format),
+          child: Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: t.surface,
+              border: Border.all(
+                color: _scoringFormat == format ? t.accent : t.border,
+                width: _scoringFormat == format ? 1.5 : 1,
+              ),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _scoringFormat == format
+                        ? t.accent
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: _scoringFormat == format ? t.accent : t.disabled,
+                      width: 2,
+                    ),
+                  ),
+                  child: _scoringFormat == format
+                      ? Icon(Symbols.check_rounded,
+                          size: 13, weight: 700, color: t.onAccent)
+                      : null,
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    format.label,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: t.text,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     ];
   }
 

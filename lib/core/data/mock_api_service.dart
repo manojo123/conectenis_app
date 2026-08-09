@@ -110,8 +110,7 @@ class MockApiService {
     }
   }
 
-  /// Mock stand-in for the backend's ownership/admin delete permission check.
-  bool _canDelete(Place place) => place.createdByUserId == MockData.currentUserId;
+  bool _isOwner(Place place) => place.createdByUserId == MockData.currentUserId;
 
   Future<List<Place>> places({double? lat, double? lng, String? name}) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -120,7 +119,7 @@ class MockApiService {
       final q = name.trim().toLowerCase();
       list = list.where((p) => p.name.toLowerCase().contains(q)).toList();
     }
-    return list.map((p) => p.copyWith(canDelete: _canDelete(p))).toList();
+    return list.map((p) => p.copyWith(isOwner: _isOwner(p))).toList();
   }
 
   Future<Place?> placeById(int id) async {
@@ -128,7 +127,7 @@ class MockApiService {
     try {
       final place = _places.firstWhere((p) => p.id == id);
       final reviews = _placeReviews[id] ?? place.recentReviews;
-      return place.copyWith(recentReviews: reviews, canDelete: _canDelete(place));
+      return place.copyWith(recentReviews: reviews, isOwner: _isOwner(place));
     } catch (_) {
       return null;
     }
@@ -146,7 +145,7 @@ class MockApiService {
       latitude: latitude,
       longitude: longitude,
       createdByUserId: MockData.currentUserId,
-      canDelete: true,
+      isOwner: true,
     );
     _places.add(place);
     return place;
@@ -170,7 +169,7 @@ class MockApiService {
       isPublic: isPublic,
     );
     _places[idx] = updated;
-    return updated.copyWith(canDelete: _canDelete(updated));
+    return updated.copyWith(isOwner: _isOwner(updated));
   }
 
   Future<void> deletePlace(int id) async {
@@ -613,6 +612,7 @@ class MockApiService {
 
   Future<Challenge> createDirectChallenge({
     required ChallengeFormat format,
+    ScoringFormat scoringFormat = ScoringFormat.bestOfThreeSets,
     required List<int> participantIds,
     int? placeId,
     String? googlePlaceId,
@@ -644,6 +644,7 @@ class MockApiService {
       id: 200 + _challenges.length,
       type: ChallengeType.direct,
       format: format,
+      scoringFormat: scoringFormat,
       status: ChallengeStatus.pendingAcceptance,
       scheduledStart: scheduledStart,
       scheduledEnd: scheduledEnd,
@@ -695,6 +696,7 @@ class MockApiService {
 
   Future<Challenge> createPublicChallenge({
     required ChallengeFormat format,
+    ScoringFormat scoringFormat = ScoringFormat.bestOfThreeSets,
     required DateTime scheduledStart,
     DateTime? scheduledEnd,
     int? placeId,
@@ -728,6 +730,7 @@ class MockApiService {
       id: 300 + _challenges.length,
       type: ChallengeType.public,
       format: format,
+      scoringFormat: scoringFormat,
       status: ChallengeStatus.pendingCandidates,
       scheduledStart: scheduledStart,
       scheduledEnd: scheduledEnd,
@@ -744,12 +747,25 @@ class MockApiService {
     return challenge;
   }
 
+  /// Mock stand-in for the backend-computed `score_label` (§12) - real
+  /// formatting/localization lives server-side.
+  String _mockScoreLabel(List<SetScore> sets, TiebreakScore? superTiebreak) {
+    final parts = sets.map((s) {
+      final tb = s.tiebreak;
+      if (tb == null) return '${s.myGames}-${s.opponentGames}';
+      final loserPoints = tb.myPoints < tb.opponentPoints ? tb.myPoints : tb.opponentPoints;
+      return '${s.myGames}-${s.opponentGames}($loserPoints)';
+    }).join(', ');
+    if (superTiebreak == null) return parts;
+    return '$parts, ST ${superTiebreak.myPoints}-${superTiebreak.opponentPoints}';
+  }
+
   Future<Challenge> submitChallengeEvaluation(
     int id, {
     required ChallengeFormat format,
     required bool skipScore,
-    int? myGamesWon,
-    int? opponentGamesWon,
+    List<SetScore>? sets,
+    TiebreakScore? superTiebreak,
     int? winnerUserId,
     List<int>? winnerTeam,
     List<OpponentRatingPayload>? opponentRatings,
@@ -783,9 +799,9 @@ class MockApiService {
         winnerName = winnerUserId == null ? null : old.participantName(winnerUserId);
       }
     }
-    final scoreLabel = skipScore
+    final scoreLabel = skipScore || sets == null || sets.isEmpty
         ? null
-        : '${myGamesWon ?? 0} × ${opponentGamesWon ?? 0}';
+        : _mockScoreLabel(sets, superTiebreak);
 
     final approvals = old.participantUserIds.map((uid) {
       final approved = uid == MockData.currentUserId;
@@ -820,8 +836,8 @@ class MockApiService {
       scoreLabel: scoreLabel,
       submittedByUserId: MockData.currentUserId,
       submittedByName: 'Você',
-      myGamesWon: myGamesWon,
-      opponentGamesWon: opponentGamesWon,
+      sets: sets ?? const [],
+      superTiebreak: superTiebreak,
       approvals: approvals,
       opponentPunctualityStars: opponentPunctualityStars,
       opponentComment: opponentComment,
@@ -885,8 +901,8 @@ class MockApiService {
       scoreLabel: result.scoreLabel,
       submittedByUserId: result.submittedByUserId,
       submittedByName: result.submittedByName,
-      myGamesWon: result.myGamesWon,
-      opponentGamesWon: result.opponentGamesWon,
+      sets: result.sets,
+      superTiebreak: result.superTiebreak,
       approvals: approvals,
       opponentPunctualityStars: result.opponentPunctualityStars,
       opponentComment: result.opponentComment,

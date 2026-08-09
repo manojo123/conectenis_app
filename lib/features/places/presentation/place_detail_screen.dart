@@ -75,7 +75,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
   bool get _canEdit {
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null || _place == null) return false;
-    return _place!.createdByUserId == user.id || user.isAdmin;
+    return _place!.isOwner || user.isAdmin;
   }
 
   Future<void> _saveEdit() async {
@@ -219,7 +219,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
               icon: const Icon(Icons.edit),
               onPressed: _busy ? null : () => setState(() => _editing = true),
             ),
-          if ((place.canDelete || _canEdit) && !_editing)
+          if (_canEdit && !_editing)
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: _busy ? null : _delete,

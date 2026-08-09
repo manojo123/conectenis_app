@@ -3,6 +3,7 @@ import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/challenges/data/challenges_repository.dart';
 import 'package:conectenis_app/features/challenges/providers/challenges_refresh_provider.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
+import 'package:conectenis_app/shared/models/challenge_result.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/widgets/app_card.dart';
 import 'package:conectenis_app/shared/widgets/app_toast.dart';
@@ -84,6 +85,20 @@ class _ChallengeApproveEvaluationScreenState
         _error = e.toString();
       });
     }
+  }
+
+  /// e.g. "Set 1: 6-4 · Set 2: 6-7 (tiebreak 5-7) · Super tiebreak: 10-8" -
+  /// display-only detail alongside the backend's `score_label`; this screen
+  /// never re-derives the winner from it.
+  String _setsBreakdown(ChallengeResult result) {
+    final parts = <String>[
+      for (final (i, set) in result.sets.indexed)
+        'Set ${i + 1}: ${set.myGames}-${set.opponentGames}'
+            '${set.tiebreak != null ? ' (tiebreak ${set.tiebreak!.myPoints}-${set.tiebreak!.opponentPoints})' : ''}',
+      if (result.superTiebreak != null)
+        'Super tiebreak: ${result.superTiebreak!.myPoints}-${result.superTiebreak!.opponentPoints}',
+    ];
+    return parts.join(' · ');
   }
 
   List<OpponentRatingPayload> _buildOpponentPayloads(List<int> opponents) {
@@ -231,16 +246,14 @@ class _ChallengeApproveEvaluationScreenState
                                 ],
                               ),
                             ),
-                          )
-                        else if (result?.myGamesWon != null)
-                          Text(
-                            'Placar: ${result!.myGamesWon} × ${result.opponentGamesWon}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: t.text,
-                            ),
                           ),
+                        if (result != null && result.sets.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            _setsBreakdown(result),
+                            style: TextStyle(fontSize: 12.5, color: t.muted, height: 1.5),
+                          ),
+                        ],
                         if (result?.winnerName != null) ...[
                           const SizedBox(height: 6),
                           Text(

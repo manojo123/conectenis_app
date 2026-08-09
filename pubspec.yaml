@@ -15,14 +15,12 @@ dependencies:
   dio: ^5.7.0
   flutter_riverpod: ^2.6.1
   go_router: ^14.6.2
-  flutter_secure_storage: ^9.2.4
+  flutter_secure_storage: ^10.0.0
   google_maps_flutter: ^2.10.0
   geolocator: ^13.0.2
   image_picker: ^1.1.2
   cached_network_image: ^3.4.1
-  # NOTE: >=2.6.0 adds the custom host/port options Reverb needs, but it
-  # conflicts with flutter_secure_storage 9.x — bump both together.
-  pusher_channels_flutter: ^2.4.0
+  pusher_channels_flutter: ^2.6.0
   intl: ^0.20.2
   flutter_dotenv: ^5.2.1
   url_launcher: ^6.3.1

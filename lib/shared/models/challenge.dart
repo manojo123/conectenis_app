@@ -10,6 +10,7 @@ class Challenge {
     required this.id,
     required this.type,
     required this.format,
+    this.scoringFormat = ScoringFormat.bestOfThreeSets,
     required this.status,
     required this.scheduledStart,
     required this.creator,
@@ -43,6 +44,10 @@ class Challenge {
   final int id;
   final ChallengeType type;
   final ChallengeFormat format;
+
+  /// Set/tiebreak rules for the match result - distinct from [format]
+  /// (singles/doubles). See docs/BACKEND_PROMPT_REDESIGN.md §12.
+  final ScoringFormat scoringFormat;
   final ChallengeStatus status;
   final DateTime scheduledStart;
   final DateTime? scheduledEnd;
@@ -277,6 +282,7 @@ class Challenge {
       id: parseJsonInt(json['id']),
       type: ChallengeType.fromValue(json['type'] as String?),
       format: ChallengeFormat.fromValue(json['format'] as String?),
+      scoringFormat: ScoringFormat.fromValue(json['scoring_format'] as String?),
       status: ChallengeStatus.fromValue(json['status'] as String?),
       scheduledStart: DateTime.parse(json['scheduled_start'] as String),
       scheduledEnd: json['scheduled_end'] != null

@@ -14,6 +14,7 @@ class AppNotification {
     required this.type,
     required this.message,
     this.challengeId,
+    this.conversationId,
     this.readAt,
     this.createdAt,
   });
@@ -22,6 +23,9 @@ class AppNotification {
   final String type;
   final String message;
   final int? challengeId;
+
+  /// Set on `group_chat_started` (§10) - points at the new doubles thread.
+  final int? conversationId;
   final DateTime? readAt;
   final DateTime? createdAt;
 
@@ -32,6 +36,7 @@ class AppNotification {
       type: data['type'] as String? ?? json['type'] as String? ?? '',
       message: data['message'] as String? ?? '',
       challengeId: data['challenge_id'] as int?,
+      conversationId: data['conversation_id'] as int?,
       readAt: json['read_at'] != null ? DateTime.tryParse(json['read_at'] as String) : null,
       createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'] as String) : null,
     );

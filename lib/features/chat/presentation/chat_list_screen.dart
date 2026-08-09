@@ -10,6 +10,7 @@ import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
+import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/features/chat/data/chat_repository.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
@@ -243,14 +244,67 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     if (body == null || body.isEmpty) return 'Nova conversa';
     if (c.lastMessageSenderId == null) return body;
     final myId = ref.read(authStateProvider).value?.id;
-    final senderLabel =
-        c.lastMessageSenderId == myId ? 'Você' : c.otherUserName;
-    return '$senderLabel: $body';
+    if (c.lastMessageSenderId == myId) return 'Você: $body';
+    final senderLabel = c.isGroup
+        ? c.participants
+            .firstWhere(
+              (p) => p.id == c.lastMessageSenderId,
+              orElse: () => const ConversationParticipant(id: -1, name: ''),
+            )
+            .name
+        : c.otherUserName;
+    return senderLabel.isEmpty ? body : '$senderLabel: $body';
+  }
+
+  Widget _groupAvatarStack(Conversation c) {
+    final myId = ref.read(authStateProvider).value?.id;
+    final others =
+        c.participants.where((p) => p.id != myId).toList(growable: false);
+    final shown = others.take(3).toList(growable: false);
+    const size = 52.0;
+    const overlap = 18.0;
+    final extra = others.length - shown.length;
+
+    return SizedBox(
+      width: size + (shown.length - 1).clamp(0, 3) * overlap + (extra > 0 ? overlap : 0),
+      height: size,
+      child: Stack(
+        children: [
+          for (final (i, p) in shown.indexed)
+            Positioned(
+              left: i * overlap,
+              child: UserAvatar(
+                name: p.name,
+                avatarUrl: p.avatarUrl,
+                userId: p.id,
+                radius: size / 2 - 2,
+              ),
+            ),
+          if (extra > 0)
+            Positioned(
+              left: shown.length * overlap,
+              child: CircleAvatar(
+                radius: size / 2 - 2,
+                backgroundColor: AppColors.navy,
+                child: Text(
+                  '+$extra',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _conversationCard(AppTokens t, Conversation c) {
     final selected = _selectedIds.contains(c.id);
-    final unread = c.unreadCount > 0;
+    final unread = c.unreadCount > 0 && !c.isArchived;
+    final title = c.isGroup ? (c.title ?? 'Duplas') : c.otherUserName;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -278,7 +332,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               });
             }
           },
-          child: Container(
+          child: Opacity(
+            opacity: c.isArchived ? 0.55 : 1,
+            child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: t.surface,
@@ -292,12 +348,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               children: [
                 Stack(
                   children: [
-                    UserAvatar(
-                      name: c.otherUserName,
-                      avatarUrl: c.otherAvatarUrl,
-                      userId: c.otherUserId,
-                      radius: 26,
-                    ),
+                    c.isGroup
+                        ? _groupAvatarStack(c)
+                        : UserAvatar(
+                            name: c.otherUserName,
+                            avatarUrl: c.otherAvatarUrl,
+                            userId: c.otherUserId,
+                            radius: 26,
+                          ),
                     if (_selectMode)
                       Positioned.fill(
                         child: Container(
@@ -332,7 +390,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              c.otherUserName,
+                              title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -397,6 +455,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),

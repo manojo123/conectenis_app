@@ -64,6 +64,22 @@ enum ChallengeFormat {
       );
 }
 
+/// See docs/BACKEND_PROMPT_REDESIGN.md §12 for the exact set/tiebreak rules.
+enum ScoringFormat {
+  proSet9('pro_set_9', 'Set único (9 games, super tiebreak em 8-8)'),
+  twoSetsSuperTiebreak('two_sets_super_tiebreak', '2 sets com super tiebreak'),
+  bestOfThreeSets('best_of_three_sets', 'Melhor de 3 sets');
+
+  const ScoringFormat(this.value, this.label);
+  final String value;
+  final String label;
+
+  static ScoringFormat fromValue(String? value) => ScoringFormat.values.firstWhere(
+        (e) => e.value == value,
+        orElse: () => ScoringFormat.bestOfThreeSets,
+      );
+}
+
 enum ChallengeStatus {
   pendingAcceptance('pending_acceptance', 'Pendente'),
   pendingCandidates('pending_candidates', 'Pendente candidatos'),

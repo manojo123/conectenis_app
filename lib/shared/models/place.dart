@@ -16,7 +16,7 @@ class Place {
     this.recentReviews = const [],
     this.ratingDimensions,
     this.isPublic = true,
-    this.canDelete = false,
+    this.isOwner = false,
   });
 
   final int id;
@@ -35,8 +35,10 @@ class Place {
   /// its owner, admins, or players invited to play there.
   final bool isPublic;
 
-  /// Backend-computed delete permission (owner or admin) - trust it as-is.
-  final bool canDelete;
+  /// True when the current user created this place - drives the "your
+  /// place" map marker color and gates showing edit/delete actions
+  /// (delete also requires admin, checked separately via the user).
+  final bool isOwner;
 
   String get subtitle {
     if (distanceKm != null) {
@@ -59,7 +61,7 @@ class Place {
     List<PlaceReview>? recentReviews,
     PlaceRatingDimensions? ratingDimensions,
     bool? isPublic,
-    bool? canDelete,
+    bool? isOwner,
   }) {
     return Place(
       id: id,
@@ -74,7 +76,7 @@ class Place {
       recentReviews: recentReviews ?? this.recentReviews,
       ratingDimensions: ratingDimensions ?? this.ratingDimensions,
       isPublic: isPublic ?? this.isPublic,
-      canDelete: canDelete ?? this.canDelete,
+      isOwner: isOwner ?? this.isOwner,
     );
   }
 
@@ -101,7 +103,7 @@ class Place {
         json['rating_dimensions'] as Map<String, dynamic>?,
       ),
       isPublic: json['is_public'] == null ? true : json['is_public'] == true,
-      canDelete: json['can_delete'] == true,
+      isOwner: json['is_owner'] == true,
     );
   }
 

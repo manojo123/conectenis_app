@@ -88,14 +88,28 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   Future<void> _open(AppNotification n) async {
+    final conversationId = n.conversationId;
     final challengeId = n.challengeId;
+    final type = n.type.toLowerCase();
     await _markRead(n);
-    if (challengeId == null || !mounted) return;
-    context.push('/challenges/$challengeId');
+    if (!mounted) return;
+    if (type.contains('group_chat') && conversationId != null) {
+      context.push('/messages/$conversationId');
+      return;
+    }
+    // ranking_up has no challenge_id - it points at the Rankings tab instead.
+    if (type.contains('ranking')) {
+      context.push('/ranking');
+      return;
+    }
+    if (challengeId != null) context.push('/challenges/$challengeId');
   }
 
   (IconData, Color, Color) _visual(AppTokens t, String type) {
     final lower = type.toLowerCase();
+    if (lower.contains('group_chat')) {
+      return (Symbols.groups_rounded, t.tintAcc, t.accentText);
+    }
     if (lower.contains('candidate')) {
       return (Symbols.group_add_rounded, t.tintInfo, t.info);
     }
@@ -116,6 +130,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   String _title(String type) {
     final lower = type.toLowerCase();
+    if (lower.contains('group_chat')) return 'Novo chat de duplas';
     if (lower.contains('candidate')) return 'Novo candidato';
     if (lower.contains('reminder') || lower.contains('scheduled')) {
       return 'Partida agendada';

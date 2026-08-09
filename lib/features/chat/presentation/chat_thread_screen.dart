@@ -28,15 +28,16 @@ class ChatThreadScreen extends ConsumerStatefulWidget {
   const ChatThreadScreen({
     super.key,
     required this.conversationId,
-    this.otherUserId,
-    this.otherUserName,
-    this.otherAvatarUrl,
+    this.initialConversation,
   });
 
   final int conversationId;
-  final int? otherUserId;
-  final String? otherUserName;
-  final String? otherAvatarUrl;
+
+  /// Passed via `extra` when navigated from a list that already fetched the
+  /// conversation (avatar/title/participants for `group` rows, archived
+  /// state, etc.) - null on a cold deep link, in which case [_loadPeerInfo]
+  /// fetches it.
+  final Conversation? initialConversation;
 
   @override
   ConsumerState<ChatThreadScreen> createState() => _ChatThreadScreenState();
@@ -48,6 +49,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   List<ChatTimelineEntry> _timeline = [];
   bool _loading = true;
   String? _error;
+  Conversation? _conversation;
   String? _peerName;
   String? _peerAvatarUrl;
   int? _peerUserId;
@@ -55,14 +57,29 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   late final ReverbService _reverbService;
   Timer? _pollTimer;
 
+  bool get _isGroup => _conversation?.isGroup ?? false;
+  bool get _isArchived => _conversation?.isArchived ?? false;
+  String get _title {
+    if (_isGroup) return _conversation?.title ?? 'Duplas';
+    return _peerName?.isNotEmpty == true ? _peerName! : 'Chat';
+  }
+
+  String? _senderName(int userId) {
+    for (final p in _conversation?.participants ?? const []) {
+      if (p.id == userId) return p.name;
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
     _chatRepository = ref.read(chatRepositoryProvider);
     _reverbService = ref.read(reverbServiceProvider);
-    _peerName = widget.otherUserName;
-    _peerAvatarUrl = widget.otherAvatarUrl;
-    _peerUserId = widget.otherUserId;
+    _conversation = widget.initialConversation;
+    _peerName = widget.initialConversation?.otherUserName;
+    _peerAvatarUrl = widget.initialConversation?.otherAvatarUrl;
+    _peerUserId = widget.initialConversation?.otherUserId;
     _load();
     _markRead();
     _subscribeReverb();
@@ -107,11 +124,19 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   }
 
   Future<void> _loadPeerInfo() async {
-    if (_peerName != null && _peerName!.isNotEmpty && _peerUserId != null) return;
+    // Group threads always need a fresh fetch for `participants` (sender
+    // labels); direct threads only need it when nav didn't pass a peer.
+    final needsFetch = _conversation == null ||
+        _conversation!.isGroup ||
+        _peerName == null ||
+        _peerName!.isEmpty ||
+        _peerUserId == null;
+    if (!needsFetch) return;
     final conversation =
         await _chatRepository.conversationById(widget.conversationId);
     if (!mounted || conversation == null) return;
     setState(() {
+      _conversation = conversation;
       _peerName = conversation.otherUserName;
       _peerAvatarUrl = conversation.otherAvatarUrl;
       _peerUserId = conversation.otherUserId;
@@ -146,6 +171,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   }
 
   Future<void> _send() async {
+    if (_isArchived) return;
     final body = _controller.text.trim();
     if (body.isEmpty) return;
     final userId = ref.read(authStateProvider).value?.id;
@@ -168,6 +194,14 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
+      // A group thread can go read-only between load and send (its
+      // challenge just reached a terminal status) - refresh so the
+      // composer locks instead of leaving a stale "active" input.
+      if (e is ApiException && e.statusCode == 409) {
+        final refreshed = await _chatRepository.conversationById(widget.conversationId);
+        if (mounted && refreshed != null) setState(() => _conversation = refreshed);
+      }
       if (mounted) {
         showToast(context, e is ApiException ? e.message : e.toString());
       }
@@ -178,6 +212,53 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final id = _peerUserId;
     if (id == null) return;
     openPlayerProfile(context, ref, id);
+  }
+
+  void _onHeaderTap() {
+    if (_isGroup) {
+      _openParticipants();
+    } else {
+      _openProfile();
+    }
+  }
+
+  void _openParticipants() {
+    final participants = _conversation?.participants ?? const [];
+    if (participants.isEmpty) return;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Participantes',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+            for (final p in participants)
+              ListTile(
+                leading: UserAvatar(
+                  name: p.name,
+                  avatarUrl: p.avatarUrl,
+                  userId: p.id,
+                  radius: 18,
+                ),
+                title: Text(p.name),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  openPlayerProfile(context, ref, p.id);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmDeleteMessage(Message message) async {
@@ -234,7 +315,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final title = _peerName?.isNotEmpty == true ? _peerName! : 'Chat';
+    final title = _title;
 
     return Scaffold(
       body: SafeArea(
@@ -258,26 +339,46 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   Expanded(
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: _peerUserId != null ? _openProfile : null,
+                      onTap: _isGroup || _peerUserId != null ? _onHeaderTap : null,
                       child: Row(
                         children: [
-                          UserAvatar(
-                            name: title,
-                            avatarUrl: _peerAvatarUrl,
-                            userId: _peerUserId,
-                            radius: 21,
-                          ),
+                          _isGroup
+                              ? CircleAvatar(
+                                  radius: 21,
+                                  backgroundColor: t.tintAcc,
+                                  child: Icon(Symbols.groups_rounded,
+                                      size: 22, fill: 1, color: t.accentText),
+                                )
+                              : UserAvatar(
+                                  name: title,
+                                  avatarUrl: _peerAvatarUrl,
+                                  userId: _peerUserId,
+                                  radius: 21,
+                                ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: t.text,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: t.text,
+                                  ),
+                                ),
+                                if (_isGroup)
+                                  Text(
+                                    '${_conversation?.participants.length ?? 0} participantes'
+                                    '${_isArchived ? ' · Encerrado' : ''}',
+                                    style: TextStyle(
+                                        fontSize: 11.5, color: t.muted),
+                                  ),
+                              ],
                             ),
                           ),
                         ],
@@ -354,6 +455,17 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (_isGroup && !mine && _senderName(m.userId) != null) ...[
+                  Text(
+                    _senderName(m.userId)!,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: t.accentText,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
                 Text(
                   m.body,
                   style: TextStyle(
@@ -386,6 +498,26 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   }
 
   Widget _composer(AppTokens t) {
+    if (_isArchived) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: t.border)),
+        ),
+        child: Row(
+          children: [
+            Icon(Symbols.lock_outline_rounded, size: 18, color: t.disabled),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Este chat foi encerrado.',
+                style: TextStyle(fontSize: 13, color: t.disabled),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(

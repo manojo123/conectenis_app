@@ -209,9 +209,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                       final conversation = state.extra as Conversation?;
                       return ChatThreadScreen(
                         conversationId: int.parse(state.pathParameters['id']!),
-                        otherUserId: conversation?.otherUserId,
-                        otherUserName: conversation?.otherUserName,
-                        otherAvatarUrl: conversation?.otherAvatarUrl,
+                        initialConversation: conversation,
                       );
                     },
                   ),

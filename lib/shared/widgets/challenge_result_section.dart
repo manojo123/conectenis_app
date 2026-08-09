@@ -38,6 +38,19 @@ class _ChallengeResultSectionState extends State<ChallengeResultSection> {
     super.dispose();
   }
 
+  /// Fallback for when the backend-computed `score_label` is absent -
+  /// display-only, same shape as the approve screen's breakdown.
+  String _setsBreakdown(ChallengeResult result) {
+    final parts = <String>[
+      for (final (i, set) in result.sets.indexed)
+        'Set ${i + 1}: ${set.myGames}-${set.opponentGames}'
+            '${set.tiebreak != null ? ' (tiebreak ${set.tiebreak!.myPoints}-${set.tiebreak!.opponentPoints})' : ''}',
+      if (result.superTiebreak != null)
+        'Super tiebreak: ${result.superTiebreak!.myPoints}-${result.superTiebreak!.opponentPoints}',
+    ];
+    return parts.join(' · ');
+  }
+
   Widget _buildOpponentRatingDisplay(OpponentResultRating r) {
     return Padding(
       padding: const EdgeInsets.only(top: 4),
@@ -100,9 +113,9 @@ class _ChallengeResultSectionState extends State<ChallengeResultSection> {
               const Text('Placar não informado')
             else if (result.scoreLabel != null && result.scoreLabel!.isNotEmpty)
               Text(result.scoreLabel!, style: Theme.of(context).textTheme.titleMedium)
-            else if (result.myGamesWon != null && result.opponentGamesWon != null)
+            else if (result.sets.isNotEmpty)
               Text(
-                'Placar: ${result.myGamesWon} × ${result.opponentGamesWon}',
+                _setsBreakdown(result),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             if (result.winnerName != null) ...[

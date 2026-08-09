@@ -5,6 +5,7 @@ import 'package:conectenis_app/core/data/mock_api_service.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/network/dio_provider.dart';
 import 'package:conectenis_app/shared/models/challenge.dart';
+import 'package:conectenis_app/shared/models/challenge_result.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 
 final challengesRepositoryProvider = Provider<ChallengesRepository>((ref) {
@@ -73,6 +74,7 @@ class ChallengesRepository {
 
   Future<Challenge> createDirect({
     required ChallengeFormat format,
+    ScoringFormat scoringFormat = ScoringFormat.bestOfThreeSets,
     required List<int> participantIds,
     int? placeId,
     String? googlePlaceId,
@@ -84,6 +86,7 @@ class ChallengesRepository {
       if (Env.useMockApi) {
         return _mock.createDirectChallenge(
           format: format,
+          scoringFormat: scoringFormat,
           participantIds: participantIds,
           placeId: placeId,
           googlePlaceId: googlePlaceId,
@@ -95,6 +98,7 @@ class ChallengesRepository {
         '/challenges/direct',
         data: {
           'format': format.value,
+          'scoring_format': scoringFormat.value,
           'participant_ids': participantIds,
           'place_id': ?placeId,
           'google_place_id': ?googlePlaceId,
@@ -109,6 +113,7 @@ class ChallengesRepository {
 
   Future<Challenge> createPublic({
     required ChallengeFormat format,
+    ScoringFormat scoringFormat = ScoringFormat.bestOfThreeSets,
     int? placeId,
     String? googlePlaceId,
     bool openLocation = false,
@@ -124,6 +129,7 @@ class ChallengesRepository {
       if (Env.useMockApi) {
         return _mock.createPublicChallenge(
           format: format,
+          scoringFormat: scoringFormat,
           scheduledStart: scheduledStart,
           scheduledEnd: scheduledEnd,
           placeId: placeId,
@@ -139,6 +145,7 @@ class ChallengesRepository {
         '/challenges/public',
         data: {
           'format': format.value,
+          'scoring_format': scoringFormat.value,
           'place_id': ?placeId,
           'google_place_id': ?googlePlaceId,
           'open_location': openLocation,
@@ -235,8 +242,8 @@ class ChallengesRepository {
     int id, {
     required ChallengeFormat format,
     required bool skipScore,
-    int? myGamesWon,
-    int? opponentGamesWon,
+    List<SetScore>? sets,
+    TiebreakScore? superTiebreak,
     int? winnerUserId,
     List<int>? winnerTeam,
     List<OpponentRatingPayload>? opponentRatings,
@@ -255,8 +262,8 @@ class ChallengesRepository {
           id,
           format: format,
           skipScore: skipScore,
-          myGamesWon: myGamesWon,
-          opponentGamesWon: opponentGamesWon,
+          sets: sets,
+          superTiebreak: superTiebreak,
           winnerUserId: winnerUserId,
           winnerTeam: winnerTeam,
           opponentRatings: opponentRatings,
@@ -277,8 +284,8 @@ class ChallengesRepository {
           data: {
             'skip_score': skipScore,
             if (!skipScore) ...{
-              'my_games_won': myGamesWon,
-              'opponent_games_won': opponentGamesWon,
+              'sets': sets?.map((s) => s.toJson()).toList(),
+              'super_tiebreak': superTiebreak?.toJson(),
               if (isDoubles && winnerTeam != null && winnerTeam.length == 2)
                 'winner_team': winnerTeam
               else if (!isDoubles)

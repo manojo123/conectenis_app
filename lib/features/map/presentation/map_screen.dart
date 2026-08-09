@@ -9,7 +9,6 @@ import 'package:conectenis_app/core/config/env.dart';
 import 'package:conectenis_app/app/notification_bell_button.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
-import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/chat/data/chat_repository.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/features/location/location_sync_controller.dart';
@@ -172,7 +171,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         );
       }
     } else {
-      final myUserId = ref.read(authStateProvider).valueOrNull?.id;
       for (final q in _places
           .where((p) => _hasValidCoordinates(p.latitude, p.longitude))) {
         final selected = _selectedPlace?.id == q.id;
@@ -187,7 +185,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               selected: selected,
               t: t,
               dpr: dpr,
-              isOwn: myUserId != null && q.createdByUserId == myUserId,
+              isOwn: q.isOwner,
             ),
             onTap: () => _select(place: q),
           ),
