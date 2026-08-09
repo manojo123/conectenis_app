@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:conectenis_app/app/notification_bell_button.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
@@ -106,7 +107,7 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
   List<Challenge> get _muralItems => _public;
 
   /// Everything I'm part of that isn't history yet: challenges I created,
-  /// public ones I've joined, and direct invites sent to me — including
+  /// public ones I've joined, and direct invites sent to me - including
   /// ones still awaiting my Aceitar/Recusar.
   List<Challenge> get _meusItems {
     final mine = <Challenge>[
@@ -285,6 +286,8 @@ class _ChallengesWallScreenState extends ConsumerState<ChallengesWallScreen> {
                       ),
                     ),
                   ),
+                  const NotificationBellButton(),
+                  const SizedBox(width: 10),
                   Stack(
                     clipBehavior: Clip.none,
                     children: [

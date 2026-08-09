@@ -11,7 +11,6 @@ import 'package:conectenis_app/shared/widgets/app_toast.dart';
 import 'package:conectenis_app/shared/widgets/brand_logo.dart';
 import 'package:conectenis_app/shared/widgets/lime_button.dart';
 import 'package:conectenis_app/shared/widgets/pressable.dart';
-import 'package:conectenis_app/shared/widgets/theme_toggle_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -90,13 +89,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SafeArea(
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [ThemeToggleButton()],
-                  ),
-                ),
+                const SizedBox(height: 16),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),

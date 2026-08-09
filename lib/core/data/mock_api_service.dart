@@ -90,7 +90,7 @@ class MockApiService {
     const googleCourts = [
       NearbyCourt(
         name: 'Arena Tennis Google',
-        address: 'Av. Brasil, 1000 — Jundiaí',
+        address: 'Av. Brasil, 1000, Jundiaí',
         latitude: -23.187,
         longitude: -46.883,
         distanceKm: 1.8,
@@ -110,6 +110,9 @@ class MockApiService {
     }
   }
 
+  /// Mock stand-in for the backend's ownership/admin delete permission check.
+  bool _canDelete(Place place) => place.createdByUserId == MockData.currentUserId;
+
   Future<List<Place>> places({double? lat, double? lng, String? name}) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     var list = List<Place>.from(_places);
@@ -117,7 +120,7 @@ class MockApiService {
       final q = name.trim().toLowerCase();
       list = list.where((p) => p.name.toLowerCase().contains(q)).toList();
     }
-    return list;
+    return list.map((p) => p.copyWith(canDelete: _canDelete(p))).toList();
   }
 
   Future<Place?> placeById(int id) async {
@@ -125,18 +128,7 @@ class MockApiService {
     try {
       final place = _places.firstWhere((p) => p.id == id);
       final reviews = _placeReviews[id] ?? place.recentReviews;
-      if (reviews == place.recentReviews) return place;
-      return Place(
-        id: place.id,
-        name: place.name,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        createdByUserId: place.createdByUserId,
-        averageRating: place.averageRating,
-        ratingsCount: place.ratingsCount,
-        distanceKm: place.distanceKm,
-        recentReviews: reviews,
-      );
+      return place.copyWith(recentReviews: reviews, canDelete: _canDelete(place));
     } catch (_) {
       return null;
     }
@@ -154,6 +146,7 @@ class MockApiService {
       latitude: latitude,
       longitude: longitude,
       createdByUserId: MockData.currentUserId,
+      canDelete: true,
     );
     _places.add(place);
     return place;
@@ -164,23 +157,25 @@ class MockApiService {
     String? name,
     double? latitude,
     double? longitude,
+    bool? isPublic,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final idx = _places.indexWhere((p) => p.id == id);
     if (idx < 0) throw StateError('Place not found');
     final old = _places[idx];
-    final updated = Place(
-      id: old.id,
-      name: name ?? old.name,
-      latitude: latitude ?? old.latitude,
-      longitude: longitude ?? old.longitude,
-      createdByUserId: old.createdByUserId,
-      averageRating: old.averageRating,
-      ratingsCount: old.ratingsCount,
-      distanceKm: old.distanceKm,
+    final updated = old.copyWith(
+      name: name,
+      latitude: latitude,
+      longitude: longitude,
+      isPublic: isPublic,
     );
     _places[idx] = updated;
-    return updated;
+    return updated.copyWith(canDelete: _canDelete(updated));
+  }
+
+  Future<void> deletePlace(int id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    _places.removeWhere((p) => p.id == id);
   }
 
   final Map<int, List<PlaceReview>> _placeReviews = {};

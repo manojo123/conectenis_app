@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// ConectTenis design tokens — ConecTenis Color System (PDF).
+/// ConectTenis design tokens - ConecTenis Color System (PDF).
 abstract final class AppColors {
   // Brand core
   static const primary = Color(0xFFA6CE39);

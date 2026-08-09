@@ -13,7 +13,7 @@ void bumpConversationsRefresh(WidgetRef ref) {
   ref.read(conversationsRefreshProvider.notifier).state++;
 }
 
-/// Direct challenges waiting for the user's answer — Desafios tab badge.
+/// Direct challenges waiting for the user's answer - Desafios tab badge.
 final pendingChallengesCountProvider = FutureProvider<int>((ref) async {
   ref.watch(challengesRefreshProvider);
   final user = ref.watch(authStateProvider).valueOrNull;
@@ -29,7 +29,7 @@ final pendingChallengesCountProvider = FutureProvider<int>((ref) async {
   }
 });
 
-/// Sum of per-conversation unread counts — Mensagens tab badge.
+/// Sum of per-conversation unread counts - Mensagens tab badge.
 /// Depends on the backend `unread_count` field (0 until it ships).
 final unreadMessagesCountProvider = FutureProvider<int>((ref) async {
   ref.watch(conversationsRefreshProvider);
@@ -43,7 +43,7 @@ final unreadMessagesCountProvider = FutureProvider<int>((ref) async {
   }
 });
 
-/// Unread notifications — comes with the authenticated user payload.
+/// Unread notifications - comes with the authenticated user payload.
 final unreadNotificationsCountProvider = Provider<int>((ref) {
   return ref.watch(authStateProvider).valueOrNull?.unreadNotificationsCount ?? 0;
 });

@@ -139,7 +139,7 @@ class _CandidatesScreenState extends ConsumerState<CandidatesScreen> {
                               TextSpan(
                                 text:
                                     ' · ${df.format(c.scheduledStart)}\n${c.place?.name ?? 'Local em aberto'}'
-                                    '${c.minNtrp != null ? ' · NTRP ${ntrpValueLabel(c.minNtrp!)} – ${c.maxNtrp != null ? ntrpValueLabel(c.maxNtrp!) : '—'}' : ''}',
+                                    '${c.minNtrp != null ? ' · NTRP ${ntrpValueLabel(c.minNtrp!)} – ${c.maxNtrp != null ? ntrpValueLabel(c.maxNtrp!) : '-'}' : ''}',
                               ),
                             ],
                           ),

@@ -29,7 +29,7 @@ class ChallengeParticipantsVersus extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              'Times não informados pela API — layout estimado.',
+              'Times não informados pela API. Layout estimado.',
               style: TextStyle(color: context.t.muted, fontSize: 12),
             ),
           ),

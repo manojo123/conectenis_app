@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:conectenis_app/app/notification_bell_button.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
@@ -103,7 +104,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const ScreenHeader(title: 'Rankings'),
+            const ScreenHeader(title: 'Rankings', trailing: NotificationBellButton()),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
               child: SegmentedTabs(

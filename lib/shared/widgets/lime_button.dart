@@ -23,7 +23,7 @@ class LimeButton extends StatelessWidget {
   final bool outlined;
   /// Red outline/text for destructive actions (e.g. cancel challenge).
   final bool danger;
-  /// Lime glow shadow — use on the single primary CTA per screen.
+  /// Lime glow shadow - use on the single primary CTA per screen.
   final bool glow;
 
   @override
@@ -40,7 +40,7 @@ class LimeButton extends StatelessWidget {
             ),
           )
         // FittedBox keeps icon+label together (no ellipsis clipping) but
-        // scales down instead of overflowing when squeezed — e.g. two
+        // scales down instead of overflowing when squeezed - e.g. two
         // LimeButtons sharing a row with a Mensagem/Desafiar-style split.
         : FittedBox(
             fit: BoxFit.scaleDown,

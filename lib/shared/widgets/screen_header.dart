@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 
-/// 40px circle icon button (surface + border) — prototype back/close/actions.
+/// 40px circle icon button (surface + border) - prototype back/close/actions.
 class CircleIconButton extends StatelessWidget {
   const CircleIconButton({
     super.key,

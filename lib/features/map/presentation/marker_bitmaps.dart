@@ -7,7 +7,7 @@ import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/shared/models/player.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
-/// Draws the prototype map pins with dart:ui Canvas — no extra dependencies.
+/// Draws the prototype map pins with dart:ui Canvas - no extra dependencies.
 ///
 /// Player pin: hue-gradient circle with initials and an NTRP chip below.
 /// Place pin: rounded square with a lime tennis glyph.
@@ -104,14 +104,19 @@ abstract final class MarkerBitmaps {
     required bool selected,
     required AppTokens t,
     required double dpr,
+    bool isOwn = false,
   }) async {
-    final key = 'q:$selected:${t.bg.toARGB32()}';
+    final key = 'q:$selected:$isOwn:${t.bg.toARGB32()}';
     final cached = _cache[key];
     if (cached != null) return cached;
 
     const w = 60.0, h = 60.0;
     final size = selected ? 46.0 : 42.0;
     final center = const Offset(w / 2, h / 2);
+    // Own places render in info-blue instead of the default lime accent so
+    // they read as visually distinct from everyone else's on the map.
+    final markerColor = isOwn ? t.info : t.accent;
+    final iconColor = isOwn ? t.info : t.accentText;
 
     final descriptor = await _draw(w, h, dpr, (canvas) {
       final rect = RRect.fromRectAndRadius(
@@ -120,7 +125,7 @@ abstract final class MarkerBitmaps {
       );
       if (selected) {
         final ring = Paint()
-          ..color = t.accent
+          ..color = markerColor
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3;
         canvas.drawRRect(rect.inflate(4), ring);
@@ -129,7 +134,7 @@ abstract final class MarkerBitmaps {
       canvas.drawRRect(
         rect,
         Paint()
-          ..color = t.accent
+          ..color = markerColor
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.5,
       );
@@ -142,7 +147,7 @@ abstract final class MarkerBitmaps {
           fontFamily: icon.fontFamily,
           package: icon.fontPackage,
           fontSize: 24,
-          color: t.accentText,
+          color: iconColor,
           fontVariations: const [ui.FontVariation('FILL', 1)],
         ),
         center: center,

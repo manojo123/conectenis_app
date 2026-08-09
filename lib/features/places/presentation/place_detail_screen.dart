@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
@@ -9,6 +10,7 @@ import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
+import 'package:conectenis_app/shared/widgets/app_switch.dart';
 import 'package:conectenis_app/shared/widgets/report_reason_sheet.dart';
 import 'package:conectenis_app/shared/widgets/star_rating_input.dart';
 import 'package:conectenis_app/shared/utils/plural_pt.dart';
@@ -31,6 +33,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
   bool _editing = false;
   bool _busy = false;
   int _rateStars = 0;
+  bool _isPublic = true;
   final _commentController = TextEditingController();
   final _nameController = TextEditingController();
 
@@ -57,6 +60,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
       setState(() {
         _place = place;
         _nameController.text = place?.name ?? '';
+        _isPublic = place?.isPublic ?? true;
         _loading = false;
         if (place == null) _error = 'Local não encontrado';
       });
@@ -76,17 +80,54 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
 
   Future<void> _saveEdit() async {
     if (_place == null) return;
+    final isAdmin = ref.read(authStateProvider).valueOrNull?.isAdmin ?? false;
     setState(() => _busy = true);
     try {
       final updated = await ref.read(placesRepositoryProvider).update(
             id: _place!.id,
             name: _nameController.text.trim(),
+            isPublic: isAdmin ? _isPublic : null,
           );
       setState(() {
         _place = updated;
         _editing = false;
         _busy = false;
       });
+    } catch (e) {
+      setState(() => _busy = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authErrorMessage(e))),
+        );
+      }
+    }
+  }
+
+  Future<void> _delete() async {
+    final place = _place;
+    if (place == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir local'),
+        content: Text('Excluir "${place.name}"? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(placesRepositoryProvider).delete(place.id);
+      if (mounted) context.pop();
     } catch (e) {
       setState(() => _busy = false);
       if (mounted) {
@@ -167,6 +208,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
 
     final place = _place!;
     final placeDims = place.ratingDimensions;
+    final isAdmin = ref.watch(authStateProvider).valueOrNull?.isAdmin ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -175,7 +217,12 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
           if (_canEdit && !_editing)
             IconButton(
               icon: const Icon(Icons.edit),
-              onPressed: () => setState(() => _editing = true),
+              onPressed: _busy ? null : () => setState(() => _editing = true),
+            ),
+          if (place.canDelete && !_editing)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _busy ? null : _delete,
             ),
         ],
       ),
@@ -190,6 +237,23 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
+            if (isAdmin) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Local público (visível para todos)',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                  AppSwitch(
+                    value: _isPublic,
+                    onChanged: _busy ? null : (v) => setState(() => _isPublic = v),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             Row(
               children: [

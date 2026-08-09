@@ -1,4 +1,4 @@
-package com.example.conectenis_app
+package br.com.conectenis.app
 
 import io.flutter.embedding.android.FlutterActivity
 

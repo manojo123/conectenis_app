@@ -159,5 +159,5 @@ class DashboardRankingPosition {
     );
   }
 
-  String get rankLabel => rank != null ? '#$rank' : '—';
+  String get rankLabel => rank != null ? '#$rank' : '-';
 }

@@ -219,7 +219,7 @@ abstract final class MockData {
         ),
       ],
       role: 'created',
-      message: 'Simples — aceito candidatos',
+      message: 'Simples, aceito candidatos',
     );
 
     return switch (role) {

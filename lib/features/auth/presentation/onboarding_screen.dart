@@ -190,7 +190,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       _ => 'Seu nível de jogo',
     };
     final subtitle = switch (_step) {
-      1 => 'Foto, gênero e idade — usados no matchmaking.',
+      1 => 'Foto, gênero e idade, usados no matchmaking.',
       2 => 'Seu endereço define seus rankings e desafios próximos.',
       _ => 'O NTRP equilibra seus desafios. Seja honesto!',
     };

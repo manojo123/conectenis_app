@@ -444,7 +444,7 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
                     ),
                     if (_isTie) ...[
                       const SizedBox(height: 14),
-                      const SectionLabel('Empate — quem venceu?'),
+                      const SectionLabel('Empate - quem venceu?'),
                       const SizedBox(height: 4),
                       if (_isDoubles)
                         RadioGroup<bool>(

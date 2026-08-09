@@ -1,3 +1,4 @@
+import 'package:conectenis_app/app/notification_bell_button.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/core/theme/theme_mode_provider.dart';
@@ -75,6 +76,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ),
+                    const NotificationBellButton(),
+                    const SizedBox(width: 10),
                     PressableScale(
                       scale: 0.96,
                       onTap: () => context.push('/profile/edit'),

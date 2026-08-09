@@ -47,7 +47,7 @@ class ChallengeMuralCard extends StatelessWidget {
     final headerSub = isPublic
         ? (_isMine
             ? 'Aberto a candidaturas'
-            : 'NTRP ${c.minNtrp != null ? ntrpValueLabel(c.minNtrp!) : '—'} – ${c.maxNtrp != null ? ntrpValueLabel(c.maxNtrp!) : '—'}')
+            : 'NTRP ${c.minNtrp != null ? ntrpValueLabel(c.minNtrp!) : '-'} – ${c.maxNtrp != null ? ntrpValueLabel(c.maxNtrp!) : '-'}')
         : 'NTRP ${ntrpValueLabel(c.creator.ntrpRating)}'
             '${c.creator.locationLabel.isNotEmpty ? ' · ${c.creator.locationLabel}' : ''}';
 
@@ -137,7 +137,7 @@ class ChallengeMuralCard extends StatelessWidget {
                 _infoRow(
                   t,
                   Symbols.star_rounded,
-                  'Nível ${ntrpValueLabel(c.minNtrp!)} – ${c.maxNtrp != null ? ntrpValueLabel(c.maxNtrp!) : '—'}',
+                  'Nível ${ntrpValueLabel(c.minNtrp!)} – ${c.maxNtrp != null ? ntrpValueLabel(c.maxNtrp!) : '-'}',
                 ),
               ],
               if (isPublic && _isMine) ...[

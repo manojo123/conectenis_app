@@ -59,8 +59,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
   final Color accentPress;
   final Color onAccent;
 
-  /// Lime readable as TEXT: lime itself on dark, olive `#6C8A1B` on light —
-  /// lime text on light backgrounds fails contrast (1.8:1), never use it.
+  /// Lime readable as TEXT: lime itself on dark, olive `#6C8A1B` on light.
+  /// Lime text on light backgrounds fails contrast (1.8:1), never use it.
   final Color accentText;
   final Color success;
   final Color warning;
@@ -77,7 +77,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
   final Color toastBg;
   final Color toastFg;
 
-  /// Lime glow — ONLY on the single primary CTA of a screen.
+  /// Lime glow - ONLY on the single primary CTA of a screen.
   final List<BoxShadow> glow;
 
   /// Depth shadow for floating cards/sheets (black on dark, navy-tint on light).

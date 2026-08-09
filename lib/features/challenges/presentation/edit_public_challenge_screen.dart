@@ -229,14 +229,14 @@ class _EditPublicChallengeScreenState extends ConsumerState<EditPublicChallengeS
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Início'),
                     subtitle:
-                        Text(_start == null ? '—' : formatDateTimePt(_start!)),
+                        Text(_start == null ? '-' : formatDateTimePt(_start!)),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: _pickStart,
                   ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Término'),
-                    subtitle: Text(_end == null ? '—' : formatDateTimePt(_end!)),
+                    subtitle: Text(_end == null ? '-' : formatDateTimePt(_end!)),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: _pickEnd,
                   ),

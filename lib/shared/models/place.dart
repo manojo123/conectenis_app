@@ -15,6 +15,8 @@ class Place {
     this.createdAt,
     this.recentReviews = const [],
     this.ratingDimensions,
+    this.isPublic = true,
+    this.canDelete = false,
   });
 
   final int id;
@@ -29,6 +31,13 @@ class Place {
   final List<PlaceReview> recentReviews;
   final PlaceRatingDimensions? ratingDimensions;
 
+  /// Visible to everyone. When false, the backend only returns this place to
+  /// its owner, admins, or players invited to play there.
+  final bool isPublic;
+
+  /// Backend-computed delete permission (owner or admin) - trust it as-is.
+  final bool canDelete;
+
   String get subtitle {
     if (distanceKm != null) {
       return '${distanceKm!.toStringAsFixed(1)} km';
@@ -37,18 +46,35 @@ class Place {
   }
 
   Place withDistanceFrom(double lat, double lng) {
+    return copyWith(distanceKm: distanceKmBetween(lat, lng, latitude, longitude));
+  }
+
+  Place copyWith({
+    String? name,
+    double? latitude,
+    double? longitude,
+    double? averageRating,
+    int? ratingsCount,
+    double? distanceKm,
+    List<PlaceReview>? recentReviews,
+    PlaceRatingDimensions? ratingDimensions,
+    bool? isPublic,
+    bool? canDelete,
+  }) {
     return Place(
       id: id,
-      name: name,
-      latitude: latitude,
-      longitude: longitude,
+      name: name ?? this.name,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       createdByUserId: createdByUserId,
-      averageRating: averageRating,
-      ratingsCount: ratingsCount,
-      distanceKm: distanceKmBetween(lat, lng, latitude, longitude),
+      averageRating: averageRating ?? this.averageRating,
+      ratingsCount: ratingsCount ?? this.ratingsCount,
+      distanceKm: distanceKm ?? this.distanceKm,
       createdAt: createdAt,
-      recentReviews: recentReviews,
-      ratingDimensions: ratingDimensions,
+      recentReviews: recentReviews ?? this.recentReviews,
+      ratingDimensions: ratingDimensions ?? this.ratingDimensions,
+      isPublic: isPublic ?? this.isPublic,
+      canDelete: canDelete ?? this.canDelete,
     );
   }
 
@@ -74,6 +100,8 @@ class Place {
       ratingDimensions: PlaceRatingDimensions.fromJson(
         json['rating_dimensions'] as Map<String, dynamic>?,
       ),
+      isPublic: json['is_public'] == null ? true : json['is_public'] == true,
+      canDelete: json['can_delete'] == true,
     );
   }
 

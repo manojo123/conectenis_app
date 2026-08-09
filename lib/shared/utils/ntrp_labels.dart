@@ -15,7 +15,7 @@ String ntrpLevelDisplay(double rating) {
 String ntrpValueLabel(double rating) =>
     rating.toStringAsFixed(1).replaceAll('.', ',');
 
-/// Prototype level ladder — one entry per half step, 1.0 → 5.0.
+/// Prototype level ladder - one entry per half step, 1.0 → 5.0.
 const _ntrpLevels = <(String, String)>[
   ('Iniciante', 'Começando agora; aprendendo os golpes básicos.'),
   ('Iniciante+', 'Troca bolas curtas; saque em desenvolvimento.'),

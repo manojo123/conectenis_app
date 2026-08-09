@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 enum BrandLogoVariant {
-  /// Stacked icon + wordmark — login and hero placements.
+  /// Stacked icon + wordmark - login and hero placements.
   squareWithText,
 
-  /// Icon only — compact square mark.
+  /// Icon only - compact square mark.
   square,
 
-  /// Horizontal wordmark + icon — app bar and headers.
+  /// Horizontal wordmark + icon - app bar and headers.
   horizontal,
 }
 

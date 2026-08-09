@@ -51,7 +51,7 @@ class Env {
 
   /// Whether to render [GoogleMap]. On mobile, the key is injected at build time
   /// (Android: `android/local.properties` or `.env` via Gradle). Do not require
-  /// [googleMapsApiKey] from Dart dotenv — that only gates Dart-side checks.
+  /// [googleMapsApiKey] from Dart dotenv - that only gates Dart-side checks.
   static bool get isGoogleMapsSupported => isGoogleMapsNativePlatform;
 
   static bool get hasGoogleMapsApiKeyInEnv => googleMapsApiKey.isNotEmpty;

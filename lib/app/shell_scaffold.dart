@@ -37,14 +37,16 @@ class _CtNavBar extends ConsumerWidget {
     final t = context.t;
     final messages = ref.watch(unreadMessagesCountProvider).valueOrNull ?? 0;
     final challenges = ref.watch(pendingChallengesCountProvider).valueOrNull ?? 0;
-    final notifications = ref.watch(unreadNotificationsCountProvider);
 
-    final items = [
-      (Symbols.map_rounded, 'Mapa', 0),
-      (Symbols.chat_bubble_rounded, 'Mensagens', messages),
-      (Symbols.sports_tennis_rounded, 'Desafios', challenges),
-      (Symbols.notifications_rounded, 'Notificações', notifications),
-      (Symbols.person_rounded, 'Perfil', 0),
+    // Icon, label, badge count, shell branch index (null => pushed route,
+    // not a persistent tab - used for Ranking, which stays a full-screen
+    // push over the shell like the other detail screens).
+    final items = <(IconData, String, int, int?)>[
+      (Symbols.map_rounded, 'Mapa', 0, 0),
+      (Symbols.chat_bubble_rounded, 'Mensagens', messages, 1),
+      (Symbols.sports_tennis_rounded, 'Desafios', challenges, 2),
+      (Symbols.leaderboard_rounded, 'Ranking', 0, null),
+      (Symbols.person_rounded, 'Perfil', 0, 3),
     ];
 
     return Frosted(
@@ -55,17 +57,19 @@ class _CtNavBar extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(6, 8, 6, 12),
           child: Row(
             children: [
-              for (final (index, item) in items.indexed)
+              for (final item in items)
                 Expanded(
                   child: _NavItem(
                     icon: item.$1,
                     label: item.$2,
                     badge: item.$3,
-                    active: shell.currentIndex == index,
-                    onTap: () => shell.goBranch(
-                      index,
-                      initialLocation: index == shell.currentIndex,
-                    ),
+                    active: item.$4 != null && shell.currentIndex == item.$4,
+                    onTap: item.$4 != null
+                        ? () => shell.goBranch(
+                              item.$4!,
+                              initialLocation: item.$4 == shell.currentIndex,
+                            )
+                        : () => context.push('/ranking'),
                   ),
                 ),
             ],

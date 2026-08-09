@@ -1,4 +1,4 @@
-/// Border radius tokens — prototype default is 14px (`md`) for inputs/buttons.
+/// Border radius tokens - prototype default is 14px (`md`) for inputs/buttons.
 abstract final class AppRadii {
   static const sm = 8.0;
   static const md = 14.0;

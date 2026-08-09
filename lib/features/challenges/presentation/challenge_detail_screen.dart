@@ -346,7 +346,7 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
                             icon: Symbols.sports_tennis_rounded,
                             label: 'Formato',
                             value:
-                                '${c.format.label} · ${c.minNtrp != null ? 'NTRP ${ntrpValueLabel(c.minNtrp!)} – ${c.maxNtrp != null ? ntrpValueLabel(c.maxNtrp!) : '—'}' : 'Nível equivalente'}',
+                                '${c.format.label} · ${c.minNtrp != null ? 'NTRP ${ntrpValueLabel(c.minNtrp!)} – ${c.maxNtrp != null ? ntrpValueLabel(c.maxNtrp!) : '-'}' : 'Nível equivalente'}',
                             meta: (c.professionPreference ?? '').isNotEmpty
                                 ? 'Preferência: ${c.professionPreference}'
                                 : null,

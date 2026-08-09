@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 
 /// Prototype toggle: 40×22 track, 18px white dot, accent when on.
-/// (Material's Switch has different metrics — this matches the mockups.)
+/// (Material's Switch has different metrics - this matches the mockups.)
 class AppSwitch extends StatelessWidget {
   const AppSwitch({super.key, required this.value, required this.onChanged});
 

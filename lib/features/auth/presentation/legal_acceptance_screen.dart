@@ -138,7 +138,7 @@ class _Body extends StatelessWidget {
               Expanded(
                 child: Text(
                   'O aplicativo utiliza geolocalização para matchmaking regional. '
-                  'Sua localização exata nunca é exibida a outros jogadores — detalhes na política.',
+                  'Sua localização exata nunca é exibida a outros jogadores, detalhes na política.',
                   style:
                       TextStyle(fontSize: 13, color: t.muted, height: 1.55),
                 ),

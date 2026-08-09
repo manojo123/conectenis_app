@@ -14,7 +14,7 @@ class GoogleAuthService {
   GoogleSignIn get _googleSignIn {
     _instance ??= GoogleSignIn(
       scopes: const ['email', 'profile'],
-      // Web OAuth client ID — must match Laravel `GOOGLE_CLIENT_ID` (token validation).
+      // Web OAuth client ID - must match Laravel `GOOGLE_CLIENT_ID` (token validation).
       serverClientId: Env.googleOAuthWebClientId.isNotEmpty
           ? Env.googleOAuthWebClientId
           : null,

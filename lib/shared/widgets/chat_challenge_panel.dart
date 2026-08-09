@@ -35,7 +35,7 @@ class _ChatChallengePanelState extends ConsumerState<ChatChallengePanel> {
   @override
   void initState() {
     super.initState();
-    // Role isn't carried on the chat event — fetch once to know whether
+    // Role isn't carried on the chat event - fetch once to know whether
     // the inline Aceitar/Recusar actions apply to this user.
     if (widget.event.status == ChallengeStatus.pendingAcceptance) {
       _loadChallenge();

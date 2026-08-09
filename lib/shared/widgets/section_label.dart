@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 
-/// Prototype section heading ("Formato", "Data") — 13px w800.
+/// Prototype section heading ("Formato", "Data") - 13px w800.
 /// [SectionLabel.caps] is the small uppercase variant (CIDADE, SET 1).
 class SectionLabel extends StatelessWidget {
   const SectionLabel(this.text, {super.key, this.trailing})

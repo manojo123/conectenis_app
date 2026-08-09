@@ -265,7 +265,7 @@ class _PlayerProfileBody extends ConsumerWidget {
                                   ? player.averageRating!
                                       .toStringAsFixed(1)
                                       .replaceAll('.', ',')
-                                  : '—',
+                                  : '-',
                               label: 'Avaliação',
                               valueColor: t.warning,
                             ),

@@ -4,7 +4,7 @@ import 'package:conectenis_app/core/theme/app_tokens.dart';
 /// Prototype info rows.
 ///
 /// Plain: `icon + muted text` (challenge card schedule/place lines).
-/// [InfoRow.labeled]: accent icon + caps label over value (+ optional meta) —
+/// [InfoRow.labeled]: accent icon + caps label over value (+ optional meta),
 /// the QUANDO / ONDE / FORMATO rows on the challenge detail.
 class InfoRow extends StatelessWidget {
   const InfoRow({super.key, required this.icon, required this.text})

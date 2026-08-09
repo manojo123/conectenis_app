@@ -19,7 +19,7 @@ class Conversation {
   final String? otherAvatarUrl;
 
   /// Unread messages for the current user. Optional server field
-  /// (`unread_count`) — see docs/BACKEND_PROMPT_REDESIGN.md; 0 when absent.
+  /// (`unread_count`) - see docs/BACKEND_PROMPT_REDESIGN.md; 0 when absent.
   final int unreadCount;
 
   factory Conversation.fromJson(Map<String, dynamic> json) {

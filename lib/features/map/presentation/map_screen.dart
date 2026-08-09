@@ -6,8 +6,10 @@ import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:conectenis_app/core/config/env.dart';
+import 'package:conectenis_app/app/notification_bell_button.dart';
 import 'package:conectenis_app/core/data/mock_data.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
+import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/chat/data/chat_repository.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/features/location/location_sync_controller.dart';
@@ -25,7 +27,6 @@ import 'package:conectenis_app/shared/widgets/frosted.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/pressable.dart';
 import 'package:conectenis_app/shared/widgets/segmented_tabs.dart';
-import 'package:conectenis_app/shared/widgets/theme_toggle_button.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 bool _hasValidCoordinates(double lat, double lng) =>
@@ -170,6 +171,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         );
       }
     } else {
+      final myUserId = ref.read(authStateProvider).valueOrNull?.id;
       for (final q in _places
           .where((p) => _hasValidCoordinates(p.latitude, p.longitude))) {
         final selected = _selectedPlace?.id == q.id;
@@ -180,7 +182,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             zIndexInt: selected ? 10 : 0,
             anchor: const Offset(0.5, 0.5),
             icon: await MarkerBitmaps.place(
-                id: q.id, selected: selected, t: t, dpr: dpr),
+              id: q.id,
+              selected: selected,
+              t: t,
+              dpr: dpr,
+              isOwn: myUserId != null && q.createdByUserId == myUserId,
+            ),
             onTap: () => _select(place: q),
           ),
         );
@@ -246,10 +253,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   String get _mapUnavailableMessage {
     if (!Env.isGoogleMapsNativePlatform) {
-      return 'O mapa interativo só funciona no Android e iOS — aqui mostramos a lista.';
+      return 'O mapa interativo só funciona no Android e iOS. Aqui mostramos a lista.';
     }
     if (!Env.hasGoogleMapsApiKeyInEnv) {
-      return 'Chave do Google Maps não encontrada no .env — mostrando a lista.';
+      return 'Chave do Google Maps não encontrada no .env. Mostrando a lista.';
     }
     return 'Mapa indisponível neste dispositivo.';
   }
@@ -362,7 +369,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const ThemeToggleButton(frosted: true, size: 46),
+                      const NotificationBellButton(frosted: true, size: 46),
                     ],
                   ),
                   const SizedBox(height: 10),

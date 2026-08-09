@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_colors.dart';
 import 'package:conectenis_app/shared/utils/gravatar.dart';
 
-/// Prototype avatar hues — initials render on a gradient derived from the
+/// Prototype avatar hues - initials render on a gradient derived from the
 /// user id so every player gets a stable, distinct color.
 const _avatarHues = [210.0, 160.0, 25.0, 285.0, 330.0];
 

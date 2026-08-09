@@ -3,7 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 
-/// Translucent blurred chrome (nav bar, floating pills, pinned bottom bars) —
+/// Translucent blurred chrome (nav bar, floating pills, pinned bottom bars),
 /// the prototype's `background:var(--nav-bg);backdrop-filter:blur(14px)`.
 class Frosted extends StatelessWidget {
   const Frosted({

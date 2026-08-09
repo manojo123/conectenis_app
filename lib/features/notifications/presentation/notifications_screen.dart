@@ -11,6 +11,7 @@ import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/pressable.dart';
+import 'package:conectenis_app/shared/widgets/screen_header.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -72,7 +73,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     if (unread.isEmpty) return;
     setState(() => _readLocally.addAll(unread.map((n) => n.id)));
     try {
-      // No bulk endpoint yet (see docs/BACKEND_PROMPT_REDESIGN.md) —
+      // No bulk endpoint yet (see docs/BACKEND_PROMPT_REDESIGN.md),
       // mark each notification individually.
       await Future.wait(
         unread.map(
@@ -156,6 +157,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  CircleIconButton(
+                    icon: Symbols.arrow_back_rounded,
+                    onTap: () => context.pop(),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

@@ -6,7 +6,7 @@ abstract final class AppShare {
     final url = Env.appShareUrl;
     await Share.share(
       'Estou usando o ConecTenis para encontrar parceiros de tênis na minha região. Baixe também!\n$url',
-      subject: 'ConecTenis — Sua Conexão no Tênis',
+      subject: 'ConecTenis - Sua Conexão no Tênis',
     );
   }
 }

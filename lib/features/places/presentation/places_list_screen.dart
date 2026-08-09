@@ -104,7 +104,9 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
             trailing: widget.selectMode ? const Icon(Icons.chevron_right) : null,
             onTap: widget.selectMode
                 ? () => context.pop(place)
-                : () => context.push('/places/${place.id}'),
+                : () => context
+                    .push('/places/${place.id}')
+                    .then((_) => _load(initial: false)),
           ),
         );
       },

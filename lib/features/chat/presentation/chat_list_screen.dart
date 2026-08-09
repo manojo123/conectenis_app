@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:conectenis_app/app/nav_badges.dart';
+import 'package:conectenis_app/app/notification_bell_button.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
@@ -16,7 +17,6 @@ import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/pressable.dart';
 import 'package:conectenis_app/shared/widgets/screen_header.dart';
 import 'package:conectenis_app/shared/widgets/scrollable_fill.dart';
-import 'package:conectenis_app/shared/widgets/theme_toggle_button.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
@@ -153,7 +153,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         ),
                       ),
                     ),
-                    const ThemeToggleButton(),
+                    const NotificationBellButton(),
                   ],
                 ],
               ),
@@ -176,7 +176,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           icon: Symbols.chat_bubble_rounded,
                           title: 'Nenhuma conversa',
                           subtitle:
-                              'As conversas começam quando um desafio é aceito — ou toque em um jogador no mapa.',
+                              'As conversas começam quando um desafio é aceito, ou toque em um jogador no mapa.',
                         ),
                       );
                     }
@@ -190,7 +190,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           return Padding(
                             padding: const EdgeInsets.fromLTRB(30, 20, 30, 8),
                             child: Text(
-                              'As conversas começam quando um desafio é aceito — ou toque em um jogador no mapa.',
+                              'As conversas começam quando um desafio é aceito, ou toque em um jogador no mapa.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 12.5,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Elevation and glow shadows from the ConecTenis Color System.
 abstract final class AppShadows {
-  /// Cards, modals — black depth shadow (never colored).
+  /// Cards, modals - black depth shadow (never colored).
   static const depth = [
     BoxShadow(
       color: Color(0x73000000),
@@ -11,7 +11,7 @@ abstract final class AppShadows {
     ),
   ];
 
-  /// Primary CTA only — lime glow, use sparingly.
+  /// Primary CTA only - lime glow, use sparingly.
   static const limeGlow = [
     BoxShadow(
       color: Color(0x4DA6CE39),

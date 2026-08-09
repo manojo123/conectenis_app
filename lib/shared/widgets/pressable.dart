@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Scales its child down slightly while pressed — the prototype's
+/// Scales its child down slightly while pressed - the prototype's
 /// `style-active="transform:scale(.98)"` press feedback.
 class PressableScale extends StatefulWidget {
   const PressableScale({

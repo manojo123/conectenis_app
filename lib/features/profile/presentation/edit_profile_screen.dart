@@ -221,7 +221,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         Expanded(
                           child: _ReadOnlyTile(
                             label: 'Gênero',
-                            value: user.gender?.label ?? '—',
+                            value: user.gender?.label ?? '-',
                           ),
                         ),
                         const SizedBox(width: 10),

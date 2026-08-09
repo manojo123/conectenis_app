@@ -102,6 +102,7 @@ class PlacesRepository {
     String? name,
     double? latitude,
     double? longitude,
+    bool? isPublic,
   }) {
     return _guard(() async {
       if (Env.useMockApi) {
@@ -110,17 +111,28 @@ class PlacesRepository {
           name: name,
           latitude: latitude,
           longitude: longitude,
+          isPublic: isPublic,
         );
       }
       final data = <String, dynamic>{};
       if (name != null) data['name'] = name;
       if (latitude != null) data['latitude'] = latitude;
       if (longitude != null) data['longitude'] = longitude;
+      if (isPublic != null) data['is_public'] = isPublic;
       final response = await _dio.put<Map<String, dynamic>>(
         '/places/$id',
         data: data,
       );
       return Place.fromJson(response.data!);
+    });
+  }
+
+  Future<void> delete(int id) {
+    return _guard(() async {
+      if (Env.useMockApi) {
+        return _mock.deletePlace(id);
+      }
+      await _dio.delete<void>('/places/$id');
     });
   }
 
