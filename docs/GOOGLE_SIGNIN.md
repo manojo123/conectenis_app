@@ -99,7 +99,7 @@ Configured:
 
 | Item | Value |
 |---|---|
-| Bundle ID | `com.example.conectenisApp` (from `ios/Runner.xcodeproj` — **not yet renamed** to match Android's `br.com.conectenis.app`; if/when it is, this client's Bundle ID must be updated too, same pitfall as the Android package rename) |
+| Bundle ID | `br.com.conectenis.app` (from `ios/Runner.xcodeproj` — matches Android's `applicationId` since the pre-release rename, ago/2026) |
 | iOS client ID | `454816636572-v0j15vebq6n70co4bekneqh0i25gjln2.apps.googleusercontent.com` |
 
 Set in Flutter `.env`:
