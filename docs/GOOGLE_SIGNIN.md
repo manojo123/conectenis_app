@@ -90,17 +90,33 @@ If the package or SHA-1 is wrong, Google Sign-In fails with
 > restrictions with the same pairs — otherwise map tiles stop rendering in
 > release builds.
 
-### 5. Create OAuth client — iOS (only if you test on iPhone)
+### 5. OAuth client — iOS (done, ago/2026)
 
-1. **Create credentials** → **OAuth client ID** → **iOS**.
-2. Bundle ID: check `ios/Runner.xcodeproj` (often `com.example.conectenisApp` or similar).
-3. Copy **iOS client ID** into Flutter `.env`:
+So iPhone users can also sign in with Google (this is independent of "Sign
+in with Apple" — Apple's own provider is a separate, unrelated feature).
+
+Configured:
+
+| Item | Value |
+|---|---|
+| Bundle ID | `com.example.conectenisApp` (from `ios/Runner.xcodeproj` — **not yet renamed** to match Android's `br.com.conectenis.app`; if/when it is, this client's Bundle ID must be updated too, same pitfall as the Android package rename) |
+| iOS client ID | `454816636572-v0j15vebq6n70co4bekneqh0i25gjln2.apps.googleusercontent.com` |
+
+Set in Flutter `.env`:
 
 ```env
-GOOGLE_OAUTH_IOS_CLIENT_ID=123456789-xxxx.apps.googleusercontent.com
+GOOGLE_OAUTH_IOS_CLIENT_ID=454816636572-v0j15vebq6n70co4bekneqh0i25gjln2.apps.googleusercontent.com
 ```
 
-4. In Xcode / `ios/Runner/Info.plist`, add URL scheme from Google (reversed client ID) if `google_sign_in` asks — see [package docs](https://pub.dev/packages/google_sign_in).
+`ios/Runner/Info.plist` has the required reversed-client-ID URL scheme
+(`com.googleusercontent.apps.454816636572-v0j15vebq6n70co4bekneqh0i25gjln2`)
+added as a second `CFBundleURLTypes` entry, alongside the existing
+`conectenis://` deep-link scheme — `google_sign_in` needs this to receive
+the auth redirect on iOS. No Xcode step needed unless the Bundle ID changes.
+
+To create a new one (e.g. after a Bundle ID rename): **Create credentials**
+→ **OAuth client ID** → **iOS** → paste the Bundle ID → update `.env` and
+the `Info.plist` scheme with the new client ID.
 
 ---
 

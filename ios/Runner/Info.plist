@@ -34,6 +34,16 @@
 				<string>conectenis</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Reversed GOOGLE_OAUTH_IOS_CLIENT_ID — required by google_sign_in
+				     on iOS to receive the auth redirect back into the app. -->
+				<string>com.googleusercontent.apps.454816636572-v0j15vebq6n70co4bekneqh0i25gjln2</string>
+			</array>
+		</dict>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>O ConecTenis usa sua localização para matchmaking regional, mapa e jogadores próximos.</string>
