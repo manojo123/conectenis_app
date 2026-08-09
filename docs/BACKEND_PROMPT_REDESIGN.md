@@ -248,7 +248,100 @@ When the group thread is created, notify all 4 participants (reuse the
 existing notification pipeline / `type` vocabulary from §2 — e.g. a new
 `type: "group_chat_started"` pointing at the conversation).
 
-## 11. Pest scenarios to add
+## 11. Localize error/validation messages to pt-BR (required)
+
+QA reported error toasts showing raw English/technical text — e.g.
+submitting a match score before the challenge's scheduled date returns
+Laravel's default validation message untranslated. The Flutter app shows
+`response.message` / the first `errors.*` entry verbatim
+(`lib/core/network/api_exception.dart`) — it has no client-side
+translation layer, and shouldn't grow one (mapping every possible backend
+string client-side doesn't scale). This needs to be fixed at the source:
+
+- Set the API's locale to `pt_BR` (Laravel `App::setLocale('pt_BR')` per
+  request, or app-wide default) so built-in validation rule messages
+  (`required`, `date`, `after`, etc.) resolve from `lang/pt_BR/validation.php`
+  instead of the English default.
+- Audit custom exception/abort messages thrown by controllers — e.g.
+  whatever throws on "score submitted before the challenge's scheduled
+  time" — and rewrite them in pt-BR to match the rest of the API's
+  already-pt-BR strings (challenge status labels, notification bodies).
+- No response shape changes — same `message` / `errors` fields, just
+  translated content.
+
+## 12. Multi-set match scoring (required — replaces single-games score)
+
+Today a challenge result is one flat games pair
+(`my_games_won`/`opponent_games_won`) — there's no concept of a tennis
+*set*, so any match with more than one set can't be recorded correctly.
+QA confirmed this. Product wants all three of these formats selectable,
+each with different set/tiebreak rules:
+
+| `scoring_format` value | pt-BR label | Rule |
+|---|---|---|
+| `pro_set_9` | "Set único (9 games, super tiebreak em 8-8)" | One set, first to 9 games; if 8-8, a super tiebreak (to 10 points) decides. |
+| `two_sets_super_tiebreak` | "2 sets com super tiebreak" | Two normal sets (to 6 games, 7-point tiebreak at 6-6); if split 1-1, a super tiebreak (to 10 points) decides the match instead of a 3rd set. |
+| `best_of_three_sets` | "Melhor de 3 sets" | Up to three normal sets (to 6 games, 7-point tiebreak at 6-6); 3rd set only played if the first two split 1-1. |
+
+### Where `scoring_format` lives
+New field on `Challenge`, chosen by the creator at creation time (sibling
+to today's `format` singles/doubles field — different concept, please use
+a distinct column/param name to avoid confusion, e.g. `scoring_format` vs
+existing `format`). Required on `POST /api/challenges` (pick a sensible
+default, e.g. `best_of_three_sets`, for any create path that doesn't send
+it — including any legacy client). Returned on the challenge detail/list
+responses so the evaluation screen knows which UI to render.
+
+### Result submission — new shape
+The client already computes the match winner itself today (comparing
+games) and submits it explicitly — that doesn't change. What changes is
+the score payload on the existing "submit evaluation" endpoint: replace
+flat `my_games_won`/`opponent_games_won` with a `sets` array, plus an
+optional match-deciding tiebreak:
+
+```json
+{
+  "skip_score": false,
+  "sets": [
+    { "my_games": 6, "opponent_games": 4, "tiebreak": null },
+    { "my_games": 6, "opponent_games": 6, "tiebreak": { "my_points": 7, "opponent_points": 3 } }
+  ],
+  "super_tiebreak": null,
+  "winner_user_id": 12
+}
+```
+
+- `sets` (array, required unless `skip_score`): 1 entry for `pro_set_9`,
+  2–2 for `two_sets_super_tiebreak` (always exactly 2 — the decider is
+  `super_tiebreak`, not a 3rd set entry), 2–3 for `best_of_three_sets`.
+- Each set: `my_games`/`opponent_games` (int), `tiebreak` (null unless
+  that set reached the trigger score for its format — 6-6 for a normal
+  set, 8-8 for the `pro_set_9` single set) — `{ "my_points": int,
+  "opponent_points": int }`.
+- `super_tiebreak` (nullable object, same shape as a set's `tiebreak`):
+  only present for `pro_set_9` (always, as the match itself is decided
+  this way if games reach 8-8) and `two_sets_super_tiebreak` (only if sets
+  split 1-1). Always `null` for `best_of_three_sets`.
+- Validate set counts/tiebreak presence against the challenge's
+  `scoring_format` — reject with `422` if the shape doesn't match the
+  rules above (e.g. a 3rd set submitted for `two_sets_super_tiebreak`).
+
+### Result retrieval — same fields, plus a display label
+`GET` responses for the result should echo back `sets`/`super_tiebreak`
+as submitted, and continue computing `score_label` (existing field) as a
+human-readable string from them, e.g. `"6-4, 7-6(3)"` or
+`"9-8(10-5)"` for a pro-set decided by a super tiebreak — so any other
+consumer (web dashboard, notifications) doesn't need to reimplement the
+formatting.
+
+### Heads-up: this is a coordinated client+backend change
+The Flutter evaluation/approval screens currently submit/display the flat
+games pair — that client rework happens once this contract is confirmed,
+not before (shipping the new client against the old endpoint, or vice
+versa, would break score submission in production). Let me know when this
+is ready so we can sequence the release together.
+
+## 13. Pest scenarios to add
 
 - Conversation read: send 2 messages A→B, `GET /conversations` as B shows
   `unread_count: 2`; `POST /conversations/{id}/read` as B → 204 and count 0.
@@ -269,3 +362,11 @@ existing notification pipeline / `type` vocabulary from §2 — e.g. a new
   `completed` → same conversation now `is_archived: true` and
   `POST /messages` against it → `409`; a message from any of the 4 bumps
   `unread_count` for the other 3 and sums into their Mensagens badge.
+- Error localization (§11): trigger a known validation failure (e.g.
+  submit a score before `scheduled_start`) with `Accept-Language`/app
+  locale as pt-BR → response `message`/`errors.*` are in Portuguese.
+- Multi-set scoring (§12): submitting `sets` with a count/tiebreak shape
+  that doesn't match the challenge's `scoring_format` → `422`; a valid
+  `pro_set_9` submission decided by `super_tiebreak` produces a
+  `score_label` like `"9-8(10-5)"`; a `best_of_three_sets` submission
+  with only 2 sets (no split) doesn't require/accept a 3rd.
