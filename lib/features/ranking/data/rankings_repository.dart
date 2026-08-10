@@ -73,7 +73,8 @@ class RankingsRepository {
 
   Future<RankingsResponse> fetch({
     required RankingGeoScope geo,
-    double? ntrpLevel,
+    double? ntrpMin,
+    double? ntrpMax,
     required RankingGenderFilter gender,
     ChallengeFormat? format,
     String? state,
@@ -92,14 +93,17 @@ class RankingsRepository {
             name: 'Jogador ${i + 1}',
             latitude: 0,
             longitude: 0,
-            ntrpRating: ntrpLevel ?? 4.0,
+            ntrpRating: ntrpMin != null && ntrpMax != null
+                ? (ntrpMin + ntrpMax) / 2
+                : 3.0,
             gender: gender == RankingGenderFilter.female ? Gender.female : Gender.male,
           ),
         );
       });
       final segmentParts = [
         if (format != null) format.label,
-        if (ntrpLevel != null) 'NTRP ${ntrpLevel.toStringAsFixed(1)}',
+        if (ntrpMin != null && ntrpMax != null)
+          'NTRP ${ntrpMin.toStringAsFixed(1)}-${ntrpMax.toStringAsFixed(1)}',
         if (gender != RankingGenderFilter.all) gender.label,
         geo.label,
       ];
@@ -115,7 +119,8 @@ class RankingsRepository {
         '/rankings',
         queryParameters: {
           'geo': geo.value,
-          'ntrp_level': ?ntrpLevel,
+          'ntrp_min': ?ntrpMin,
+          'ntrp_max': ?ntrpMax,
           'gender': gender.value,
           'format': ?format?.value,
           'state': ?state,

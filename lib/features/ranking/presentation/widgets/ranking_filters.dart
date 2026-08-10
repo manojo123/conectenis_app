@@ -8,7 +8,8 @@ class RankingFilters {
     this.geo = RankingGeoScope.city,
     this.gender = RankingGenderFilter.all,
     this.format,
-    this.ntrpLevel,
+    this.ntrpMin,
+    this.ntrpMax,
     this.cityId,
     this.cityLabel,
   });
@@ -16,7 +17,11 @@ class RankingFilters {
   final RankingGeoScope geo;
   final RankingGenderFilter gender;
   final ChallengeFormat? format;
-  final double? ntrpLevel;
+
+  /// NTRP goes 0.0-5.0. Both null means unrestricted (both must be set
+  /// together - a range, not a single level).
+  final double? ntrpMin;
+  final double? ntrpMax;
   final int? cityId;
   final String? cityLabel;
 
@@ -24,14 +29,15 @@ class RankingFilters {
       geo != RankingGeoScope.city ||
       gender != RankingGenderFilter.all ||
       format != null ||
-      ntrpLevel != null ||
+      ntrpMin != null ||
       cityId != null;
 
   RankingFilters copyWith({
     RankingGeoScope? geo,
     RankingGenderFilter? gender,
     ChallengeFormat? format,
-    double? ntrpLevel,
+    double? ntrpMin,
+    double? ntrpMax,
     int? cityId,
     String? cityLabel,
     bool clearFormat = false,
@@ -42,7 +48,8 @@ class RankingFilters {
       geo: geo ?? this.geo,
       gender: gender ?? this.gender,
       format: clearFormat ? null : (format ?? this.format),
-      ntrpLevel: clearNtrp ? null : (ntrpLevel ?? this.ntrpLevel),
+      ntrpMin: clearNtrp ? null : (ntrpMin ?? this.ntrpMin),
+      ntrpMax: clearNtrp ? null : (ntrpMax ?? this.ntrpMax),
       cityId: clearCity ? null : (cityId ?? this.cityId),
       cityLabel: clearCity ? null : (cityLabel ?? this.cityLabel),
     );

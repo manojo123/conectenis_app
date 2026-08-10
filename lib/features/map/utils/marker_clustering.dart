@@ -73,7 +73,7 @@ List<({double lat, double lng})> spiderfyOffsets({
   required double centroidLat,
   required double centroidLng,
   required int count,
-  double radiusMeters = 20,
+  double radiusMeters = 35,
 }) {
   if (count <= 1) return [(lat: centroidLat, lng: centroidLng)];
 

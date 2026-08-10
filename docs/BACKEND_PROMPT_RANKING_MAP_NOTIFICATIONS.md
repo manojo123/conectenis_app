@@ -73,24 +73,31 @@ GET /cities?search={query}
 No pagination needed for v1 - a typeahead search should keep result sets
 small.
 
-## 4. Ranking query: make `format` and `ntrp_level` optional
+## 4. Ranking query: make `format` optional, replace `ntrp_level` with a range
 
 Today `GET /rankings` is always called with a specific `format`
-(singles/doubles) and `ntrp_level`, which narrows the leaderboard to
-"people at my exact level and format." Product wants the **default**
+(singles/doubles) and a single `ntrp_level`, which narrows the leaderboard
+to "people at my exact level and format." Product wants the **default**
 ranking view to show everyone in a city together on one leaderboard, with
-format/NTRP as opt-in filters. Please make both params optional:
+format/NTRP as opt-in filters - and NTRP itself should filter by **range**
+(e.g. "2.0 to 3.5"), not one exact value. Please change:
 
-- `format` omitted -> include all formats combined (don't filter by
-  format at all).
-- `ntrp_level` omitted -> include all levels combined.
+- `format` becomes optional - omitted means include all formats combined
+  (don't filter by format at all).
+- Replace `ntrp_level` (single value) with **`ntrp_min` and `ntrp_max`**
+  (both optional, sent together as a pair). Both omitted means include
+  all levels combined. NTRP itself is a 0.0-5.0 scale in the app's UI
+  (please confirm this matches how it's stored/validated server-side -
+  the client previously had a stray 2.0-7.0 range, which was a client
+  bug, now fixed to 0.0-5.0).
 - `gender` already supports an "all" value client-side and will
   continue to be sent - no change needed there.
 
-The client will still send these when the user explicitly picks a filter
-in the UI; the change needed is just: don't require them, and treat an
-absent value as "no restriction" rather than defaulting to some fixed
-value or erroring.
+The client will still send `format`/`ntrp_min`/`ntrp_max` when the user
+explicitly picks a filter in the UI; the change needed is: accept the new
+`ntrp_min`/`ntrp_max` pair instead of `ntrp_level`, don't require any of
+these three params, and treat their absence as "no restriction" rather
+than defaulting to some fixed value or erroring.
 
 ## 5. Duplicate-active-challenge false positive + new 2-per-type limit
 

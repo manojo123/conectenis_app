@@ -1,3 +1,4 @@
+import 'package:conectenis_app/app/shell_scaffold.dart';
 import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
@@ -358,40 +359,22 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                             ],
                           ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            if (unread > 0)
-                              GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: _markAllRead,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Text(
-                                    'Marcar lidas',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: t.accentText,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (_items.isNotEmpty)
-                              GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: _clearAll,
-                                child: Text(
-                                  'Limpar tudo',
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: t.error,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
+                        if (unread > 0) ...[
+                          CircleIconButton(
+                            icon: Symbols.done_all_rounded,
+                            color: t.accentText,
+                            onTap: _markAllRead,
+                            tooltip: 'Marcar todas como lidas',
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        if (_items.isNotEmpty)
+                          CircleIconButton(
+                            icon: Symbols.delete_sweep_rounded,
+                            color: t.error,
+                            onTap: _clearAll,
+                            tooltip: 'Limpar todas',
+                          ),
                       ],
               ),
             ),
@@ -423,6 +406,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         ),
             ),
           ],
+        ),
+      ),
+      bottomNavigationBar: AppBottomNavBar(
+        activeIndex: null,
+        onTap: (index) => context.go(
+          const ['/', '/messages', '/challenges', '/ranking', '/profile'][index],
         ),
       ),
     );

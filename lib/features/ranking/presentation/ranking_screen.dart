@@ -9,6 +9,7 @@ import 'package:conectenis_app/features/ranking/data/rankings_repository.dart';
 import 'package:conectenis_app/features/ranking/presentation/widgets/ranking_filter_sheet.dart';
 import 'package:conectenis_app/features/ranking/presentation/widgets/ranking_filters.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
+import 'package:conectenis_app/shared/models/user_profile.dart';
 import 'package:conectenis_app/shared/utils/ntrp_labels.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
@@ -46,7 +47,8 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
       final user = ref.read(authStateProvider).value;
       final response = await ref.read(rankingsRepositoryProvider).fetch(
             geo: _filters.geo,
-            ntrpLevel: _filters.ntrpLevel,
+            ntrpMin: _filters.ntrpMin,
+            ntrpMax: _filters.ntrpMax,
             gender: _filters.gender,
             format: _filters.format,
             state: _filters.geo == RankingGeoScope.state ? user?.state : null,
@@ -77,12 +79,36 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
     );
   }
 
+  /// Always-visible summary of what this ranking actually shows - e.g.
+  /// "Simples + Duplas · Jundiaí, SP · padrão" - so it's clear at a glance
+  /// which segment/filters are in effect, not just when a filter is active.
+  String _segmentDescription(UserProfile? user) {
+    final geoLabel = switch (_filters.geo) {
+      RankingGeoScope.city => _filters.cityLabel ??
+          (user?.city != null
+              ? '${user!.city}${user.state != null ? ', ${user.state}' : ''}'
+              : 'Minha cidade'),
+      RankingGeoScope.state => user?.state ?? 'Meu estado',
+      RankingGeoScope.country => 'Brasil',
+    };
+    final parts = <String>[
+      _filters.format?.label ?? 'Simples + Duplas',
+      geoLabel,
+      if (_filters.ntrpMin != null && _filters.ntrpMax != null)
+        'NTRP ${ntrpValueLabel(_filters.ntrpMin!)}-${ntrpValueLabel(_filters.ntrpMax!)}',
+      if (_filters.gender != RankingGenderFilter.all) _filters.gender.label,
+    ];
+    if (!_filters.hasActiveFilters) parts.add('padrão');
+    return parts.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final response = _response;
     final entries = response?.entries ?? [];
-    final currentUserId = ref.watch(authStateProvider).value?.id;
+    final user = ref.watch(authStateProvider).value;
+    final currentUserId = user?.id;
 
     return Scaffold(
       body: SafeArea(
@@ -121,6 +147,19 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                   const SizedBox(width: 10),
                   const NotificationBellButton(),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+              child: Text(
+                _segmentDescription(user),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: t.muted,
+                ),
               ),
             ),
             Expanded(

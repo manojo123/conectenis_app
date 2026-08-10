@@ -121,6 +121,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
+  Future<void> _recenter() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+      );
+      final target = LatLng(pos.latitude, pos.longitude);
+      if (mounted) setState(() => _center = target);
+      await _moveCamera(target, zoom: 15);
+    } catch (e) {
+      if (mounted) {
+        showToast(context, 'Não foi possível obter sua localização.');
+      }
+    }
+  }
+
   Future<void> _moveCamera(LatLng target, {double zoom = 13}) async {
     final controller = _mapController;
     if (controller == null) return;
@@ -277,7 +292,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               t: t,
               dpr: dpr,
             ),
-            onTap: () => _expandCluster(cluster.id),
+            onTap: () => _expandCluster(
+              cluster.id,
+              cluster.centroidLat,
+              cluster.centroidLng,
+            ),
           ),
         );
       }
@@ -302,9 +321,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _select();
   }
 
-  void _expandCluster(String clusterId) {
+  void _expandCluster(String clusterId, double centroidLat, double centroidLng) {
     setState(() => _expandedClusterId = clusterId);
     _rebuildMarkers();
+    // The spiderfy fan is a fixed real-world radius - at a wide zoom it's
+    // imperceptible on screen, so zoom in on the cluster to make the spread
+    // members actually distinguishable and tappable.
+    _moveCamera(LatLng(centroidLat, centroidLng), zoom: 18);
   }
 
   Future<void> _addPlace() async {
@@ -490,6 +513,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         },
                       ),
                       const Spacer(),
+                      Frosted(
+                        borderRadius: BorderRadius.circular(23),
+                        border: Border.all(color: t.border),
+                        boxShadow: t.shadow,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _recenter,
+                          child: SizedBox(
+                            width: 46,
+                            height: 46,
+                            child: Icon(Symbols.my_location_rounded,
+                                size: 20, color: t.muted),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       Frosted(
                         borderRadius: BorderRadius.circular(23),
                         border: Border.all(color: t.border),

@@ -22,15 +22,26 @@ class ShellScaffold extends StatelessWidget {
       // pads its scroll content by kNavBarHeight.
       extendBody: false,
       body: SafeArea(bottom: false, child: navigationShell),
-      bottomNavigationBar: _CtNavBar(shell: navigationShell),
+      bottomNavigationBar: AppBottomNavBar(
+        activeIndex: navigationShell.currentIndex,
+        onTap: (index) => navigationShell.goBranch(
+          index,
+          initialLocation: index == navigationShell.currentIndex,
+        ),
+      ),
     );
   }
 }
 
-class _CtNavBar extends ConsumerWidget {
-  const _CtNavBar({required this.shell});
+/// The bottom nav bar, reusable outside the shell too (e.g. Notificações,
+/// which isn't itself a tab but should still let you jump straight to one).
+/// [activeIndex] null means none of the tabs are "active" - used from
+/// screens that aren't a tab themselves.
+class AppBottomNavBar extends ConsumerWidget {
+  const AppBottomNavBar({super.key, required this.activeIndex, required this.onTap});
 
-  final StatefulNavigationShell shell;
+  final int? activeIndex;
+  final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,13 +49,13 @@ class _CtNavBar extends ConsumerWidget {
     final messages = ref.watch(unreadMessagesCountProvider).valueOrNull ?? 0;
     final challenges = ref.watch(pendingChallengesCountProvider).valueOrNull ?? 0;
 
-    // Icon, label, badge count, shell branch index.
-    final items = <(IconData, String, int, int)>[
-      (Symbols.map_rounded, 'Mapa', 0, 0),
-      (Symbols.chat_bubble_rounded, 'Mensagens', messages, 1),
-      (Symbols.sports_tennis_rounded, 'Desafios', challenges, 2),
-      (Symbols.leaderboard_rounded, 'Ranking', 0, 3),
-      (Symbols.person_rounded, 'Perfil', 0, 4),
+    // Icon, label, badge count.
+    final items = <(IconData, String, int)>[
+      (Symbols.map_rounded, 'Mapa', 0),
+      (Symbols.chat_bubble_rounded, 'Mensagens', messages),
+      (Symbols.sports_tennis_rounded, 'Desafios', challenges),
+      (Symbols.leaderboard_rounded, 'Ranking', 0),
+      (Symbols.person_rounded, 'Perfil', 0),
     ];
 
     return Frosted(
@@ -55,17 +66,14 @@ class _CtNavBar extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(6, 8, 6, 12),
           child: Row(
             children: [
-              for (final item in items)
+              for (final (index, item) in items.indexed)
                 Expanded(
                   child: _NavItem(
                     icon: item.$1,
                     label: item.$2,
                     badge: item.$3,
-                    active: shell.currentIndex == item.$4,
-                    onTap: () => shell.goBranch(
-                      item.$4,
-                      initialLocation: item.$4 == shell.currentIndex,
-                    ),
+                    active: activeIndex == index,
+                    onTap: () => onTap(index),
                   ),
                 ),
             ],

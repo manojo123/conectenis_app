@@ -34,7 +34,13 @@ class _RankingFilterSheet extends StatefulWidget {
 class _RankingFilterSheetState extends State<_RankingFilterSheet> {
   late RankingFilters _local = widget.filters;
 
-  static const _ntrpOptions = [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0];
+  // NTRP goes 0.0-5.0 - the full span means "no filter."
+  static const _ntrpFloor = 0.0;
+  static const _ntrpCeil = 5.0;
+  late RangeValues _ntrpRange = RangeValues(
+    _local.ntrpMin ?? _ntrpFloor,
+    _local.ntrpMax ?? _ntrpCeil,
+  );
 
   // Prototype scope order: Cidade · Estado · Brasil.
   static const _geoOrder = [
@@ -46,6 +52,27 @@ class _RankingFilterSheetState extends State<_RankingFilterSheet> {
   void _update(RankingFilters next) {
     setState(() => _local = next);
     widget.onChanged(next);
+  }
+
+  void _commitNtrpRange() {
+    final isFullRange =
+        _ntrpRange.start <= _ntrpFloor && _ntrpRange.end >= _ntrpCeil;
+    _update(
+      isFullRange
+          ? _local.copyWith(clearNtrp: true)
+          : _local.copyWith(ntrpMin: _ntrpRange.start, ntrpMax: _ntrpRange.end),
+    );
+  }
+
+  SliderThemeData _sliderTheme(AppTokens t) {
+    return SliderTheme.of(context).copyWith(
+      activeTrackColor: t.accent,
+      inactiveTrackColor: t.surface2,
+      thumbColor: t.accent,
+      overlayColor: t.tintAcc,
+      rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 8),
+      trackHeight: 4,
+    );
   }
 
   Future<void> _pickCity() async {
@@ -79,7 +106,10 @@ class _RankingFilterSheetState extends State<_RankingFilterSheet> {
                 if (_local.hasActiveFilters)
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => _update(const RankingFilters()),
+                    onTap: () {
+                      setState(() => _ntrpRange = const RangeValues(_ntrpFloor, _ntrpCeil));
+                      _update(const RankingFilters());
+                    },
                     child: Text(
                       'Limpar',
                       style: TextStyle(
@@ -169,19 +199,31 @@ class _RankingFilterSheetState extends State<_RankingFilterSheet> {
                   _update(_local.copyWith(gender: RankingGenderFilter.values[i])),
             ),
             const SizedBox(height: 14),
-            _label(t, 'NÍVEL'),
-            const SizedBox(height: 8),
-            ChoiceChipRow(
-              options: ['Todos', ..._ntrpOptions.map(ntrpValueLabel)],
-              selectedIndex: _local.ntrpLevel == null
-                  ? 0
-                  : _ntrpOptions.indexOf(_local.ntrpLevel!) + 1,
-              dense: true,
-              scrollable: true,
-              onSelected: (i) => _update(
-                i == 0
-                    ? _local.copyWith(clearNtrp: true)
-                    : _local.copyWith(ntrpLevel: _ntrpOptions[i - 1]),
+            Row(
+              children: [
+                _label(t, 'NÍVEL'),
+                const Spacer(),
+                Text(
+                  _ntrpRange.start <= _ntrpFloor && _ntrpRange.end >= _ntrpCeil
+                      ? 'Todos os níveis'
+                      : '${ntrpValueLabel(_ntrpRange.start)} - ${ntrpValueLabel(_ntrpRange.end)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: t.text,
+                  ),
+                ),
+              ],
+            ),
+            SliderTheme(
+              data: _sliderTheme(t),
+              child: RangeSlider(
+                min: _ntrpFloor,
+                max: _ntrpCeil,
+                divisions: 10,
+                values: _ntrpRange,
+                onChanged: (v) => setState(() => _ntrpRange = v),
+                onChangeEnd: (_) => _commitNtrpRange(),
               ),
             ),
           ],
