@@ -38,15 +38,13 @@ class _CtNavBar extends ConsumerWidget {
     final messages = ref.watch(unreadMessagesCountProvider).valueOrNull ?? 0;
     final challenges = ref.watch(pendingChallengesCountProvider).valueOrNull ?? 0;
 
-    // Icon, label, badge count, shell branch index (null => pushed route,
-    // not a persistent tab - used for Ranking, which stays a full-screen
-    // push over the shell like the other detail screens).
-    final items = <(IconData, String, int, int?)>[
+    // Icon, label, badge count, shell branch index.
+    final items = <(IconData, String, int, int)>[
       (Symbols.map_rounded, 'Mapa', 0, 0),
       (Symbols.chat_bubble_rounded, 'Mensagens', messages, 1),
       (Symbols.sports_tennis_rounded, 'Desafios', challenges, 2),
-      (Symbols.leaderboard_rounded, 'Ranking', 0, null),
-      (Symbols.person_rounded, 'Perfil', 0, 3),
+      (Symbols.leaderboard_rounded, 'Ranking', 0, 3),
+      (Symbols.person_rounded, 'Perfil', 0, 4),
     ];
 
     return Frosted(
@@ -63,13 +61,11 @@ class _CtNavBar extends ConsumerWidget {
                     icon: item.$1,
                     label: item.$2,
                     badge: item.$3,
-                    active: item.$4 != null && shell.currentIndex == item.$4,
-                    onTap: item.$4 != null
-                        ? () => shell.goBranch(
-                              item.$4!,
-                              initialLocation: item.$4 == shell.currentIndex,
-                            )
-                        : () => context.push('/ranking'),
+                    active: shell.currentIndex == item.$4,
+                    onTap: () => shell.goBranch(
+                      item.$4,
+                      initialLocation: item.$4 == shell.currentIndex,
+                    ),
                   ),
                 ),
             ],

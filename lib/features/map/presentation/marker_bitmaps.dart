@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
+import 'package:conectenis_app/features/map/utils/avatar_image_loader.dart';
 import 'package:conectenis_app/shared/models/player.dart';
+import 'package:conectenis_app/shared/utils/gravatar.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 /// Draws the prototype map pins with dart:ui Canvas - no extra dependencies.
@@ -23,7 +25,13 @@ abstract final class MarkerBitmaps {
     required AppTokens t,
     required double dpr,
   }) async {
-    final key = 'p:${p.id}:$selected:${t.bg.toARGB32()}';
+    final avatarUrl = resolveAvatarUrl(
+      avatarUrl: p.avatarUrl,
+      hasCustomAvatar: p.hasCustomAvatar,
+    );
+    final avatarImage = AvatarImageLoader.cached(avatarUrl);
+    final key =
+        'p:${p.id}:$selected:${t.bg.toARGB32()}:${avatarImage != null ? 'img' : 'none'}';
     final cached = _cache[key];
     if (cached != null) return cached;
 
@@ -42,26 +50,44 @@ abstract final class MarkerBitmaps {
       // Rim in the map background color, like the prototype's 2.5px border.
       canvas.drawCircle(center, radius + 2.5, Paint()..color = t.bg);
 
-      final gradient = avatarGradientFor(p.id);
-      canvas.drawCircle(
-        center,
-        radius,
-        Paint()
-          ..shader = gradient.createShader(
-            Rect.fromCircle(center: center, radius: radius),
-          ),
-      );
+      if (avatarImage != null) {
+        canvas.save();
+        canvas.clipPath(
+          Path()..addOval(Rect.fromCircle(center: center, radius: radius)),
+        );
+        final srcSize = avatarImage.width < avatarImage.height
+            ? avatarImage.width.toDouble()
+            : avatarImage.height.toDouble();
+        final srcRect = Rect.fromCenter(
+          center: Offset(avatarImage.width / 2, avatarImage.height / 2),
+          width: srcSize,
+          height: srcSize,
+        );
+        final dstRect = Rect.fromCircle(center: center, radius: radius);
+        canvas.drawImageRect(avatarImage, srcRect, dstRect, Paint());
+        canvas.restore();
+      } else {
+        final gradient = avatarGradientFor(p.id);
+        canvas.drawCircle(
+          center,
+          radius,
+          Paint()
+            ..shader = gradient.createShader(
+              Rect.fromCircle(center: center, radius: radius),
+            ),
+        );
 
-      _paintText(
-        canvas,
-        text: initialsFor(p.name),
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: selected ? 16 : 14,
-          fontWeight: FontWeight.w800,
-        ),
-        center: center,
-      );
+        _paintText(
+          canvas,
+          text: initialsFor(p.name),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: selected ? 16 : 14,
+            fontWeight: FontWeight.w800,
+          ),
+          center: center,
+        );
+      }
 
       // NTRP chip anchored under the circle.
       final label = p.ntrpRating.toStringAsFixed(1).replaceAll('.', ',');
@@ -149,6 +175,48 @@ abstract final class MarkerBitmaps {
           fontSize: 24,
           color: iconColor,
           fontVariations: const [ui.FontVariation('FILL', 1)],
+        ),
+        center: center,
+      );
+    });
+
+    _cache[key] = descriptor;
+    return descriptor;
+  }
+
+  /// "N here" badge for a collapsed cluster of overlapping players/places -
+  /// tapping it spiderfies the group (see MapScreen._rebuildMarkers).
+  static Future<BitmapDescriptor> cluster({
+    required int count,
+    required bool selected,
+    required AppTokens t,
+    required double dpr,
+  }) async {
+    final key = 'c:$count:$selected:${t.bg.toARGB32()}';
+    final cached = _cache[key];
+    if (cached != null) return cached;
+
+    const w = 60.0, h = 60.0;
+    final radius = selected ? 25.0 : 22.0;
+    final center = const Offset(w / 2, h / 2);
+
+    final descriptor = await _draw(w, h, dpr, (canvas) {
+      if (selected) {
+        final ring = Paint()
+          ..color = t.accent
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3;
+        canvas.drawCircle(center, radius + 4, ring);
+      }
+      canvas.drawCircle(center, radius + 2.5, Paint()..color = t.bg);
+      canvas.drawCircle(center, radius, Paint()..color = t.accent);
+      _paintText(
+        canvas,
+        text: '$count',
+        style: TextStyle(
+          color: t.onAccent,
+          fontSize: count > 9 ? 15 : 17,
+          fontWeight: FontWeight.w900,
         ),
         center: center,
       );

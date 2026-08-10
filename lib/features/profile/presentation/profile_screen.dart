@@ -243,7 +243,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _ntrpCard(AppTokens t, double ntrp, DashboardStats? stats) {
     final local = stats?.ranking.local;
     return AppCard(
-      onTap: () => context.push('/ranking'),
+      onTap: () => context.go('/ranking'),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

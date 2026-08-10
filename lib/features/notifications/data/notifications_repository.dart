@@ -76,4 +76,26 @@ class NotificationsRepository {
       throw ApiException.fromDio(e);
     }
   }
+
+  /// Backend endpoint requested but not shipped yet - see
+  /// docs/BACKEND_PROMPT_RANKING_MAP_NOTIFICATIONS.md §7.
+  Future<void> delete(String id) async {
+    if (Env.useMockApi) return;
+    try {
+      await _dio.delete('/notifications/$id');
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  /// Backend endpoint requested but not shipped yet - see
+  /// docs/BACKEND_PROMPT_RANKING_MAP_NOTIFICATIONS.md §7.
+  Future<void> deleteAll() async {
+    if (Env.useMockApi) return;
+    try {
+      await _dio.delete('/notifications');
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }

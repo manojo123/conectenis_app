@@ -1,3 +1,4 @@
+import 'package:conectenis_app/core/network/api_exception.dart';
 import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +26,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   bool _loading = true;
   String? _error;
   final Set<String> _readLocally = {};
+  bool _selectMode = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -87,7 +90,123 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
+  void _exitSelectMode() {
+    setState(() {
+      _selectMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  Future<void> _markSelectedRead() async {
+    if (_selectedIds.isEmpty) return;
+    final ids = Set<String>.from(_selectedIds);
+    setState(() => _readLocally.addAll(ids));
+    _exitSelectMode();
+    try {
+      await Future.wait(
+        ids.map((id) => ref.read(notificationsRepositoryProvider).markRead(id)),
+      );
+      await ref.read(authStateProvider.notifier).refreshUser();
+    } catch (e) {
+      if (mounted) {
+        showToast(context, e is ApiException ? e.message : e.toString());
+      }
+    }
+  }
+
+  Future<void> _deleteOne(AppNotification n) async {
+    setState(() => _items = _items.where((i) => i.id != n.id).toList());
+    try {
+      await ref.read(notificationsRepositoryProvider).delete(n.id);
+      if (mounted) showToast(context, 'Notificação excluída.');
+    } catch (e) {
+      if (mounted) {
+        showToast(context, e is ApiException ? e.message : e.toString());
+        _load();
+      }
+    }
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedIds.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir notificações'),
+        content: Text('Excluir ${_selectedIds.length} notificação(ões)?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final ids = Set<String>.from(_selectedIds);
+    _exitSelectMode();
+    try {
+      await Future.wait(
+        ids.map((id) => ref.read(notificationsRepositoryProvider).delete(id)),
+      );
+      if (mounted) {
+        setState(() => _items = _items.where((i) => !ids.contains(i.id)).toList());
+      }
+    } catch (e) {
+      if (mounted) {
+        showToast(context, e is ApiException ? e.message : e.toString());
+        _load();
+      }
+    }
+  }
+
+  Future<void> _clearAll() async {
+    if (_items.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Limpar notificações'),
+        content: const Text(
+          'Excluir todas as notificações? Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Limpar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(notificationsRepositoryProvider).deleteAll();
+      if (mounted) setState(() => _items = []);
+    } catch (e) {
+      if (mounted) {
+        showToast(context, e is ApiException ? e.message : e.toString());
+      }
+    }
+  }
+
   Future<void> _open(AppNotification n) async {
+    if (_selectMode) {
+      setState(() {
+        if (_selectedIds.contains(n.id)) {
+          _selectedIds.remove(n.id);
+        } else {
+          _selectedIds.add(n.id);
+        }
+      });
+      return;
+    }
     final conversationId = n.conversationId;
     final challengeId = n.challengeId;
     final type = n.type.toLowerCase();
@@ -99,10 +218,18 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
     // ranking_up has no challenge_id - it points at the Rankings tab instead.
     if (type.contains('ranking')) {
-      context.push('/ranking');
+      context.go('/ranking');
       return;
     }
     if (challengeId != null) context.push('/challenges/$challengeId');
+  }
+
+  void _onLongPress(AppNotification n) {
+    if (_selectMode) return;
+    setState(() {
+      _selectMode = true;
+      _selectedIds.add(n.id);
+    });
   }
 
   (IconData, Color, Color) _visual(AppTokens t, String type) {
@@ -116,8 +243,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     if (lower.contains('reminder') || lower.contains('scheduled')) {
       return (Symbols.event_rounded, t.tintWarn, t.warning);
     }
+    if (lower.contains('declined') || lower.contains('cancelled')) {
+      return (Symbols.cancel_rounded, t.tintErr, t.error);
+    }
     if (lower.contains('evaluation') || lower.contains('result')) {
-      return (Symbols.rate_review_rounded, t.tintErr, t.error);
+      return (Symbols.rate_review_rounded, t.tintWarn, t.warning);
     }
     if (lower.contains('ranking')) {
       return (Symbols.trending_up_rounded, t.tintSucc, t.success);
@@ -171,50 +301,98 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  CircleIconButton(
-                    icon: Symbols.arrow_back_rounded,
-                    onTap: () => context.pop(),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Notificações',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                            color: t.text,
+                children: _selectMode
+                    ? [
+                        CircleIconButton(
+                          icon: Symbols.close_rounded,
+                          onTap: _exitSelectMode,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            '${_selectedIds.length} selecionada(s)',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: t.text,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          unread > 0 ? '$unread não lidas' : 'Tudo em dia',
-                          style: TextStyle(fontSize: 12.5, color: t.muted),
+                        CircleIconButton(
+                          icon: Symbols.done_all_rounded,
+                          onTap: _selectedIds.isEmpty ? null : _markSelectedRead,
+                          tooltip: 'Marcar como lida',
+                        ),
+                        const SizedBox(width: 8),
+                        CircleIconButton(
+                          icon: Symbols.delete_rounded,
+                          color: _selectedIds.isEmpty ? t.disabled : t.error,
+                          onTap: _selectedIds.isEmpty ? null : _deleteSelected,
+                          tooltip: 'Excluir',
+                        ),
+                      ]
+                    : [
+                        CircleIconButton(
+                          icon: Symbols.arrow_back_rounded,
+                          onTap: () => context.pop(),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Notificações',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5,
+                                  color: t.text,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                unread > 0 ? '$unread não lidas' : 'Tudo em dia',
+                                style: TextStyle(fontSize: 12.5, color: t.muted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (unread > 0)
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _markAllRead,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text(
+                                    'Marcar lidas',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: t.accentText,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (_items.isNotEmpty)
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _clearAll,
+                                child: Text(
+                                  'Limpar tudo',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: t.error,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ],
-                    ),
-                  ),
-                  if (unread > 0)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _markAllRead,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'Marcar lidas',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: t.accentText,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
               ),
             ),
             Expanded(
@@ -253,86 +431,136 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Widget _row(AppTokens t, AppNotification n) {
     final (icon, tint, color) = _visual(t, n.type);
     final unread = _isUnread(n);
-    return Padding(
+    final selected = _selectedIds.contains(n.id);
+
+    final card = Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: PressableScale(
         scale: 0.985,
         onTap: () => _open(n),
-        child: Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            color: t.surface,
-            border: Border.all(color: t.border),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: tint,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(icon, size: 21, fill: 1, color: color),
+        child: GestureDetector(
+          onLongPress: () => _onLongPress(n),
+          child: Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: t.surface,
+              border: Border.all(
+                color: selected ? t.accent : t.border,
+                width: selected ? 1.5 : 1,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            _title(n.type),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight:
-                                  unread ? FontWeight.w800 : FontWeight.w600,
-                              color: t.text,
-                            ),
+                    Container(
+                      width: 42,
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: tint,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(icon, size: 21, fill: 1, color: color),
+                    ),
+                    if (_selectMode)
+                      Positioned.fill(
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? t.accent.withValues(alpha: 0.75)
+                                : Colors.black.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: Icon(
+                            selected
+                                ? Symbols.check_rounded
+                                : Symbols.circle_rounded,
+                            size: 20,
+                            weight: 700,
+                            color: selected ? t.onAccent : Colors.white70,
                           ),
                         ),
-                        if (unread) ...[
-                          const SizedBox(width: 7),
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: t.accent,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    if (n.message.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        n.message,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12.5, color: t.muted, height: 1.5),
                       ),
-                    ],
-                    const SizedBox(height: 4),
-                    Text(
-                      _relativeTime(n.createdAt),
-                      style: TextStyle(fontSize: 11, color: t.disabled),
-                    ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              _title(n.type),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight:
+                                    unread ? FontWeight.w800 : FontWeight.w600,
+                                color: t.text,
+                              ),
+                            ),
+                          ),
+                          if (unread) ...[
+                            const SizedBox(width: 7),
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: t.accent,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (n.message.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          n.message,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 12.5, color: t.muted, height: 1.5),
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      Text(
+                        _relativeTime(n.createdAt),
+                        style: TextStyle(fontSize: 11, color: t.disabled),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+
+    if (_selectMode) return card;
+
+    return Dismissible(
+      key: ValueKey(n.id),
+      direction: DismissDirection.horizontal,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: t.error,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Icon(Symbols.delete_rounded, color: Colors.white),
+      ),
+      onDismissed: (_) => _deleteOne(n),
+      child: card,
     );
   }
 }

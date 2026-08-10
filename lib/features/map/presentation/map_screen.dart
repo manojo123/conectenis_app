@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +15,8 @@ import 'package:conectenis_app/features/chat/data/chat_repository.dart';
 import 'package:conectenis_app/features/chat/presentation/chat_thread_screen.dart';
 import 'package:conectenis_app/features/location/location_sync_controller.dart';
 import 'package:conectenis_app/features/map/presentation/marker_bitmaps.dart';
+import 'package:conectenis_app/features/map/utils/avatar_image_loader.dart';
+import 'package:conectenis_app/features/map/utils/marker_clustering.dart';
 import 'package:conectenis_app/features/places/data/places_repository.dart';
 import 'package:conectenis_app/features/players/data/players_repository.dart';
 import 'package:conectenis_app/shared/models/conversation.dart';
@@ -20,6 +24,7 @@ import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/models/nearby_court.dart';
 import 'package:conectenis_app/shared/models/place.dart';
 import 'package:conectenis_app/shared/models/player.dart';
+import 'package:conectenis_app/shared/utils/gravatar.dart';
 import 'package:conectenis_app/shared/utils/ntrp_labels.dart';
 import 'package:conectenis_app/shared/widgets/app_toast.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
@@ -49,6 +54,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   MapFilter _mode = MapFilter.players;
   Player? _selectedPlayer;
   Place? _selectedPlace;
+
+  /// Id of the cluster (if any) currently spiderfied open - see
+  /// lib/features/map/utils/marker_clustering.dart.
+  String? _expandedClusterId;
   Set<Marker> _markers = {};
   String? _darkStyle;
   String? _lightStyle;
@@ -137,8 +146,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _places = results[1] as List<Place>;
         _loading = false;
         _error = null;
+        _expandedClusterId = null;
       });
       await _rebuildMarkers();
+      unawaited(_prefetchAvatars());
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -148,6 +159,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
+  /// Fetches avatars for the currently visible players once (batched, not
+  /// one rebuild per image) so markers upgrade from initials to photos
+  /// without a rebuild storm. Markers already rendered with fallbacks by
+  /// the time this resolves - this is a pure visual upgrade.
+  Future<void> _prefetchAvatars() async {
+    final urls = _players
+        .map((p) => resolveAvatarUrl(
+              avatarUrl: p.avatarUrl,
+              hasCustomAvatar: p.hasCustomAvatar,
+            ))
+        .where((url) => url.isNotEmpty)
+        .toSet();
+    if (urls.isEmpty) return;
+    await Future.wait(urls.map(AvatarImageLoader.prefetch));
+    if (mounted) await _rebuildMarkers();
+  }
+
   Future<void> _rebuildMarkers() async {
     if (!_mapsSupported || !mounted) return;
     final t = context.t;
@@ -155,57 +183,128 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final markers = <Marker>{};
 
     if (_mode == MapFilter.players) {
-      for (final p in _players
-          .where((p) => _hasValidCoordinates(p.latitude, p.longitude))) {
-        final selected = _selectedPlayer?.id == p.id;
-        markers.add(
-          Marker(
-            markerId: MarkerId('player_${p.id}'),
-            position: LatLng(p.latitude, p.longitude),
-            zIndexInt: selected ? 10 : 0,
-            anchor: const Offset(0.5, 0.5),
-            icon: await MarkerBitmaps.player(
-                p: p, selected: selected, t: t, dpr: dpr),
-            onTap: () => _select(player: p),
-          ),
-        );
-      }
+      await _addClusteredMarkers<Player>(
+        markers: markers,
+        items: _visiblePlayers,
+        latOf: (p) => p.latitude,
+        lngOf: (p) => p.longitude,
+        idOf: (p) => 'player_${p.id}',
+        isSelected: (p) => _selectedPlayer?.id == p.id,
+        iconBuilder: (p, selected) =>
+            MarkerBitmaps.player(p: p, selected: selected, t: t, dpr: dpr),
+        onTapItem: (p) => _select(player: p),
+        t: t,
+        dpr: dpr,
+      );
     } else {
-      for (final q in _places
-          .where((p) => _hasValidCoordinates(p.latitude, p.longitude))) {
-        final selected = _selectedPlace?.id == q.id;
+      await _addClusteredMarkers<Place>(
+        markers: markers,
+        items: _visiblePlaces,
+        latOf: (p) => p.latitude,
+        lngOf: (p) => p.longitude,
+        idOf: (p) => 'place_${p.id}',
+        isSelected: (p) => _selectedPlace?.id == p.id,
+        iconBuilder: (p, selected) => MarkerBitmaps.place(
+          id: p.id,
+          selected: selected,
+          t: t,
+          dpr: dpr,
+          isOwn: p.isOwner,
+        ),
+        onTapItem: (p) => _select(place: p),
+        t: t,
+        dpr: dpr,
+      );
+    }
+    if (mounted) setState(() => _markers = markers);
+  }
+
+  /// Groups [items] by proximity and adds one marker per singleton/expanded
+  /// member, or one count-badge marker per collapsed cluster - see
+  /// lib/features/map/utils/marker_clustering.dart.
+  Future<void> _addClusteredMarkers<T>({
+    required Set<Marker> markers,
+    required List<T> items,
+    required double Function(T) latOf,
+    required double Function(T) lngOf,
+    required String Function(T) idOf,
+    required bool Function(T) isSelected,
+    required Future<BitmapDescriptor> Function(T item, bool selected) iconBuilder,
+    required void Function(T item) onTapItem,
+    required AppTokens t,
+    required double dpr,
+  }) async {
+    final clusters = clusterByProximity<T>(
+      items: items,
+      latOf: latOf,
+      lngOf: lngOf,
+      idOf: idOf,
+    );
+    for (final cluster in clusters) {
+      if (cluster.members.length == 1 || cluster.id == _expandedClusterId) {
+        final offsets = cluster.members.length == 1
+            ? [(lat: cluster.centroidLat, lng: cluster.centroidLng)]
+            : spiderfyOffsets(
+                centroidLat: cluster.centroidLat,
+                centroidLng: cluster.centroidLng,
+                count: cluster.members.length,
+              );
+        for (var i = 0; i < cluster.members.length; i++) {
+          final item = cluster.members[i];
+          final selected = isSelected(item);
+          final pos = offsets[i];
+          markers.add(
+            Marker(
+              markerId: MarkerId(idOf(item)),
+              position: LatLng(pos.lat, pos.lng),
+              zIndexInt: selected ? 10 : 0,
+              anchor: const Offset(0.5, 0.5),
+              icon: await iconBuilder(item, selected),
+              onTap: () => onTapItem(item),
+            ),
+          );
+        }
+      } else {
         markers.add(
           Marker(
-            markerId: MarkerId('place_${q.id}'),
-            position: LatLng(q.latitude, q.longitude),
-            zIndexInt: selected ? 10 : 0,
+            markerId: MarkerId('cluster_${cluster.id}'),
+            position: LatLng(cluster.centroidLat, cluster.centroidLng),
+            zIndexInt: 5,
             anchor: const Offset(0.5, 0.5),
-            icon: await MarkerBitmaps.place(
-              id: q.id,
-              selected: selected,
+            icon: await MarkerBitmaps.cluster(
+              count: cluster.members.length,
+              selected: false,
               t: t,
               dpr: dpr,
-              isOwn: q.isOwner,
             ),
-            onTap: () => _select(place: q),
+            onTap: () => _expandCluster(cluster.id),
           ),
         );
       }
     }
-    if (mounted) setState(() => _markers = markers);
   }
 
   void _select({Player? player, Place? place}) {
     setState(() {
       _selectedPlayer = player;
       _selectedPlace = place;
+      _expandedClusterId = null;
     });
     _rebuildMarkers();
   }
 
   void _clearSelection() {
-    if (_selectedPlayer == null && _selectedPlace == null) return;
+    if (_selectedPlayer == null &&
+        _selectedPlace == null &&
+        _expandedClusterId == null) {
+      return;
+    }
     _select();
+  }
+
+  void _expandCluster(String clusterId) {
+    setState(() => _expandedClusterId = clusterId);
+    _rebuildMarkers();
   }
 
   Future<void> _addPlace() async {
@@ -385,6 +484,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                 i == 0 ? MapFilter.players : MapFilter.places;
                             _selectedPlayer = null;
                             _selectedPlace = null;
+                            _expandedClusterId = null;
                           });
                           _rebuildMarkers();
                         },

@@ -6,14 +6,14 @@ import 'package:conectenis_app/core/theme/app_tokens.dart';
 import 'package:conectenis_app/core/theme/layout.dart';
 import 'package:conectenis_app/features/auth/providers/auth_provider.dart';
 import 'package:conectenis_app/features/ranking/data/rankings_repository.dart';
+import 'package:conectenis_app/features/ranking/presentation/widgets/ranking_filter_sheet.dart';
+import 'package:conectenis_app/features/ranking/presentation/widgets/ranking_filters.dart';
 import 'package:conectenis_app/shared/models/enums.dart';
 import 'package:conectenis_app/shared/utils/ntrp_labels.dart';
-import 'package:conectenis_app/shared/widgets/chip_row.dart';
 import 'package:conectenis_app/shared/widgets/empty_state.dart';
 import 'package:conectenis_app/shared/widgets/error_view.dart';
 import 'package:conectenis_app/shared/widgets/loading_view.dart';
 import 'package:conectenis_app/shared/widgets/screen_header.dart';
-import 'package:conectenis_app/shared/widgets/segmented_tabs.dart';
 import 'package:conectenis_app/shared/widgets/user_avatar.dart';
 
 class RankingScreen extends ConsumerStatefulWidget {
@@ -24,46 +24,17 @@ class RankingScreen extends ConsumerStatefulWidget {
 }
 
 class _RankingScreenState extends ConsumerState<RankingScreen> {
-  RankingGeoScope _geo = RankingGeoScope.city;
-  RankingGenderFilter _gender = RankingGenderFilter.all;
-  ChallengeFormat _format = ChallengeFormat.singles;
-  double _ntrpLevel = 4.0;
+  RankingFilters _filters = const RankingFilters();
   RankingsResponse? _response;
   bool _loading = true;
   String? _error;
-
-  static const _ntrpOptions = [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0];
-
-  // Prototype scope order: Cidade · Estado · Brasil.
-  static const _geoOrder = [
-    RankingGeoScope.city,
-    RankingGeoScope.state,
-    RankingGeoScope.country,
-  ];
 
   static const _medals = [Color(0xFFE8B931), Color(0xFFB9C2D6), Color(0xFFC77B4A)];
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initFromProfile());
-  }
-
-  void _initFromProfile() {
-    final user = ref.read(authStateProvider).value;
-    if (user != null) {
-      setState(() {
-        _ntrpLevel = _nearestNtrp(user.ntrpRating);
-        _gender = RankingGenderFilter.fromUserGender(user.gender);
-      });
-    }
     _load();
-  }
-
-  double _nearestNtrp(double value) {
-    return _ntrpOptions.reduce(
-      (a, b) => (a - value).abs() <= (b - value).abs() ? a : b,
-    );
   }
 
   Future<void> _load() async {
@@ -74,12 +45,14 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
     try {
       final user = ref.read(authStateProvider).value;
       final response = await ref.read(rankingsRepositoryProvider).fetch(
-            geo: _geo,
-            ntrpLevel: _ntrpLevel,
-            gender: _gender,
-            format: _format,
-            state: _geo == RankingGeoScope.state ? user?.state : null,
-            cityId: _geo == RankingGeoScope.city ? user?.homeCityId : null,
+            geo: _filters.geo,
+            ntrpLevel: _filters.ntrpLevel,
+            gender: _filters.gender,
+            format: _filters.format,
+            state: _filters.geo == RankingGeoScope.state ? user?.state : null,
+            cityId: _filters.geo == RankingGeoScope.city
+                ? (_filters.cityId ?? user?.homeCityId)
+                : null,
           );
       setState(() {
         _response = response;
@@ -93,6 +66,17 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
     }
   }
 
+  void _openFilterSheet() {
+    showRankingFilterSheet(
+      context: context,
+      filters: _filters,
+      onChanged: (f) {
+        setState(() => _filters = f);
+        _load();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
@@ -104,71 +88,38 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const ScreenHeader(title: 'Rankings', trailing: NotificationBellButton()),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-              child: SegmentedTabs(
-                labels: _geoOrder.map((g) => g.label).toList(),
-                index: _geoOrder.indexOf(_geo),
-                onChanged: (i) {
-                  setState(() => _geo = _geoOrder[i]);
-                  _load();
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-              child: Column(
+            TabHeader(
+              title: 'Ranking',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _filterRow(
-                    t,
-                    'FORMATO',
-                    ChoiceChipRow(
-                      options:
-                          ChallengeFormat.values.map((f) => f.label).toList(),
-                      selectedIndex: ChallengeFormat.values.indexOf(_format),
-                      dense: true,
-                      scrollable: true,
-                      onSelected: (i) {
-                        setState(() => _format = ChallengeFormat.values[i]);
-                        _load();
-                      },
-                    ),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CircleIconButton(
+                        icon: Symbols.tune_rounded,
+                        color: _filters.hasActiveFilters ? t.accentText : t.muted,
+                        onTap: _openFilterSheet,
+                        tooltip: 'Filtros',
+                      ),
+                      if (_filters.hasActiveFilters)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: t.accent,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: t.bg, width: 2),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  _filterRow(
-                    t,
-                    'GÊNERO',
-                    ChoiceChipRow(
-                      options: RankingGenderFilter.values
-                          .map((g) => g.label)
-                          .toList(),
-                      selectedIndex:
-                          RankingGenderFilter.values.indexOf(_gender),
-                      dense: true,
-                      scrollable: true,
-                      onSelected: (i) {
-                        setState(
-                            () => _gender = RankingGenderFilter.values[i]);
-                        _load();
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _filterRow(
-                    t,
-                    'NÍVEL',
-                    ChoiceChipRow(
-                      options: _ntrpOptions.map(ntrpValueLabel).toList(),
-                      selectedIndex: _ntrpOptions.indexOf(_ntrpLevel),
-                      dense: true,
-                      scrollable: true,
-                      onSelected: (i) {
-                        setState(() => _ntrpLevel = _ntrpOptions[i]);
-                        _load();
-                      },
-                    ),
-                  ),
+                  const SizedBox(width: 10),
+                  const NotificationBellButton(),
                 ],
               ),
             ),
@@ -215,25 +166,6 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _filterRow(AppTokens t, String label, Widget child) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 62,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: t.disabled,
-            ),
-          ),
-        ),
-        Expanded(child: child),
-      ],
     );
   }
 

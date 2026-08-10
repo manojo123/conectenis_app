@@ -182,7 +182,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/achievements', builder: (_, _) => const AchievementsScreen()),
-      GoRoute(path: '/ranking', builder: (_, _) => const RankingScreen()),
       GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
       GoRoute(path: '/profile/edit', builder: (_, _) => const EditProfileScreen()),
       StatefulShellRoute.indexedStack(
@@ -219,6 +218,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [GoRoute(path: '/challenges', builder: (_, _) => const ChallengesWallScreen())],
+          ),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/ranking', builder: (_, _) => const RankingScreen())],
           ),
           StatefulShellBranch(
             routes: [GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen())],

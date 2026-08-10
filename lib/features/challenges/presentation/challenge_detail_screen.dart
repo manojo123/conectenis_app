@@ -177,7 +177,9 @@ class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
               trailing: c.canEditAsCreator && isCreator
                   ? CircleIconButton(
                       icon: Symbols.edit_rounded,
-                      onTap: () => context.push('/challenges/${c.id}/edit'),
+                      onTap: () => context
+                          .push('/challenges/${c.id}/edit')
+                          .then((_) => _load()),
                       tooltip: 'Editar',
                     )
                   : null,
