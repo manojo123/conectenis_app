@@ -65,6 +65,26 @@ List<MarkerCluster<T>> clusterByProximity<T>({
   return clusters;
 }
 
+/// Ground distance (meters) covered by one screen pixel at [zoom], using
+/// the standard Web Mercator ground-resolution formula Google Maps' zoom
+/// levels are defined against. Lets us size the spiderfy fan in *screen*
+/// space (so it always reads clearly, at any zoom) while still working
+/// with the lat/lng offsets the Maps SDK needs.
+double metersPerPixel(double latitude, double zoom) {
+  final latRad = latitude * math.pi / 180;
+  return 156543.03392 * math.cos(latRad).abs() / math.pow(2, zoom);
+}
+
+/// Pixel radius to fan [count] members out to so neighboring markers land
+/// roughly [spacing] px apart on the circle (chord length = spacing).
+/// Clamped so a 2-member cluster doesn't collapse to nothing and a huge
+/// one doesn't fan off-screen.
+double spiderfyPixelRadius(int count, {double spacing = 58}) {
+  if (count <= 1) return 0;
+  final raw = spacing / (2 * math.sin(math.pi / count));
+  return raw.clamp(46.0, 140.0);
+}
+
 /// Fan-out offset positions for spiderfying an expanded cluster - evenly
 /// spaced around the centroid at [radiusMeters], using the standard
 /// small-distance lat/lng approximation (fine at this scale, no new

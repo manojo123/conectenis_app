@@ -44,7 +44,8 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
+class _MapScreenState extends ConsumerState<MapScreen>
+    with TickerProviderStateMixin {
   GoogleMapController? _mapController;
   LatLng _center = const LatLng(MockData.centerLat, MockData.centerLng);
   bool _loading = true;
@@ -58,9 +59,47 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// Id of the cluster (if any) currently spiderfied open - see
   /// lib/features/map/utils/marker_clustering.dart.
   String? _expandedClusterId;
-  Set<Marker> _markers = {};
+  Set<Marker> _staticMarkers = {};
   String? _darkStyle;
   String? _lightStyle;
+
+  /// Tracked from the map's own camera so the spiderfy fan can be sized in
+  /// screen pixels (via [metersPerPixel]) without us ever moving the camera
+  /// ourselves - see [_expandCluster].
+  double _currentZoom = 13;
+
+  /// Drives the spiderfy fan-out/fan-in: 0 = collapsed on the centroid,
+  /// 1 = fully fanned to [_FanMarkerTemplate.target]. A single controller
+  /// is enough since only one cluster animates at a time - see
+  /// [_addClusteredMarkers] and [_displayedMarkers].
+  late final AnimationController _fanController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  )
+    ..addListener(() {
+      if (mounted) setState(() {});
+    })
+    ..addStatusListener((status) {
+      // Reverse finished (tap-off/select-away): the cluster is now fully
+      // collapsed, so drop the fan and let it render as a badge again.
+      if (status == AnimationStatus.dismissed &&
+          _fanClusterId != null &&
+          _fanClusterId != _expandedClusterId) {
+        setState(() {
+          _fanClusterId = null;
+          _fanTemplates = [];
+        });
+        _rebuildMarkers();
+      }
+    });
+
+  /// Id of the cluster the fan animation is currently showing (opening,
+  /// resting open, or closing) - not necessarily the same as
+  /// [_expandedClusterId], which flips to the new target immediately while
+  /// the old cluster is still animating shut.
+  String? _fanClusterId;
+  LatLng? _fanCentroid;
+  List<_FanMarkerTemplate> _fanTemplates = [];
 
   @override
   void initState() {
@@ -72,7 +111,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void dispose() {
     _mapController?.dispose();
+    _fanController.dispose();
     super.dispose();
+  }
+
+  /// Snaps any in-flight spiderfy animation straight to closed, no
+  /// transition - for when the underlying member list is about to change
+  /// (data reload, players/places toggle) and an animated close would be
+  /// animating markers that are no longer there.
+  void _resetFan() {
+    _fanController.stop();
+    _fanController.value = 0;
+    _fanClusterId = null;
+    _fanTemplates = [];
   }
 
   Future<void> _loadMapStyles() async {
@@ -162,6 +213,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _loading = false;
         _error = null;
         _expandedClusterId = null;
+        _resetFan();
       });
       await _rebuildMarkers();
       unawaited(_prefetchAvatars());
@@ -197,6 +249,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final dpr = MediaQuery.devicePixelRatioOf(context).clamp(2.0, 4.0);
     final markers = <Marker>{};
 
+    // If the target changed away from whatever the fan is currently
+    // showing, reconcile that *before* the clustering pass below - it
+    // reads/writes _fanClusterId per cluster, so it needs to already
+    // reflect the outcome by the time that loop runs.
+    if (_fanClusterId != null && _fanClusterId != _expandedClusterId) {
+      if (_expandedClusterId != null) {
+        // Jumped straight from one expanded cluster to another - snap the
+        // old one closed rather than juggling two animations.
+        _fanController.value = 0;
+        _fanClusterId = null;
+        _fanTemplates = [];
+      } else if (_fanController.status != AnimationStatus.reverse) {
+        _fanController.reverse();
+      }
+    }
+
     if (_mode == MapFilter.players) {
       await _addClusteredMarkers<Player>(
         markers: markers,
@@ -231,12 +299,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         dpr: dpr,
       );
     }
-    if (mounted) setState(() => _markers = markers);
+    if (mounted) setState(() => _staticMarkers = markers);
   }
 
-  /// Groups [items] by proximity and adds one marker per singleton/expanded
-  /// member, or one count-badge marker per collapsed cluster - see
-  /// lib/features/map/utils/marker_clustering.dart.
+  /// Groups [items] by proximity and adds one marker per singleton member,
+  /// or one count-badge marker per collapsed cluster - see
+  /// lib/features/map/utils/marker_clustering.dart. The expanded cluster's
+  /// members are handled separately by the fan animation (see
+  /// [_fanController] and [_displayedMarkers]) rather than added here.
   Future<void> _addClusteredMarkers<T>({
     required Set<Marker> markers,
     required List<T> items,
@@ -256,29 +326,55 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       idOf: idOf,
     );
     for (final cluster in clusters) {
-      if (cluster.members.length == 1 || cluster.id == _expandedClusterId) {
-        final offsets = cluster.members.length == 1
-            ? [(lat: cluster.centroidLat, lng: cluster.centroidLng)]
-            : spiderfyOffsets(
-                centroidLat: cluster.centroidLat,
-                centroidLng: cluster.centroidLng,
-                count: cluster.members.length,
-              );
+      if (cluster.members.length == 1) {
+        final item = cluster.members.single;
+        final selected = isSelected(item);
+        markers.add(
+          Marker(
+            markerId: MarkerId(idOf(item)),
+            position: LatLng(cluster.centroidLat, cluster.centroidLng),
+            zIndexInt: selected ? 10 : 0,
+            anchor: const Offset(0.5, 0.5),
+            icon: await iconBuilder(item, selected),
+            onTap: () => onTapItem(item),
+          ),
+        );
+      } else if (cluster.id == _expandedClusterId) {
+        // Freshly opened, or already resting open and just refreshing
+        // (e.g. avatars finished loading) - either way rebuild the
+        // templates the fan renders from. Only kick the animation the
+        // first time we see this cluster as the target, so a refresh
+        // while already open doesn't replay the fan-out.
+        final alreadyFanningThisCluster = _fanClusterId == cluster.id;
+        final targets = spiderfyOffsets(
+          centroidLat: cluster.centroidLat,
+          centroidLng: cluster.centroidLng,
+          count: cluster.members.length,
+          radiusMeters: spiderfyPixelRadius(cluster.members.length) *
+              metersPerPixel(cluster.centroidLat, _currentZoom),
+        );
+        final templates = <_FanMarkerTemplate>[];
         for (var i = 0; i < cluster.members.length; i++) {
           final item = cluster.members[i];
           final selected = isSelected(item);
-          final pos = offsets[i];
-          markers.add(
-            Marker(
-              markerId: MarkerId(idOf(item)),
-              position: LatLng(pos.lat, pos.lng),
-              zIndexInt: selected ? 10 : 0,
-              anchor: const Offset(0.5, 0.5),
-              icon: await iconBuilder(item, selected),
-              onTap: () => onTapItem(item),
-            ),
-          );
+          templates.add(_FanMarkerTemplate(
+            markerId: MarkerId(idOf(item)),
+            icon: await iconBuilder(item, selected),
+            zIndex: selected ? 10 : 0,
+            onTap: () => onTapItem(item),
+            target: LatLng(targets[i].lat, targets[i].lng),
+          ));
         }
+        _fanClusterId = cluster.id;
+        _fanCentroid = LatLng(cluster.centroidLat, cluster.centroidLng);
+        _fanTemplates = templates;
+        if (!alreadyFanningThisCluster) {
+          _fanController.forward(from: 0);
+        }
+      } else if (cluster.id == _fanClusterId) {
+        // Mid fan-in/fan-out for a cluster that's no longer the target
+        // (closing) - leave the existing templates alone, the animation
+        // ticker is already driving it via _displayedMarkers.
       } else {
         markers.add(
           Marker(
@@ -292,15 +388,36 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               t: t,
               dpr: dpr,
             ),
-            onTap: () => _expandCluster(
-              cluster.id,
-              cluster.centroidLat,
-              cluster.centroidLng,
-            ),
+            onTap: () => _expandCluster(cluster.id),
           ),
         );
       }
     }
+  }
+
+  /// The fanned cluster's members, interpolated between the centroid and
+  /// their spiderfied target positions by the current animation value -
+  /// merged over the static marker set for rendering.
+  Set<Marker> get _displayedMarkers {
+    final centroid = _fanCentroid;
+    if (_fanTemplates.isEmpty || centroid == null) return _staticMarkers;
+    final t = Curves.easeOutCubic.transform(_fanController.value);
+    return {
+      ..._staticMarkers,
+      for (final tpl in _fanTemplates)
+        Marker(
+          markerId: tpl.markerId,
+          position: LatLng(
+            centroid.latitude + (tpl.target.latitude - centroid.latitude) * t,
+            centroid.longitude +
+                (tpl.target.longitude - centroid.longitude) * t,
+          ),
+          zIndexInt: tpl.zIndex,
+          anchor: const Offset(0.5, 0.5),
+          icon: tpl.icon,
+          onTap: tpl.onTap,
+        ),
+    };
   }
 
   void _select({Player? player, Place? place}) {
@@ -321,13 +438,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _select();
   }
 
-  void _expandCluster(String clusterId, double centroidLat, double centroidLng) {
+  void _expandCluster(String clusterId) {
     setState(() => _expandedClusterId = clusterId);
     _rebuildMarkers();
-    // The spiderfy fan is a fixed real-world radius - at a wide zoom it's
-    // imperceptible on screen, so zoom in on the cluster to make the spread
-    // members actually distinguishable and tappable.
-    _moveCamera(LatLng(centroidLat, centroidLng), zoom: 18);
   }
 
   Future<void> _addPlace() async {
@@ -434,11 +547,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             initialCameraPosition:
                                 CameraPosition(target: _center, zoom: 13),
                             style: isDark ? _darkStyle : _lightStyle,
-                            markers: _markers,
+                            markers: _displayedMarkers,
                             myLocationEnabled: true,
                             myLocationButtonEnabled: false,
                             zoomControlsEnabled: false,
                             onTap: (_) => _clearSelection(),
+                            onCameraMove: (position) =>
+                                _currentZoom = position.zoom,
+                            onCameraIdle: () {
+                              // A cluster's spiderfy fan is sized in screen
+                              // pixels off `_currentZoom` - if the user
+                              // zoomed while one was open, re-fan it so the
+                              // spacing still matches the new zoom.
+                              if (_expandedClusterId != null) {
+                                _rebuildMarkers();
+                              }
+                            },
                             onMapCreated: (controller) {
                               _mapController = controller;
                               _moveCamera(_center);
@@ -508,6 +632,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             _selectedPlayer = null;
                             _selectedPlace = null;
                             _expandedClusterId = null;
+                            _resetFan();
                           });
                           _rebuildMarkers();
                         },
@@ -627,6 +752,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ),
     );
   }
+}
+
+/// Everything [_MapScreenState._displayedMarkers] needs to draw one member
+/// of a fanning cluster at an interpolated position each frame, without
+/// re-running the (async) icon builder or re-resolving its tap callback.
+class _FanMarkerTemplate {
+  const _FanMarkerTemplate({
+    required this.markerId,
+    required this.icon,
+    required this.zIndex,
+    required this.onTap,
+    required this.target,
+  });
+
+  final MarkerId markerId;
+  final BitmapDescriptor icon;
+  final int zIndex;
+  final VoidCallback onTap;
+  final LatLng target;
 }
 
 class _PlayerSheetCard extends StatelessWidget {
