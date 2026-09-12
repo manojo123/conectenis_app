@@ -60,6 +60,17 @@ class _ChallengeApproveEvaluationScreenState
     }
   }
 
+  // `context.go` replaces the whole navigator stack, leaving the back button
+  // dead on the detail screen it lands on - `pop` back to it (this screen is
+  // always reached via `push`) so the stack, and the back button, stay intact.
+  void _backToDetail() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/challenges/${widget.challengeId}');
+    }
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -69,7 +80,7 @@ class _ChallengeApproveEvaluationScreenState
       final challenge = await ref.read(challengesRepositoryProvider).byId(widget.challengeId);
       if (!mounted) return;
       if (!challenge.canApproveResult) {
-        context.go('/challenges/${widget.challengeId}');
+        _backToDetail();
         return;
       }
       final userId = ref.read(authStateProvider).value?.id;
@@ -157,7 +168,7 @@ class _ChallengeApproveEvaluationScreenState
       if (!mounted) return;
       bumpChallengesRefresh(ref);
       showToast(context, 'Aprovação e avaliação registradas.');
-      context.go('/challenges/${widget.challengeId}');
+      _backToDetail();
     } catch (e) {
       if (mounted) showToast(context, e.toString());
     } finally {

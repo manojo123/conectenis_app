@@ -106,6 +106,17 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
     }
   }
 
+  // `context.go` replaces the whole navigator stack, leaving the back button
+  // dead on the detail screen it lands on - `pop` back to it (this screen is
+  // always reached via `push`) so the stack, and the back button, stay intact.
+  void _backToDetail() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/challenges/${widget.challengeId}');
+    }
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -115,7 +126,7 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
       final challenge = await ref.read(challengesRepositoryProvider).byId(widget.challengeId);
       if (!mounted) return;
       if (challenge.hasProposedResult || !challenge.canSubmitResult) {
-        context.go('/challenges/${widget.challengeId}');
+        _backToDetail();
         return;
       }
       final userId = ref.read(authStateProvider).value?.id;
@@ -356,12 +367,12 @@ class _ChallengeEvaluationScreenState extends ConsumerState<ChallengeEvaluationS
         context,
         'Resultado informado. Aguardando aprovação dos outros participantes.',
       );
-      context.go('/challenges/${widget.challengeId}');
+      _backToDetail();
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.statusCode == 409) {
         showToast(context, e.message);
-        context.go('/challenges/${widget.challengeId}');
+        _backToDetail();
         return;
       }
       showToast(context, e.message);

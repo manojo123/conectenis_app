@@ -78,6 +78,7 @@ class ChallengesRepository {
     required List<int> participantIds,
     int? placeId,
     String? googlePlaceId,
+    bool openLocation = false,
     required DateTime scheduledStart,
     DateTime? scheduledEnd,
     String? message,
@@ -90,6 +91,7 @@ class ChallengesRepository {
           participantIds: participantIds,
           placeId: placeId,
           googlePlaceId: googlePlaceId,
+          openLocation: openLocation,
           scheduledStart: scheduledStart,
           scheduledEnd: scheduledEnd,
         );
@@ -102,6 +104,7 @@ class ChallengesRepository {
           'participant_ids': participantIds,
           'place_id': ?placeId,
           'google_place_id': ?googlePlaceId,
+          'open_location': openLocation,
           'scheduled_start': scheduledStart.toIso8601String(),
           if (scheduledEnd != null) 'scheduled_end': scheduledEnd.toIso8601String(),
           'message': ?message,

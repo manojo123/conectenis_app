@@ -122,6 +122,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
   String _timeLabel(DateTime? time) {
     if (time == null) return '';
+    time = time.toLocal();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(time.year, time.month, time.day);

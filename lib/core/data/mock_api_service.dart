@@ -616,6 +616,7 @@ class MockApiService {
     required List<int> participantIds,
     int? placeId,
     String? googlePlaceId,
+    bool openLocation = false,
     required DateTime scheduledStart,
     DateTime? scheduledEnd,
   }) async {
@@ -650,6 +651,7 @@ class MockApiService {
       scheduledEnd: scheduledEnd,
       creator: me,
       creatorTeam: 1,
+      openLocation: openLocation,
       place: place,
       participants: opponents
           .map(

@@ -50,3 +50,7 @@ app.*.map.json
 /android/key.properties
 *.jks
 *.keystore
+
+# Google Play service-account key — never commit
+**/play-service-account*.json
+play-service-account*.json

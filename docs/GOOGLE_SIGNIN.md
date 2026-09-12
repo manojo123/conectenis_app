@@ -73,7 +73,18 @@ Each Android OAuth client is one **(package name, SHA-1)** pair, so create
 | Build | Keystore | SHA-1 (this machine, ago/2026) |
 |---|---|---|
 | `flutter run` (debug) | `%USERPROFILE%\.android\debug.keystore` | `E7:90:E6:3A:AD:0E:7C:A3:64:5F:B2:A0:27:23:3B:E3:53:E2:BB:70` |
-| Release APK (testers) | `C:/Users/Jorge Moura/conectenis-upload.jks` | `FF:27:B2:81:BF:34:5C:0F:E4:DF:D0:00:AF:11:07:71:7F:9B:02:E4` |
+| Local release APK/AAB (upload key) | `C:/Users/Jorge Moura/conectenis-upload.jks` | `FF:27:B2:81:BF:34:5C:0F:E4:DF:D0:00:AF:11:07:71:7F:9B:02:E4` |
+| **Installed from Google Play** (Play App Signing key) | managed by Google | `BC:C8:CC:2D:8C:3C:17:B0:13:DF:FA:29:D6:22:F1:AF:C4:80:E5:4D` (SHA-256 `3A:95:30:31:98:1C:93:BD:FC:14:52:1F:F5:D5:29:39:05:D9:D9:6D:54:BC:D4:C1:29:B4:62:C9:8E:46:47:B2`) — also in Play Console → Setup → App integrity → App signing |
+
+> ⚠️ Apps distributed through Google Play (internal testing included) are
+> **re-signed by Google with the Play App Signing key**, whose SHA-1 differs from
+> the upload key above. A build installed from Play therefore fails Google Sign-In
+> with `ApiException: 10` until an Android OAuth client is registered for
+> `br.com.conectenis.app` + the **App signing key certificate** SHA-1 (and
+> SHA-256). Find both fingerprints in
+> **Play Console → Test and release → Setup → App integrity → App signing**.
+> Add the same pair to the Maps API key restrictions or map tiles go blank in the
+> Play build.
 
 To regenerate the fingerprints:
 
@@ -168,7 +179,7 @@ flutter run
 |--------|-----|
 | Snackbar “configure GOOGLE_OAUTH_WEB_CLIENT_ID” | Add Web Client ID to Flutter `.env`, restart app |
 | `PlatformException` / sign-in failed on Android | Wrong package name or missing/wrong **SHA-1** on Android OAuth client |
-| `ApiException: 10` (DEVELOPER_ERROR) | Android OAuth client doesn't match the installed APK — register `br.com.conectenis.app` with the debug **and** upload SHA-1s (section 4) |
+| `ApiException: 10` (DEVELOPER_ERROR) | Android OAuth client doesn't match the installed build — register `br.com.conectenis.app` with the debug, upload, **and Play App Signing** SHA-1s (section 4). A build installed from Play uses the Play App Signing key, not the upload key. |
 | API 401/422 on `/auth/social/google` | `GOOGLE_CLIENT_ID`/`SECRET` in Laravel; token expired — try again |
 | No ID token | `serverClientId` must be **Web** client ID, not Android client ID |
 | “Access blocked” on consent screen | Add your Gmail under **Test users** while app is in Testing |
@@ -181,6 +192,6 @@ flutter run
 - [ ] OAuth consent screen configured + test user added
 - [ ] Web OAuth client → Laravel `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`
 - [ ] Same Web Client ID → Flutter `GOOGLE_OAUTH_WEB_CLIENT_ID`
-- [ ] Android OAuth clients with `br.com.conectenis.app` + debug SHA-1 **and** upload SHA-1
+- [ ] Android OAuth clients with `br.com.conectenis.app` + debug SHA-1, upload SHA-1, **and** Play App Signing SHA-1 (for Play-distributed builds)
 - [ ] `flutter pub get` + full app restart
 - [ ] Sail up, `USE_MOCK_API=false`

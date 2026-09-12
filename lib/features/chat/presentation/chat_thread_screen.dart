@@ -479,7 +479,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    DateFormat.Hm().format(m.createdAt),
+                    DateFormat.Hm().format(m.createdAt.toLocal()),
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,

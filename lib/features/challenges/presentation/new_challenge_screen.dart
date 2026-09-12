@@ -61,9 +61,9 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
   double _maxNtrp = 3.0;
   bool _ntrpInitialized = false;
   Set<Gender> _genderPrefs = {};
-  bool _openLocation = false;
 
   // Shared state.
+  bool _openLocation = false;
   DateTime _start =
       roundToFiveMinutes(DateTime.now().add(const Duration(days: 1)));
   DateTime _end =
@@ -156,12 +156,11 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
       if (_opponents.length < _maxOpponents) {
         return 'Duplas: escolha ${_maxOpponents - _opponents.length} adversário(s) a mais';
       }
-      if (_court == null) return 'Escolha o local da partida';
-    } else {
-      if (_publicFormats.isEmpty) return 'Selecione simples e/ou duplas';
-      if (!_openLocation && _court == null) {
-        return 'Escolha um local ou deixe em aberto';
-      }
+    } else if (_publicFormats.isEmpty) {
+      return 'Selecione simples e/ou duplas';
+    }
+    if (!_openLocation && _court == null) {
+      return 'Escolha um local ou deixe em aberto';
     }
     if (!_end.isAfter(_start)) return 'O término deve ser após o início';
     return null;
@@ -197,8 +196,9 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
           format: _format,
           scoringFormat: _scoringFormat,
           participantIds: _opponents.keys.toList(),
-          placeId: _court!.placeId,
-          googlePlaceId: _court!.googlePlaceId,
+          openLocation: _openLocation,
+          placeId: _openLocation ? null : _court?.placeId,
+          googlePlaceId: _openLocation ? null : _court?.googlePlaceId,
           scheduledStart: _start,
           scheduledEnd: _end,
           message: message.isEmpty ? null : message,
@@ -292,73 +292,73 @@ class _NewChallengeScreenState extends ConsumerState<NewChallengeScreen> {
                   const SizedBox(height: 20),
                   const SectionLabel('Local'),
                   const SizedBox(height: 9),
-                  if (!_isDirect) ...[
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => setState(() {
-                        _openLocation = !_openLocation;
-                        if (_openLocation) _court = null;
-                      }),
-                      child: Container(
-                        padding: const EdgeInsets.all(13),
-                        decoration: BoxDecoration(
-                          color: t.surface,
-                          border: Border.all(
-                            color: _openLocation ? t.accent : t.border,
-                            width: _openLocation ? 1.5 : 1,
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() {
+                      _openLocation = !_openLocation;
+                      if (_openLocation) _court = null;
+                    }),
+                    child: Container(
+                      padding: const EdgeInsets.all(13),
+                      decoration: BoxDecoration(
+                        color: t.surface,
+                        border: Border.all(
+                          color: _openLocation ? t.accent : t.border,
+                          width: _openLocation ? 1.5 : 1,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 20,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _openLocation
+                                  ? t.accent
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color:
+                                    _openLocation ? t.accent : t.disabled,
+                                width: 2,
+                              ),
+                            ),
+                            child: _openLocation
+                                ? Icon(Symbols.check_rounded,
+                                    size: 13, weight: 700, color: t.onAccent)
+                                : null,
                           ),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 20,
-                              height: 20,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _openLocation
-                                    ? t.accent
-                                    : Colors.transparent,
-                                border: Border.all(
-                                  color:
-                                      _openLocation ? t.accent : t.disabled,
-                                  width: 2,
+                          const SizedBox(width: 11),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Local em aberto',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: t.text,
+                                  ),
                                 ),
-                              ),
-                              child: _openLocation
-                                  ? Icon(Symbols.check_rounded,
-                                      size: 13, weight: 700, color: t.onAccent)
-                                  : null,
+                                Text(
+                                  _isDirect
+                                      ? 'A combinar com o adversário'
+                                      : 'A combinar com quem se candidatar',
+                                  style: TextStyle(
+                                      fontSize: 11.5, color: t.muted),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 11),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Local em aberto',
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: t.text,
-                                    ),
-                                  ),
-                                  Text(
-                                    'A combinar com quem se candidatar',
-                                    style: TextStyle(
-                                        fontSize: 11.5, color: t.muted),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                  ],
-                  if (_isDirect || !_openLocation)
+                  ),
+                  const SizedBox(height: 8),
+                  if (!_openLocation)
                     PlaceSelectField(
                       selectedCourt: _court,
                       onChanged: (court) => setState(() => _court = court),

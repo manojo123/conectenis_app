@@ -5,6 +5,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.github.triplet.play")
 }
 
 val localProperties = Properties().apply {
@@ -98,4 +99,27 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// --- Google Play publishing (Gradle Play Publisher) ---
+// Credentials are resolved, in order, from:
+//   1. `playServiceAccountJson` in android/key.properties (local, git-ignored)
+//   2. the PLAY_SERVICE_ACCOUNT_JSON environment variable
+//   3. android/play-service-account.json (git-ignored)
+// If none is found the plugin stays inert so normal builds are unaffected.
+val playCredentialsPath: String? =
+    keystoreProperties.getProperty("playServiceAccountJson")
+        ?: System.getenv("PLAY_SERVICE_ACCOUNT_JSON")
+        ?: rootProject.file("play-service-account.json").takeIf { it.exists() }?.path
+
+play {
+    if (playCredentialsPath != null && file(playCredentialsPath).exists()) {
+        serviceAccountCredentials.set(file(playCredentialsPath))
+    }
+    // Override with -Pplay.track=... (e.g. alpha, beta, production).
+    track.set(providers.gradleProperty("play.track").orElse("internal"))
+    defaultToAppBundles.set(true)
+    // Upload the artifact produced by `flutter build appbundle` instead of letting
+    // Gradle rebuild it. The deploy script passes -Pplay.artifactDir=... to enable this.
+    providers.gradleProperty("play.artifactDir").orNull?.let { artifactDir.set(file(it)) }
 }
